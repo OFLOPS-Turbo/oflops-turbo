@@ -14,7 +14,6 @@
 //include gsl to implement statistical functionalities
 #include <gsl/gsl_statistics.h>
 
-
 #include <test_module.h>
 
 #include "log.h"
@@ -58,7 +57,6 @@ int pkt_size = 1500;
 int finished = 0;
 uint32_t pkt_in_count = 0;
 int print = 0;
-
 /**
  * Some constants to help me with conversions
  */

@@ -527,7 +527,7 @@ make_ofp_port_get_stat(void **buferp) {
   headp =  (struct ofp_stats_request *)*buferp;
   headp->header.version = OFP_VERSION;
   headp->header.type = OFPT_STATS_REQUEST;
-  headp->header.length = htons(sizeof(struct ofp_stats_equest));
+  headp->header.length = htons(sizeof(struct ofp_stats_request));
   headp->type = htons(OFPST_PORT);
   return sizeof(struct ofp_stats_request);
 #elif OFP_VERSION == 0x01  

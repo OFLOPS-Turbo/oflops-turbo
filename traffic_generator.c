@@ -60,7 +60,6 @@ int
 printf_and_check(char *filename, char *msg) {
   FILE *ctrl = fopen(filename, "w");
   
-  //printf("%s >> %s\n", filename, msg);
   if(ctrl == NULL)
     perror_and_exit("failed to open file", 1);
 
@@ -183,8 +182,7 @@ read_mac_addr(uint8_t *addr, char *str) {
     i++;
     p = tmp;
   } while (p!= NULL);
-
-  fprintf(stderr, "mac %s %x:%x:%x:%x:%x:%x\n", str, addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+  //fprintf(stderr, "mac %x:%x:%x:%x:%x:%x\n", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
   return 0;
 }
 
@@ -194,8 +192,6 @@ innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det
 
   state->data = (void *)xmalloc(det->pkt_size); 
   state->data_len = det->pkt_size;
-  
-
 
   bzero((void *)state->data, state->data_len);
   if(state->data_len < sizeof(struct ether_vlan_header) + sizeof(struct iphdr) + sizeof(struct tcphdr)) {
@@ -415,7 +411,6 @@ start_pktgen_traffic_generator(oflops_context *ctx) {
 
       snprintf(buf, 5000, "count %llu", ctx->channels[ix].det->pkt_count);
       printf_and_check(intf_file, buf);
-
     }
   }
   

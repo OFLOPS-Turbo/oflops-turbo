@@ -443,7 +443,10 @@ handle_traffic_generation (oflops_context *ctx) {
   det.udp_dst_port = 8080;
   det.pkt_size = pkt_size;
   det.delay = data_snd_interval*1000;
+<<<<<<< HEAD
   strcpy(det.flags, "IPDST_RND");
+=======
+>>>>>>> Changes made to the project over summer at T LABS
   add_traffic_generator(ctx, data_send, &det);  
   
   strcpy(det.src_ip,"10.1.1.1");
@@ -459,7 +462,11 @@ handle_traffic_generation (oflops_context *ctx) {
   det.pkt_size = pkt_size;
   det.delay = probe_snd_interval*1000;
   add_traffic_generator(ctx, probe_send, &det);  
+<<<<<<< HEAD
   strcpy(det.flags, "");
+=======
+  
+>>>>>>> Changes made to the project over summer at T LABS
   start_traffic_generator(ctx);
   return 1;
 }
