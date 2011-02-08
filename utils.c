@@ -102,6 +102,7 @@ fail(const char * msg) {
 }
 
 /*
+>>>>>>> integrating work at t-labs with main code
 uint64_t
 ntohll(uint64_t val) {
   uint64_t ret = 0;
@@ -118,6 +119,7 @@ ntohll(uint64_t val) {
   return ret;
 }
 */
+
 uint16_t ip_sum_calc(uint16_t len_ip_header, uint16_t buff[]) {
   uint16_t word16;
   uint32_t sum=0;

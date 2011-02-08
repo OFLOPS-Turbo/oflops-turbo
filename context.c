@@ -36,7 +36,6 @@ oflops_context * oflops_default_context(void) {
   ctx->snmp_channel_info = malloc_and_check(sizeof(struct snmp_channel));
   ctx->snmp_channel_info->hostname = NULL;
   ctx->snmp_channel_info->community_string = NULL;
-
   ctx->channels[OFLOPS_CONTROL].raw_sock = -1;
   // initalize other channels later
 

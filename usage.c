@@ -205,7 +205,7 @@ load_config_file(oflops_context * ctx, const char *config) {
   config_t conf;
   config_setting_t *elem, *data;
   char *snmp_client, *snmp_community;
-  int i, len, argc = 0, cap_type;
+  int i, len, argc = 0;
   char cap_type_str[100];
   char *path, **argv, *in_oid = NULL, *out_oid = NULL;
 
@@ -282,7 +282,6 @@ load_config_file(oflops_context * ctx, const char *config) {
   
   if(((elem = config_lookup(&conf, "oflops.control.cpu_mib")) != NULL) && 
      (strlen( config_setting_get_string(elem)) > 0) ) {
-    
     len = strlen(config_setting_get_string(elem));
     char *data = xmalloc(len + 1);
     strcpy(data, config_setting_get_string(elem));
@@ -304,7 +303,6 @@ load_config_file(oflops_context * ctx, const char *config) {
   if((data = config_lookup(&conf, "oflops.data") ) != NULL ) {
     for (i=0; i < config_setting_length(data); i++) {
       elem = config_setting_get_elem(data, i);
-      cap_type = PCAP;
 
       if(config_setting_get_member(elem, "dev") != NULL) {
 	if(ctx->n_channels >= ctx->max_channels) {

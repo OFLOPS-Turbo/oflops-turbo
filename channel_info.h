@@ -13,7 +13,6 @@ struct channel_info;
 typedef struct channel_info {
   char * dev;
   pcap_t * pcap_handle;
-  struct nf_cap_t * nf_compicap;
   int pcap_fd;	// fd for pcap filter
   int raw_sock;	// raw ethernet accyess fd
   int sock;	// UDP socket
