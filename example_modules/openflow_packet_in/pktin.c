@@ -221,7 +221,7 @@ of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * pkti
 
   gettimeofday(&now,NULL);
 
-  pktgen = extract_pktgen_pkt(pktin->data, pktin->total_len, &fl);
+  pktgen = extract_pktgen_pkt(ctx, pktin->in_port, pktin->data, pktin->total_len, &fl);
 
   addr.s_addr = fl.nw_src;
   if(fl.tp_src != 8080) return 0;
@@ -231,10 +231,10 @@ of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * pkti
   addr.s_addr = fl.nw_dst;
   
   struct entry *n1 = xmalloc(sizeof(struct entry));
-  n1->snd.tv_sec = htonl(pktgen->tv_sec);
-  n1->snd.tv_usec = htonl(pktgen->tv_usec);
+  n1->snd.tv_sec = pktgen->tv_sec;
+  n1->snd.tv_usec = pktgen->tv_usec;
   memcpy(&n1->rcv, &now, sizeof(struct timeval));
-  n1->id = htonl(pktgen->seq_num);
+  n1->id = pktgen->seq_num;
   TAILQ_INSERT_TAIL(&head, n1, entries);
   pkt_in_count++;
     
@@ -266,9 +266,9 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
     for (i = 0; i < ctx->cpuOID_count; i++) {
       if((vars->name_length == ctx->cpuOID_len[i]) &&
 	 (memcmp(vars->name, ctx->cpuOID[i],  ctx->cpuOID_len[i] * sizeof(oid)) == 0) ) {
-	snprintf(log, len, "cpu:%d:%d:%s",
+	snprintf(log, len, "cpu:%ld:%d:%s",
 		 se->pdu->reqid, 
-		 vars->name[ vars->name_length - 1],msg);
+		 (int)vars->name[ vars->name_length - 1],msg);
 	oflops_log(now, SNMP_MSG, log);
       }
     } 
@@ -277,7 +277,7 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
       if((vars->name_length == ctx->channels[i].inOID_len) &&
 	 (memcmp(vars->name, ctx->channels[i].inOID,  
 		 ctx->channels[i].inOID_len * sizeof(oid)) == 0) ) {
-	snprintf(log, len, "port:rx:%d:%d:%s",  
+	snprintf(log, len, "port:rx:%ld:%d:%s",  
 		 se->pdu->reqid, 
 		 (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], msg);
 	oflops_log(now, SNMP_MSG, log);
@@ -287,7 +287,7 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
       if((vars->name_length == ctx->channels[i].outOID_len) &&
 	 (memcmp(vars->name, ctx->channels[i].outOID,  
 		 ctx->channels[i].outOID_len * sizeof(oid))==0) ) {
-	snprintf(log, len, "port:tx:%d:%d:%s",  
+	snprintf(log, len, "port:tx:%ld:%d:%s",  
 		 se->pdu->reqid, 
 		 (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], msg);
 	oflops_log(now, SNMP_MSG, log);

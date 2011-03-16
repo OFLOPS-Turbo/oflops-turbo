@@ -539,7 +539,7 @@ int handle_pcap_event(struct oflops_context *ctx, struct pcap_event *pe,
 		      oflops_channel_name ch) {
     if ( (ch == OFLOPS_DATA3) || (ch == OFLOPS_DATA2) || (ch == OFLOPS_DATA1)){
     struct pktgen_hdr *pktgen;
-    pktgen = extract_pktgen_pkt((unsigned char *)pe->data, pe->pcaphdr.caplen, NULL);
+    pktgen = extract_pktgen_pkt(ctx, ch, (unsigned char *)pe->data, pe->pcaphdr.caplen, NULL);
     if(pktgen == NULL) //skip non IP packets
       return 0;
 

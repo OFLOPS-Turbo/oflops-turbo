@@ -500,7 +500,7 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
     }
   } else if ((ch == OFLOPS_DATA1) || (ch == OFLOPS_DATA2) || (ch == OFLOPS_DATA3)) {
     struct flow fl;
-    pktgen = extract_pktgen_pkt(pe->data, pe->pcaphdr.caplen, &fl);
+    pktgen = extract_pktgen_pkt(ctx, ch, pe->data, pe->pcaphdr.caplen, &fl);
     if((ch == OFLOPS_DATA3) && (!first_pkt)) {
       delay_modificaton = time_diff(&true_modification, &pe->pcaphdr.ts);
       oflops_log(pe->pcaphdr.ts, GENERIC_MSG, "PACKET_NEW_PORT");
@@ -511,10 +511,10 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
       printf("data packet received %d\n", htonl(pktgen->seq_num));
     
     struct entry *n1 = malloc(sizeof(struct entry));
-    n1->snd.tv_sec = htonl(pktgen->tv_sec);
-    n1->snd.tv_usec = htonl(pktgen->tv_usec);
+    n1->snd.tv_sec = pktgen->tv_sec;
+    n1->snd.tv_usec = pktgen->tv_usec;
     memcpy(&n1->rcv, &pe->pcaphdr.ts, sizeof(struct timeval));
-    n1->id = htonl(pktgen->seq_num);
+    n1->id = pktgen->seq_num;
     n1->ch = ch;
     count[ch - 1]++;
     TAILQ_INSERT_TAIL(&head, n1, entries);

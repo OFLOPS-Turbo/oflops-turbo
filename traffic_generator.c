@@ -434,9 +434,12 @@ stop_traffic_generator() {
 
 //check here whether the pktgen format is correct
 struct pktgen_hdr *
-extract_pktgen_pkt(unsigned char *b, int len, struct flow *fl) {
+extract_pktgen_pkt( oflops_context *ctx, int port, 
+		   unsigned char *b, int len, struct flow *fl) {
   struct ether_header *ether = (struct ether_header *)b;
   struct ether_vlan_header *ether_vlan = (struct ether_vlan_header *)b;
+  struct pktgen_hdr *pktgen;
+  uint8_t *data = b;
   
   if( (ntohs(ether->ether_type) == 0x8100) && (ntohs(ether_vlan->ether_type) == 0x0800)) {
     b = b + sizeof(struct ether_vlan_header);
@@ -481,6 +484,17 @@ extract_pktgen_pkt(unsigned char *b, int len, struct flow *fl) {
   }
 
   b += sizeof(struct udphdr);
+  
+  pktgen = (struct pktgen_hdr *)b;
 
-  return (struct pktgen_hdr *)b;
+  if(ctx->channels[port].cap_type == PCAP) {
+    pktgen->tv_sec = ntohl(pktgen->tv_sec);
+    pktgen->tv_usec = ntohl(pktgen->tv_usec);
+    pktgen->seq_num = ntohl(pktgen->seq_num);
+    return pktgen;
+  } else if (ctx->channels[port].cap_type == NF2) {
+    return nf_gen_extract_header(ctx->channels[port].nf_cap, data, len);
+  } else 
+      return NULL;
 }
+

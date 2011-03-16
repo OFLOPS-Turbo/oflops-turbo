@@ -25,6 +25,9 @@ struct traf_gen_det {
   char flags[1024];
 };
 
+#ifndef PKTGEN_HDR
+
+#define PKTGEN_HDR 1
 struct pktgen_hdr {
   uint32_t magic;
   uint32_t seq_num;
@@ -32,6 +35,7 @@ struct pktgen_hdr {
   uint32_t tv_usec;
   struct timeval time;
 };
+#endif
 
 int init_traf_gen(struct oflops_context *ctx);
 int add_traffic_generator(struct oflops_context *ctx, int channel, struct traf_gen_det *det);
@@ -40,6 +44,7 @@ int stop_traffic_generator();
 
 char *report_traffic_generator(oflops_context *ctx);
 
-struct pktgen_hdr *extract_pktgen_pkt(unsigned char *b, int len, struct flow *fl);
+struct pktgen_hdr *extract_pktgen_pkt(oflops_context *ctx, int port,
+				      unsigned char *b, int len, struct flow *fl);
 
 #endif

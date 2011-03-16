@@ -540,15 +540,15 @@ int handle_pcap_event(struct oflops_context *ctx, struct pcap_event *pe,
 		      oflops_channel_name ch) {
     if ( (ch == OFLOPS_DATA3) || (ch == OFLOPS_DATA2) || (ch == OFLOPS_DATA1)){
     struct pktgen_hdr *pktgen;
-    pktgen = extract_pktgen_pkt((unsigned char *)pe->data, pe->pcaphdr.caplen, NULL);
+    pktgen = extract_pktgen_pkt(ctx, ch, (unsigned char *)pe->data, pe->pcaphdr.caplen, NULL);
     if(pktgen == NULL) //skip non IP packets
       return 0;
 
     struct entry *n1 = malloc(sizeof(struct entry));
-    n1->snd.tv_sec = htonl(pktgen->tv_sec);
-    n1->snd.tv_usec = htonl(pktgen->tv_usec);
+    n1->snd.tv_sec = pktgen->tv_sec;
+    n1->snd.tv_usec = pktgen->tv_usec;
     memcpy(&n1->rcv, &pe->pcaphdr.ts, sizeof(struct timeval));
-    n1->id = htonl(pktgen->seq_num);
+    n1->id = pktgen->seq_num;
     n1->ch = ch;
     //printf("channel %d\n", ch);
     count[ch - 1]++;

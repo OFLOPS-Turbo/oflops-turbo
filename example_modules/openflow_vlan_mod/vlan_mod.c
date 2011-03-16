@@ -377,12 +377,12 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
     sum[c] += diff;
     sum_square[c] += diff*diff;
     count[c]++;
-    if(htonl(pktgen->seq_num) % 100000 == 0)
-      printf("data packet received %llu\n", (long long unsigned int)ntohl(pktgen->seq_num));
+    if(pktgen->seq_num % 100000 == 0)
+      printf("data packet received %llu\n", (long long unsigned int)pktgen->seq_num);
     if(fprintf(measure_output, "%lu;%lu.%06lu;%lu.%06lu;%d\n", 
-	       (long unsigned int)htonl(pktgen->seq_num),  
-	       (long unsigned int)htonl(pktgen->time.tv_sec), 
-	       (long unsigned int)htonl(pktgen->time.tv_usec), 
+	       (long unsigned int)pktgen->seq_num,  
+	       (long unsigned int)pktgen->time.tv_sec, 
+	       (long unsigned int)pktgen->time.tv_usec, 
 	       (long unsigned int)pe->pcaphdr.ts.tv_sec, 
 	       (long unsigned int)pe->pcaphdr.ts.tv_usec, c) < 0)  
       perror_and_exit("fprintf fail", 1); 

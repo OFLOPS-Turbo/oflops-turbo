@@ -25,7 +25,7 @@ oflops_context * oflops_default_context(void) {
   ctx->listen_port = OFP_TCP_PORT;	// listen on default port
   
   ctx->listen_fd   = -1;
-  ctx->snaplen = 100; //65535;
+  ctx->snaplen = 112; //65535;
   
   ctx->n_channels=1;
   ctx->max_channels=10;

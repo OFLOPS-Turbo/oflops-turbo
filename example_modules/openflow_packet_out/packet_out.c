@@ -445,16 +445,16 @@ int handle_pcap_event(struct oflops_context *ctx, struct pcap_event *pe,
   struct flow fl;
   if (ch == OFLOPS_DATA1) {
     struct pktgen_hdr *pkt;
-    pkt = extract_pktgen_pkt((unsigned char *)pe->data, pe->pcaphdr.caplen, &fl);
+    pkt = extract_pktgen_pkt(ctx, ch, (unsigned char *)pe->data, pe->pcaphdr.caplen, &fl);
     if(pktgen == NULL) //skip non IP packets
       return 0;
     
     struct entry *n1 = malloc(sizeof(struct entry));
-    n1->snd.tv_sec = htonl(pkt->tv_sec);
-    n1->snd.tv_usec = htonl(pkt->tv_usec);
+    n1->snd.tv_sec = pkt->tv_sec;
+    n1->snd.tv_usec = pkt->tv_usec;
     memcpy(&n1->rcv, &pe->pcaphdr.ts, sizeof(struct timeval));
     n1->ip = fl.nw_src;
-    n1->id = ntohl(pkt->seq_num);
+    n1->id = pkt->seq_num;
     rcv_pkt_count++;
     TAILQ_INSERT_TAIL(&head, n1, entries);
   }

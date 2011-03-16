@@ -179,15 +179,17 @@ int get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc, char * 
 int 
 handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_channel_name ch) {
   struct pktgen_hdr *pktgen;
-  struct timeval snd, rcv;
   struct in_addr in;
 
   if(ch == OFLOPS_DATA1) { 
 
     struct flow fl; 
-    pktgen = extract_pktgen_pkt(pe->data, pe->pcaphdr.caplen, &fl); 
+    pktgen = extract_pktgen_pkt(ctx, ch, pe->data, pe->pcaphdr.caplen, &fl); 
     in.s_addr =  fl.nw_dst;
-    printf("%u.%06u Packet received %s!\n", pe->pcaphdr.ts.tv_sec, pe->pcaphdr.ts.tv_usec, inet_ntoa(in)); 
+    printf("%u.%06u Packet received %s!\n", (uint32_t)pe->pcaphdr.ts.tv_sec, 
+	   (uint32_t)pe->pcaphdr.ts.tv_usec, inet_ntoa(in)); 
+
+    
     
 /*    /\*  if(htonl(pktgen->seq_num) % 100000 == 0) *\/ */
 /* /\*       printf("data packet received %d\n", htonl(pktgen->seq_num)); *\/ */
@@ -203,18 +205,7 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
 int
 handle_traffic_generation (oflops_context *ctx) {
   struct traf_gen_det det;
-  char msg[1024], line[1024];
-  int datarate[]={10, 50, 100, 200, 300, 400, 
-		  500, 600, 700, 800, 900, 1000};
-  int i, datarate_count = 12, status;
   uint64_t data_snd_interval;
-  uint32_t mean, std, median;
-  float loss;
-  FILE *input;
-  struct timeval now;
-  struct snmp_pdu *pdu, *response;
-  struct snmp_session *ss;
-  netsnmp_variable_list *vars;
 
   char mac[20];
 
@@ -254,7 +245,7 @@ handle_traffic_generation (oflops_context *ctx) {
   
   //print sending probe details
   fprintf(stderr, "Sending data interval : %u nsec (pkt_size: %u bytes, rate: %u Mbits/sec %llu packets)\n", 
-	  (uint32_t)data_snd_interval, (uint32_t)pkt_size, (uint32_t)datarate[i],  det.pkt_count);
+	  (uint32_t)data_snd_interval, (uint32_t)pkt_size, (uint32_t)rate,  det.pkt_count);
   
   //start packet generator
   add_traffic_generator(ctx, OFLOPS_DATA1, &det);

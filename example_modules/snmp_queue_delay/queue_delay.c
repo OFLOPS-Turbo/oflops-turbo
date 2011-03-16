@@ -189,13 +189,13 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
 
   if(ch == OFLOPS_DATA1) {
     struct flow fl;
-    pktgen = extract_pktgen_pkt(pe->data, pe->pcaphdr.caplen, &fl);
+    pktgen = extract_pktgen_pkt(ctx, ch, pe->data, pe->pcaphdr.caplen, &fl);
     
    /*  if(htonl(pktgen->seq_num) % 100000 == 0) */
 /*       printf("data packet received %d\n", htonl(pktgen->seq_num)); */
     
-    snd.tv_sec = htonl(pktgen->tv_sec);
-    snd.tv_usec = htonl(pktgen->tv_usec);
+    snd.tv_sec = pktgen->tv_sec;
+    snd.tv_usec = pktgen->tv_usec;
     memcpy(&rcv, &pe->pcaphdr.ts, sizeof(struct timeval));
     delay[delay_count++] = (double)time_diff(&snd, &rcv);
   }
