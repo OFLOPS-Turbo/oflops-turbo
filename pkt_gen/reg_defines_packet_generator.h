@@ -1,4 +1,4 @@
-/********************************************************
+ /********************************************************
  *
  * C register defines file
  * Project: Packet Generator (packet_generator)
@@ -25,7 +25,7 @@
 // ===== File: lib/verilog/core/common/xml/global.xml =====
 
 // Maximum number of phy ports
-#define MAX_PHY_PORTS                         4
+#define MAX_PHY_PORT                           4
 
 // PCI address bus width
 #define PCI_ADDR_WIDTH                        32

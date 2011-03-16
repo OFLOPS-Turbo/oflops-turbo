@@ -8,12 +8,14 @@ struct channel_info;
 #include "test_module.h"
 #include "pcap_track.h"
 #include "msgbuf.h"
+#include "nf_pktgen.h"
 
 typedef struct channel_info {
   char * dev;
   pcap_t * pcap_handle;
+  struct nf_cap_t * nf_compicap;
   int pcap_fd;	// fd for pcap filter
-  int raw_sock;	// raw ethernet access fd
+  int raw_sock;	// raw ethernet accyess fd
   int sock;	// UDP socket
   int ifindex;	// index of this device
   int of_port;//the port on the switch side
@@ -26,6 +28,8 @@ typedef struct channel_info {
   size_t inOID_len;
   oid outOID[MAX_OID_LEN];
   size_t outOID_len;
+  int cap_type;
+  struct nf_cap_t *nf_cap;
   
 } channel_info;
 

@@ -219,8 +219,13 @@ start(struct oflops_context * ctx) {
 
   //end process 
   gettimeofday(&now, NULL);
-  add_time(&now, 30, 0);
+  add_time(&now, 60, 0);
   oflops_schedule_timer_event(ctx,&now, BYESTR);
+
+  //end process 
+  gettimeofday(&now, NULL);
+  add_time(&now, 1, 0);
+  oflops_schedule_timer_event(ctx,&now, SEND_ECHO_REQ);
   return 0;
 }
 
@@ -336,8 +341,7 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
       fl_probe->mask = 0; //if table is 0 the we generate an exact match */
     else 
       fl_probe->mask = OFPFW_DL_DST | OFPFW_DL_SRC | (32 << OFPFW_NW_SRC_SHIFT) | 
-	(32 << OFPFW_NW_DST_SHIFT) | OFPFW_DL_VLAN | OFPFW_TP_DST | OFPFW_NW_PROTO | 
-	OFPFW_TP_SRC | OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS;
+	(32 << OFPFW_NW_DST_SHIFT) | OFPFW_DL_VLAN | OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS;
 
     memcpy(fl_probe->dl_src, data_mac, 6);
     memcpy(fl_probe->dl_dst, "\x00\x15\x17\x7b\x92\x0a", 6);
@@ -459,9 +463,6 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
       snprintf(msg, 1024, "INSERT_DELAY:%d", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
       oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
       first_pkt = 1;
-      gettimeofday(&now, NULL);
-      add_time(&now, 1, 0);
-      //oflops_schedule_timer_event(ctx,&now, BYESTR);
     } else if (ch == OFLOPS_DATA2) {
       int id = ntohl(fl.nw_dst) - ntohl(inet_addr(network));
       //printf("id %d %x %x\n", id, ntohl(fl.nw_dst),  ntohl(inet_addr(network)));
@@ -479,6 +480,9 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
 	  printf("COMPLETE_INSERT_DELAY:%u\n", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
 	  snprintf(msg, 1024, "INSERT_DELAY:%u", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
 	  oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
+	  gettimeofday(&now, NULL);
+	  add_time(&now, 1, 0);
+	  oflops_schedule_timer_event(ctx,&now, BYESTR);
 	}
       }
     }

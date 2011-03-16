@@ -1,6 +1,8 @@
 #include "traffic_generator.h"
 
 #include <sys/queue.h>
+#include <sys/stat.h>
+#include <string.h>
 #include "utils.h"
 
 /*
@@ -16,6 +18,7 @@ struct pkt_details {
   struct ether_vlan_header *eth_vlan;
   struct iphdr *ip;
   struct udphdr *udp;
+  struct tcphdr *tcp;
   void *data;
   int data_len;
   struct pktgen_hdr *pktgen;
@@ -30,10 +33,14 @@ struct pkt_details **generator_state = NULL;
 
 int start_user_traffic_generator(oflops_context *ctx);
 int start_pktgen_traffic_generator(oflops_context *ctx);
+int start_nf_traffic_generator(oflops_context *ctx);
+
 int init_traf_gen(struct oflops_context *ctx) {
-  setuid(0);
-  if(system("/sbin/modprobe pktgen") != 0)
-    perror_and_exit("/sbin/modprobe pktgen failed", 1);
+  if(ctx->trafficGen == PKTGEN) {
+    setuid(0);
+    if(system("/sbin/modprobe pktgen") != 0)
+      perror_and_exit("/sbin/modprobe pktgen failed", 1);
+  }
   return 1;
 }
 
@@ -53,6 +60,7 @@ int
 printf_and_check(char *filename, char *msg) {
   FILE *ctrl = fopen(filename, "w");
   
+  //printf("%s >> %s\n", filename, msg);
   if(ctrl == NULL)
     perror_and_exit("failed to open file", 1);
 
@@ -71,7 +79,9 @@ start_traffic_generator(oflops_context *ctx) {
     return start_pktgen_traffic_generator(ctx);
   } else if(ctx->trafficGen == USER_SPACE) {
     return start_user_traffic_generator(ctx);
-  } else {
+  } else if(ctx->trafficGen == NF_PKTGEN) {
+    return start_nf_traffic_generator(ctx);
+  }else {
     return 0;
   }
 }
@@ -174,14 +184,18 @@ read_mac_addr(uint8_t *addr, char *str) {
     p = tmp;
   } while (p!= NULL);
 
-  //fprintf(stderr, "mac %x:%x:%x:%x:%x:%x\n", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+  fprintf(stderr, "mac %s %x:%x:%x:%x:%x:%x\n", str, addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
   return 0;
 }
 
 int
 innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det) {  
+  int l3_size;
+
   state->data = (void *)xmalloc(det->pkt_size); 
   state->data_len = det->pkt_size;
+  
+
 
   bzero((void *)state->data, state->data_len);
   if(state->data_len < sizeof(struct ether_vlan_header) + sizeof(struct iphdr) + sizeof(struct tcphdr)) {
@@ -191,8 +205,8 @@ innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det
   //ethernet header with default values
   state->eth_vlan = (struct ether_vlan_header *) state->data;
   state->eth = (struct ether_header *) state->data;
-  read_mac_addr(state->eth_vlan->ether_dhost, det->mac_dst);
-  read_mac_addr(state->eth_vlan->ether_shost, det->mac_src);
+  read_mac_addr(state->eth->ether_dhost, det->mac_dst);
+  read_mac_addr(state->eth->ether_shost, det->mac_src);
   if(det->vlan != 0 && det->vlan != 0xffff) {
     state->eth_vlan->tpid = htons(0x8100);
     state->eth_vlan->vid = htons(det->vlan) >>4;
@@ -201,7 +215,9 @@ innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det
     state->ip->tot_len=htons(state->data_len - sizeof(struct ether_vlan_header)); 
   state->udp = (struct udphdr *)
     (state->data + sizeof(struct ether_vlan_header) + sizeof(struct iphdr));
-  state->udp->len = htons(state->data_len - sizeof(struct ether_vlan_header) - sizeof(struct iphdr));
+  state->tcp = (struct udphdr *)
+    (state->data + sizeof(struct ether_vlan_header) + sizeof(struct iphdr));
+  l3_size = htons(state->data_len - sizeof(struct ether_vlan_header) - sizeof(struct iphdr));
   state->pktgen = (struct pktgen_hdr *)
     (state->data + sizeof(struct ether_vlan_header) + sizeof(struct iphdr) + sizeof(struct udphdr));
   } else {
@@ -210,7 +226,9 @@ innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det
     state->ip->tot_len=htons(state->data_len - sizeof(struct ether_header)); 
     state->udp = (struct udphdr *)
       (state->data + sizeof(struct ether_header) + sizeof(struct iphdr));
-    state->udp->len = htons(state->data_len - sizeof(struct ether_header) - sizeof(struct iphdr));
+    state->tcp = (struct udphdr *)
+      (state->data + sizeof(struct ether_header) + sizeof(struct iphdr));
+    l3_size = htons(state->data_len - sizeof(struct ether_header) - sizeof(struct iphdr));
     state->pktgen = (struct pktgen_hdr *)
       (state->data + sizeof(struct ether_header) + sizeof(struct iphdr) + sizeof(struct udphdr));
   }
@@ -225,10 +243,11 @@ innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det
   state->ip->saddr = inet_addr(det->src_ip); 
   state->ip->daddr = inet_addr(det->dst_ip_min); //test.nw_dst;
   
-  state->ip->check=ip_sum_calc(20, state->ip);
+  state->ip->check=ip_sum_calc(20, (void *)state->ip);
 
   state->udp->source = htons(det->udp_src_port);
   state->udp->dest = htons(det->udp_dst_port);
+  state->udp->len = l3_size;
   
   state->pktgen->magic = 0xbe9be955;
 
@@ -268,6 +287,52 @@ start_user_traffic_generator(oflops_context *ctx) {
   return 1;
 }
 
+
+
+int 
+start_nf_traffic_generator(oflops_context *ctx) {
+  int flow_num, ix, i;
+  struct traf_gen_det *det;
+  struct pkt_details pkt_state;
+  struct pcap_pkthdr h;
+  int pkt_count;
+  
+  printf("Running nf packet gen\n");
+  for(ix = 0; ix < ctx->n_channels; ix++) {
+    if(ctx->channels[ix].det != NULL) {
+      det = ctx->channels[ix].det;
+      h.len = det->pkt_size;
+      h.caplen = det->pkt_size;
+      h.ts.tv_sec = 0;
+      h.ts.tv_usec = 0;
+      flow_num = ntohl(inet_addr(det->dst_ip_max)) - ntohl(inet_addr(det->dst_ip_min)) + 1;
+      printf("Found %d flows %d pkt size\n", flow_num, h.caplen );
+
+      innitialize_generator_packet(&pkt_state, ctx->channels[ix].det);
+      nf_gen_set_number_iterations (9, 1, ix-1);
+      
+      pkt_count = flow_num;
+      if(strstr(det->flags, "IPDST_RND") != NULL) 
+	pkt_count += 0.2*flow_num;
+    
+      for(i = 0; i < pkt_count; i++) { 
+	printf("Adding packet %d\n", i); 
+	if(strstr(det->flags, "IPDST_RND") != NULL) 
+	  pkt_state.ip->daddr = htonl(ntohl(inet_addr(det->dst_ip_min)) + rand()%(flow_num));
+	else 
+	  pkt_state.ip->daddr = htonl(ntohl(inet_addr(det->dst_ip_min)) + i);
+	  
+	pkt_state.ip->check=ip_sum_calc(20, (void *)pkt_state.ip); 
+	nf_gen_load_packet(&h, pkt_state.data, ix - 1, det->delay); 
+      }
+    }
+  }
+
+  nf_start(1);
+  
+  return 1;
+}
+
 int 
 start_pktgen_traffic_generator(oflops_context *ctx) {
   int ix;
@@ -275,12 +340,15 @@ start_pktgen_traffic_generator(oflops_context *ctx) {
   char intf_file[1024];
   char file[1024];
   int i = 0;
+  struct stat st;
 
   for(ix = 0; ix < ctx->n_channels; ix++) {
     sprintf(file, "/proc/net/pktgen/kpktgend_%d", i);
-    i++;
-    printf_and_check(file, "rem_device_all");
-    printf_and_check(file, buf);
+    if(stat(file, &st) == 0) {
+      i++;
+      printf_and_check(file, "rem_device_all");
+      printf_and_check(file, buf);
+    }
   }
   i=0;
   //setup generic traffic generator details 
@@ -313,7 +381,7 @@ start_pktgen_traffic_generator(oflops_context *ctx) {
       printf_and_check(intf_file, buf);      
       snprintf(buf, 5000, "dst_max %s", ctx->channels[ix].det->dst_ip_max); 
       printf_and_check(intf_file, buf);    
-      snprintf(buf, 5000, "flag %s | IPDST_RND", ctx->channels[ix].det->flags);//IPDST_RND");
+      snprintf(buf, 5000, "flag %s ", ctx->channels[ix].det->flags);//IPDST_RND");
       printf_and_check(intf_file, buf);
 
       snprintf(buf, 5000, "vlan_id %d", ctx->channels[ix].det->vlan); 

@@ -118,7 +118,7 @@ static void test_module_loop(oflops_context *ctx, test_module *mod)
 	{
 	  poll_set[n_fds].fd = ctx->channels[ch].pcap_fd;
 	  poll_set[n_fds].events = 0;
-	  if( ctx->channels[ch].pcap_handle)
+	  if(( ctx->channels[ch].pcap_handle) || (ctx->channels[ch].nf_cap))
 	    poll_set[n_fds].events = POLLIN;
 	  //if ( msgbuf_count_buffered(ctx->channels[ch].outgoing) > 0)
 	  //    poll_set[n_fds].events |= POLLOUT;
@@ -305,6 +305,7 @@ static void process_pcap_event(oflops_context *ctx, test_module * mod, struct po
 {
   struct pcap_event_wrapper wrap;
   int count;
+  uint8_t *data;
 
   if(pfd->revents & POLLOUT)
     {
@@ -316,8 +317,23 @@ static void process_pcap_event(oflops_context *ctx, test_module * mod, struct po
   if(!(pfd->revents & POLLIN))		// nothing to read, return
     return;
   // read the next packet from the appropriate pcap socket
-  assert(ctx->channels[ch].pcap_handle);
-  count = pcap_dispatch(ctx->channels[ch].pcap_handle, 1, oflops_pcap_handler, (u_char *) & wrap);
+  if(ctx->channels[ch].cap_type == PCAP) {
+    assert(ctx->channels[ch].pcap_handle);
+    count = pcap_dispatch(ctx->channels[ch].pcap_handle, 1, oflops_pcap_handler, (u_char *) & wrap);
+  } else  if(ctx->channels[ch].cap_type == NF2) {
+    wrap.pe = malloc_and_check(sizeof(pcap_event));
+    printf("received packet at port %d\n", ch);
+    data = nf_cap_next(ctx->channels[ch].nf_cap, &wrap.pe->pcaphdr);
+
+    if(data != NULL) {
+      wrap.pe->data = malloc_and_check(wrap.pe->pcaphdr.caplen);
+      memcpy(wrap.pe->data, data, wrap.pe->pcaphdr.caplen);
+    } else {
+      printf("errorous packet received\n");
+      return;
+    }
+    
+  }
 
   //dump packet if required
   if((ch == OFLOPS_CONTROL) && (ctx->channels[ch].pcap_handle) 

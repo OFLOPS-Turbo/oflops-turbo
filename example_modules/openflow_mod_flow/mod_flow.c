@@ -183,7 +183,7 @@ start(struct oflops_context * ctx) {
 
   fl->in_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
   fl->dl_type = htons(ETHERTYPE_IP);         
-  memcpy(fl->dl_src, data_mac, 6);
+  memcpy(fl->dl_src, local_mac, 6);
   memcpy(fl->dl_dst, "\x00\x15\x17\x7b\x92\x0a", 6);
 
   fl->dl_vlan = 0xffff;
@@ -192,17 +192,17 @@ start(struct oflops_context * ctx) {
   fl->tp_src = htons(8080);
   fl->tp_dst = htons(8080);
 
-  uint32_t ip = ntohl(inet_addr(network));
+  //  uint32_t ip = ntohl(inet_addr());
   for(i=0; i< flows; i++) {
-    fl_probe->nw_dst =  htonl(ip);
+    fl->nw_dst =   htonl(ntohl(inet_addr(network)) + i);
     len = make_ofp_flow_add(&b, fl, ctx->channels[OFLOPS_DATA3].of_port, 1, 120);
     oflops_send_of_mesgs(ctx, b, len);
     free(b);
-    ip++;
+    //    ip++;
   }
 
   fl->in_port = htons(ctx->channels[OFLOPS_DATA2].of_port);
-  memcpy(fl->dl_src, local_mac, 6);
+  memcpy(fl->dl_src, data_mac, 6);
   fl->nw_dst =  inet_addr("10.1.1.2");
   len = make_ofp_flow_add(&b, fl, ctx->channels[OFLOPS_DATA3].of_port, 1, 120);
   res = oflops_send_of_mesg(ctx, b);
@@ -232,6 +232,11 @@ start(struct oflops_context * ctx) {
   gettimeofday(&now, NULL);
   add_time(&now, 60, 0);
   oflops_schedule_timer_event(ctx,&now, BYESTR);
+
+
+  gettimeofday(&now, NULL);
+  add_time(&now, 1, 0);
+  oflops_schedule_timer_event(ctx,&now, SEND_ECHO_REQ);
   return 0;
 }
 
@@ -350,9 +355,9 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
 	(32 << OFPFW_NW_DST_SHIFT) | OFPFW_DL_VLAN | OFPFW_TP_DST | OFPFW_NW_PROTO | 
 	OFPFW_TP_SRC | OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS;
 
-    memcpy(fl_probe->dl_src, data_mac, 6);
+    memcpy(fl_probe->dl_src, local_mac, 6);
     memcpy(fl_probe->dl_dst, "\x00\x15\x17\x7b\x92\x0a", 6);
-    fl_probe->in_port = htons(ctx->channels[OFLOPS_DATA2].of_port);
+    fl_probe->in_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
     ip_addr.s_addr =  ntohl(inet_addr(network));
     for(i=0; i< flows; i++) {
     fl_probe->nw_dst =  htonl(ip_addr.s_addr);
@@ -361,8 +366,8 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
       free(b);
       ip_addr.s_addr++;
     }
-    memcpy(fl_probe->dl_src, local_mac, 6);
-    fl_probe->in_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
+    memcpy(fl_probe->dl_src, data_mac, 6);
+    fl_probe->in_port = htons(ctx->channels[OFLOPS_DATA2].of_port);
     fl_probe->nw_dst =  inet_addr("10.1.1.2");
     len = make_ofp_flow_modify_output_port(&b, fl_probe, OFPP_IN_PORT,
 					   1, 1200);
@@ -463,7 +468,7 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
     struct flow fl;
     struct timeval now;
     pktgen = extract_pktgen_pkt(pe->data, pe->pcaphdr.caplen, &fl);
-    if((ch == OFLOPS_DATA1) && (!first_pkt)) {
+    if((ch == OFLOPS_DATA2) && (!first_pkt)) {
       oflops_log(pe->pcaphdr.ts, GENERIC_MSG, "FIRST_PKT_RCV");
       oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
       printf("INSERT_DELAY:%d\n", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
@@ -473,7 +478,7 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
       gettimeofday(&now, NULL);
       add_time(&now, 1, 0);
       //oflops_schedule_timer_event(ctx,&now, BYESTR);
-    } else if (ch == OFLOPS_DATA2) {
+    } else if (ch == OFLOPS_DATA1) {
       int id = ntohl(fl.nw_dst) - ntohl(inet_addr(network));
       //printf("id %d %x %x\n", id, ntohl(fl.nw_dst),  ntohl(inet_addr(network)));
       if ((id >= 0) && (id < flows) && (!ip_received[id])) {
@@ -608,7 +613,7 @@ handle_traffic_generation (oflops_context *ctx) {
   det.pkt_size = pkt_size;
   det.delay = data_snd_interval*1000;
   strcpy(det.flags, "");
-  add_traffic_generator(ctx, OFLOPS_DATA2, &det);
+  add_traffic_generator(ctx, OFLOPS_DATA1, &det);
 
   init_traf_gen(ctx);
   strcpy(det.src_ip,"10.1.1.1");
@@ -624,7 +629,7 @@ handle_traffic_generation (oflops_context *ctx) {
   det.pkt_size = pkt_size;
   det.delay = probe_snd_interval*1000;
   strcpy(det.flags, "");
-  add_traffic_generator(ctx, OFLOPS_DATA1, &det);  
+  add_traffic_generator(ctx, OFLOPS_DATA2, &det);  
   
   start_traffic_generator(ctx);
   return 1;

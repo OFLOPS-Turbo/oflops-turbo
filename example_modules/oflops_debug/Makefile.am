@@ -1,7 +1,7 @@
 TOP=../..
 OFSRC=@openflowsrc@
 
-CFLAGS+=-Wall -I$(OFSRC)/include -I$(TOP) -Wshadow 
+CFLAGS+=-Wall -I$(OFSRC)/include -I$(TOP) -Wshadow -I$(TOP)/netfpga-packet-generator-c-library/include
 LDFLAGS+=-L$(TOP)
 
 LDADD=-ldl -lpcap -loflops_test

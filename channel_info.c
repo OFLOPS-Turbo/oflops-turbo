@@ -38,6 +38,7 @@ int channel_info_init(struct channel_info * channel, char * dev)
 	channel->raw_sock = -1;
 	channel->sock = -1;
 	channel->dump = NULL;
+	channel->cap_type = PCAP;
 
 	/* Not sure why I need a socket to do this */
 	dumb = socket(AF_INET, SOCK_STREAM, 0);
@@ -62,16 +63,13 @@ int channel_info_init(struct channel_info * channel, char * dev)
  */
 
 
-void setup_channel(oflops_context *ctx, test_module *mod, oflops_channel_name ch )
-{
+void setup_channel(oflops_context *ctx, test_module *mod, oflops_channel_name ch) {
 	char buf[BUFLEN];
 	char errbuf[PCAP_ERRBUF_SIZE];
 	struct bpf_program filter;
 	bpf_u_int32 mask=0, net=0;
 
-	channel_info *ch_info = &ctx->channels[ch];	
-
-
+	channel_info *ch_info = &ctx->channels[ch];
 	if(ch_info->dev==NULL)	// no device specified
 	{
 		ch_info->dev = pcap_lookupdev(errbuf);
@@ -98,58 +96,63 @@ void setup_channel(oflops_context *ctx, test_module *mod, oflops_channel_name ch
 	fprintf(stderr,"Test %s:  Starting pcap filter \"%s\" on dev %s for channel %d\n",
 			mod->name(), buf, ch_info->dev, ch);
 	errbuf[0]=0;
-	if(ch != OFLOPS_CONTROL) {
-	ch_info->pcap_handle = pcap_open_live(
-					ch_info->dev,
-					ctx->snaplen,
-					1, 	// promisc
-					0, 	// read timeout (ms)
-					errbuf	// for error messages
-			);
-	} else {
-	  ch_info->pcap_handle = pcap_open_live(ch_info->dev,65000,1,0,errbuf);
-	  if(ctx->dump_controller) { 
-	    ch_info->dump = pcap_dump_open(ch_info->pcap_handle, "controller.pcap");
-	    if(ch_info->dump == NULL ) {
-	      perror_and_exit(pcap_geterr(ch_info->pcap_handle), 1);
-	    }
-	    printf("XXXXXXXXXXXXXXXX Dumping controller channel to to file\n");
+	if((ch == OFLOPS_CONTROL) || (ch_info->cap_type == PCAP)) {
+	  printf("pcap capture on %s\n", ch_info->dev);
+	  if(ch != OFLOPS_CONTROL) {
+	    ch_info->pcap_handle = pcap_open_live(
+						  ch_info->dev,
+						  ctx->snaplen,
+						  1, 	// promisc
+						  0, 	// read timeout (ms)
+						  errbuf	// for error messages
+						  );
 	  } else {
-	    ch_info->dump = NULL;
-	    printf("XXXXXXXXXXXXXX not dumping controller\n");
+	    ch_info->pcap_handle = pcap_open_live(ch_info->dev,65000,1,0,errbuf);
+	    if(ctx->dump_controller) { 
+	      ch_info->dump = pcap_dump_open(ch_info->pcap_handle, "controller.pcap");
+	      if(ch_info->dump == NULL ) {
+		perror_and_exit(pcap_geterr(ch_info->pcap_handle), 1);
+	      }
+	    } else {
+	      ch_info->dump = NULL;
+	    }
 	  }
-	}
-	if(!ch_info->pcap_handle)
-	{
-		fprintf( stderr, "pcap_open_live failed: %s\n",errbuf);
-		exit(1);
-	}
-	if(strlen(errbuf)>0)
-		fprintf( stderr, "Non-fatal pcap warning: %s\n", errbuf);
-	if((pcap_lookupnet(ch_info->dev,&net,&mask,errbuf) == -1) &&
-			(ch == OFLOPS_CONTROL)) 	// only control has an IP
-	{
-		fprintf(stderr,"WARN: pcap_lookupnet: %s; ",errbuf);
-		fprintf(stderr,"filter rules might fail\n");
-	}
+	  if(!ch_info->pcap_handle) {
+	    fprintf( stderr, "pcap_open_live failed: %s\n",errbuf);
+	    exit(1);
+	  }
+	  if(strlen(errbuf)>0)
+	    fprintf( stderr, "Non-fatal pcap warning: %s\n", errbuf);
+	  if((pcap_lookupnet(ch_info->dev,&net,&mask,errbuf) == -1) &&
+	     (ch == OFLOPS_CONTROL)) {	// only control has an IP
+	    fprintf(stderr,"WARN: pcap_lookupnet: %s; ",errbuf);
+	    fprintf(stderr,"filter rules might fail\n");
+	  }
+	  
+	  bzero(&filter, sizeof(filter));
+	  if(pcap_compile(ch_info->pcap_handle, &filter, buf, 1, net)) {
+	    fprintf( stderr, "pcap_compile: %s\n", errbuf);
+	    exit(1);
+	  }
+	  if(strlen(errbuf)>0)
+	    fprintf( stderr, "Non-fatal pcap_setfilter: %s\n", errbuf);
 
-	bzero(&filter, sizeof(filter));
-	if(pcap_compile(ch_info->pcap_handle, &filter, buf, 1, net))
-	{
-		fprintf( stderr, "pcap_compile: %s\n", errbuf);
-		exit(1);
-	}
-	if(strlen(errbuf)>0)
-		fprintf( stderr, "Non-fatal pcap_setfilter: %s\n", errbuf);
+	  if(pcap_setfilter(ch_info->pcap_handle,&filter ) == -1) {
+	    fprintf(stderr,"pcap_setfilter: %s\n",errbuf);
+	    exit(1);
+	  }
+	  if(pcap_setnonblock(ch_info->pcap_handle, 1, errbuf))
+	    fprintf(stderr,"setup_channel: pcap_setnonblock(): %s\n",errbuf);
+	  ch_info->pcap_fd = pcap_get_selectable_fd(ch_info->pcap_handle);
 
-	if(pcap_setfilter(ch_info->pcap_handle,&filter ) == -1)
-	{
-		fprintf(stderr,"pcap_setfilter: %s\n",errbuf);
-		exit(1);
+	} else  if(ch_info->cap_type == NF2) {
+	  ch_info->nf_cap = nf_cap_enable(ch_info->dev, ctx->snaplen);
+	  ch_info->pcap_fd = nf_cap_fileno(ch_info->nf_cap);
+	  printf("nf2 capture on %s (sock:%d)\n",ch_info->dev , ch_info->pcap_fd );
+	} else {
+	  perror_and_exit("Invalid capture type", 1);
+	  
 	}
-	if(pcap_setnonblock(ch_info->pcap_handle, 1, errbuf))
-		fprintf(stderr,"setup_channel: pcap_setnonblock(): %s\n",errbuf);
-	ch_info->pcap_fd = pcap_get_selectable_fd(ch_info->pcap_handle);
 
 }
 

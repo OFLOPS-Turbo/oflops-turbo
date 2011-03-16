@@ -205,7 +205,8 @@ load_config_file(oflops_context * ctx, const char *config) {
   config_t conf;
   config_setting_t *elem, *data;
   char *snmp_client, *snmp_community;
-  int i, len, argc = 0;
+  int i, len, argc = 0, cap_type;
+  char cap_type_str[100];
   char *path, **argv, *in_oid = NULL, *out_oid = NULL;
 
   config_init(&conf);
@@ -303,6 +304,8 @@ load_config_file(oflops_context * ctx, const char *config) {
   if((data = config_lookup(&conf, "oflops.data") ) != NULL ) {
     for (i=0; i < config_setting_length(data); i++) {
       elem = config_setting_get_elem(data, i);
+      cap_type = PCAP;
+
       if(config_setting_get_member(elem, "dev") != NULL) {
 	if(ctx->n_channels >= ctx->max_channels) {
 	  ctx->max_channels *= 2;
@@ -330,6 +333,19 @@ load_config_file(oflops_context * ctx, const char *config) {
 	   (strlen( config_setting_get_string(config_setting_get_member(elem, "out_snmp_mib"))) > 0) ) {
 	  out_oid = malloc(strlen(config_setting_get_string(config_setting_get_member(elem, "out_snmp_mib"))) + 1);
 	  strcpy(out_oid,config_setting_get_string(config_setting_get_member(elem, "out_snmp_mib")));
+	} 
+	if((config_setting_get_member(elem, "type") != NULL) && 
+	   (strlen( config_setting_get_string(config_setting_get_member(elem, "type"))) > 0) ) {
+	  strcpy(cap_type_str,config_setting_get_string(config_setting_get_member(elem, "type")));
+
+	  if(strncasecmp(cap_type_str, "pcap", sizeof("pcap")) == 0) 
+	    ctx->channels[ctx->n_channels-1].cap_type = PCAP;
+	  else if(strncasecmp(cap_type_str, "nf2", sizeof("nf2")) == 0)
+	    ctx->channels[ctx->n_channels-1].cap_type = NF2;
+	  else {
+	    fprintf(stderr, "Invalid capture library type %s\n", cap_type_str);
+	    exit(1);
+	  }
 	} 
 	setup_channel_snmp(ctx, ctx->n_channels-1, in_oid, out_oid);
 	

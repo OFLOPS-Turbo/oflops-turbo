@@ -2,10 +2,10 @@ AUTOMAKE_OPTIONS=-Wall foreign
 
 OFSRC=@openflowsrc@
 
-CFLAGS+=-Wall -I$(OFSRC)/include -Wshadow `pkg-config --cflags libconfig`
+CFLAGS+=-Wall -I$(OFSRC)/include -I./netfpga-packet-generator-c-library/include/ -Wshadow `pkg-config --cflags libconfig`
 LDFLAGS+=-L$(OFSRC)/lib `pkg-config --libs libconfig` 
 
-LDADD=-ldl -lpcap -lnetsnmp -loflops_test -lpthread
+LDADD=-ldl -lpcap -lnetsnmp -loflops_test -lpthread netfpga-packet-generator-c-library/src/libnf_pktgten.la 
 #LDADD+=-lefence
 
 EXTRA_DIST=./doc

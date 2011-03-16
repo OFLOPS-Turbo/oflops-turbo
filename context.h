@@ -61,6 +61,12 @@ typedef struct oflops_context
 enum trafficGenValues {
   USER_SPACE=1,
   PKTGEN,
+  NF_PKTGEN,
+};
+
+enum trafficCapValues {
+  PCAP=1,
+  NF2,
 };
 
 oflops_context * oflops_default_context(void);

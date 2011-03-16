@@ -6,6 +6,7 @@ LDFLAGS+=-L$(TOP) -lm
 
 LDADD=-ldl -lpcap -loflops_test
 
-lib_LTLIBRARIES=libof_packet_out.la
 
-libof_packet_out_la_SOURCES= packet_out.c
+lib_LTLIBRARIES=libnf_pktgen_test.la
+
+libnf_pktgen_test_la_SOURCES= nf_pktgen.c
