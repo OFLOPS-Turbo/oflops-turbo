@@ -139,6 +139,25 @@ static int readRegFile(struct nf2device *nf2, unsigned reg, unsigned *val)
  */
 int writeReg(struct nf2device *nf2, unsigned reg, unsigned val)
 {
+  /*
+  void *array[10];
+  size_t size, i;
+  char **strings;
+  
+  size = backtrace (array, 10);
+  strings = backtrace_symbols (array, size);
+  //  for (i = 0; i < size; i++)
+  //    printf ("%d %s\n", i, strings[i]);
+
+  //printf ("Obtained %zd stack frames.\n", size);
+
+  FILE* out = fopen("/tmp/output.txt", "a");
+  if(out != NULL) {
+    fprintf(out, "%s %06x %06x\n", strings[1], reg, val);
+    fclose(out);
+  }
+  free (strings);
+  */
 	if (nf2->net_iface)
 	{
 		return writeRegNet(nf2, reg, val);

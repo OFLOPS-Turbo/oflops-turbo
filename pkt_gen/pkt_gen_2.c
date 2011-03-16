@@ -61,7 +61,6 @@
 // Minimum packet size
 #define MIN_PKT_SIZE 60
 
-static struct nf2device nf2;
 char errbuf[PCAP_ERRBUF_SIZE];
 
 //Globals
@@ -76,28 +75,20 @@ int total_words = 0;
 uint32_t queue_words[] = {0, 0, 0, 0};
 uint32_t queue_bytes[] = {0, 0, 0, 0};
 uint32_t queue_pkts[] = {0, 0, 0, 0};
+uint32_t num_pkts[] = {0, 0, 0, 0};
+
 int queue_base_addr[] = {0, 0, 0, 0};
 uint32_t sec_current[] = {0, 0, 0, 0};
 uint32_t usec_current[] = {0, 0, 0, 0};
-int capture_enable = 0;
-uint32_t num_pkts[] = {0, 0, 0, 0};
-int threads;
-int send_enable = 0;
 
 char *queue_data[] = {NULL, NULL, NULL, NULL};
 uint32_t queue_data_len[] = {0, 0, 0, 0};
 
 uint32_t caplen_warned[] = {0, 0, 0, 0};
 
-char *help = "";
-
-int saw_sigusr1 = 0;
-int wait = 0;
-
 char *pcap_filename[] = {"", "", "", ""};
 char *capture_filename[] = {"", "", "", ""};
-int final_capture_filename;
-int capture_interfaces;
+
 float rate[] = {-1, -1, -1, -1};
 float clks_between_tokens[] = {-1, -1, -1, -1};
 float number_tokens[] = {-1, -1, -1, -1};
@@ -108,12 +99,27 @@ uint32_t final_pkt_delay[] = {0, 0, 0, 0};
 uint32_t iterations[] = {1, 1, 1, 1};
 float delay[] = {-1, -1, -1, -1};
 
+int threads;
+int capture_enable = 0;
+int send_enable = 0;
+
+char *help = "";
+
+int saw_sigusr1 = 0;
+int wait = 0;
+
+int final_capture_filename;
+int capture_interfaces;
+
 uint32_t usec_per_byte[] = {USEC_PER_BYTE, USEC_PER_BYTE, USEC_PER_BYTE, USEC_PER_BYTE};
 int err;
 int xmit_done = 0;
 int resolve_ns = 0;
 int pad = 0;
 int nodrop = 0;
+
+
+struct nf2device nf2;
 
 void
 init() {
@@ -138,7 +144,7 @@ load_packet(struct pcap_pkthdr *h, const unsigned char *data, int port, int dela
   uint32_t sec = h->ts.tv_sec, usec = h->ts.tv_usec;
   uint32_t len = h->len, caplen = h->caplen, word_len = ceil(((float)len)/8), packet_words;
   uint32_t tmp_data,  pointer;
-  printf("word_len:%d\n", word_len);
+  //  printf("word_len:%d\n", word_len);
   
   dst_port = (dst_port << port);
   
@@ -164,8 +170,7 @@ load_packet(struct pcap_pkthdr *h, const unsigned char *data, int port, int dela
   // Check if there is room in the queue for the entire packet
   // 	If there is no room return 1
 
-  printf("delay %d %d %d\n",delay, (delay > 0),  (delay <= 0));
-
+  //  printf("delay %d %d %d\n",delay, (delay > 0),  (delay <= 0));
   packet_words = non_pad_word_len + 1 + (delay > 0) + (write_pad);
   if ( (packet_words + total_words) > MAX_TX_QUEUE_SIZE) {
     printf("Warning: unable to load all packets from pcap file. SRAM queues are full.\n");
@@ -200,19 +205,16 @@ load_packet(struct pcap_pkthdr *h, const unsigned char *data, int port, int dela
   memcpy(queue_data[port] + pointer + 1,  &tmp_data, 4);
   tmp_data =  ntohl(non_pad_len | (src_port << 16));
   memcpy(queue_data[port] + pointer + 5,  &tmp_data, 4);
-     printf("0x%02x 0x%02x%02lx%02lx%02lx 0x%02x%02lx%02lx%02lx\n",  
-	    (unsigned char)IO_QUEUE_STAGE_NUM, 
-	    (unsigned char)*(queue_data[port] + pointer + 1), 
-	    (unsigned char)*(queue_data[port] + pointer + 2),
-	    (unsigned char)*(queue_data[port] + pointer + 3),
-	    (unsigned char)*(queue_data[port] + pointer + 4),
-	    (unsigned char)*(queue_data[port] + pointer + 5),
-	    (unsigned char)*(queue_data[port] + pointer + 6),
-	    (unsigned char)*(queue_data[port] + pointer + 7),
-	    (unsigned char)*(queue_data[port] + pointer + 8)); 
-/*   printf("0x%02x 0x%08lx 0x%08lx\n",  */
-/* 	 IO_QUEUE_STAGE_NUM, ( non_pad_word_len | (dst_port << 16)), */
-/* 	 (non_pad_len | (src_port << 16))); */
+/*      printf("0x%02x 0x%02x%02lx%02lx%02lx 0x%02x%02lx%02lx%02lx\n",   */
+/* 	    (unsigned char)IO_QUEUE_STAGE_NUM,  */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 1),  */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 2), */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 3), */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 4), */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 5), */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 6), */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 7), */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 8)); */ 
   
   // Load pad hdr into SRAM
   if (write_pad) {
@@ -224,24 +226,16 @@ load_packet(struct pcap_pkthdr *h, const unsigned char *data, int port, int dela
     memcpy(queue_data[port] + pointer + 1,  &tmp_data, 4);
     tmp_data =  ntohl( len | (src_port << 16));
     memcpy(queue_data[port] + pointer + 5,  &tmp_data, 4);
-/*     tmp_data = word_len | (dst_port << 16); */
-/*     memcpy(queue_data[port] + pointer + 1, &tmp_data, 4); */
-/*     tmp_data = len | (src_port << 16); */
-/*     memcpy(queue_data[port] + pointer + 5, &tmp_data, 4); */
-    printf("0x%02x 0x%02x%02lx%02lx%02lx 0x%02x%02lx%02lx%02lx\n",  
-	   (unsigned char) PAD_CTRL_VAL, 
-	   (unsigned char)*(queue_data[port] + pointer + 1), 
-	   (unsigned char)*(queue_data[port] + pointer + 2),
-	   (unsigned char)*(queue_data[port] + pointer + 3),
-	   (unsigned char)*(queue_data[port] + pointer + 4),
-	   (unsigned char)*(queue_data[port] + pointer + 5),
-	   (unsigned char)*(queue_data[port] + pointer + 6),
-	   (unsigned char)*(queue_data[port] + pointer + 7),
-	   (unsigned char)*(queue_data[port] + pointer + 8)); 
-   
-/*     printf("0x%02x 0x%08lx 0x%08lx\n",  */
-/* 	   PAD_CTRL_VAL, (  word_len | (dst_port << 16)), */
-/* 	   (len | (src_port << 16))); */
+/*     printf("0x%02x 0x%02x%02lx%02lx%02lx 0x%02x%02lx%02lx%02lx\n",   */
+/* 	   (unsigned char) PAD_CTRL_VAL,  */
+/* 	   (unsigned char)*(queue_data[port] + pointer + 1),  */
+/* 	   (unsigned char)*(queue_data[port] + pointer + 2), */
+/* 	   (unsigned char)*(queue_data[port] + pointer + 3), */
+/* 	   (unsigned char)*(queue_data[port] + pointer + 4), */
+/* 	   (unsigned char)*(queue_data[port] + pointer + 5), */
+/* 	   (unsigned char)*(queue_data[port] + pointer + 6), */
+/* 	   (unsigned char)*(queue_data[port] + pointer + 7), */
+/* 	   (unsigned char)*(queue_data[port] + pointer + 8));  */
   }
   
   //Load delay into SRAM if it exists
@@ -276,20 +270,16 @@ load_packet(struct pcap_pkthdr *h, const unsigned char *data, int port, int dela
     queue_data[port] = realloc(queue_data[port], queue_data_len[port]);
     queue_data[port][pointer] = (uint8_t)ctrl;
     memcpy(queue_data[port] + pointer + 1, data + i, 8);
-     printf("0x%02x 0x%02x%02lx%02lx%02lx 0x%02x%02lx%02lx%02lx\n",  
-	    ctrl, 
-	    (unsigned char)*(queue_data[port] + pointer + 1), 
-	    (unsigned char)*(queue_data[port] + pointer + 2),
-	    (unsigned char)*(queue_data[port] + pointer + 3),
-	    (unsigned char)*(queue_data[port] + pointer + 4),
-	    (unsigned char)*(queue_data[port] + pointer + 5),
-	    (unsigned char)*(queue_data[port] + pointer + 6),
-	    (unsigned char)*(queue_data[port] + pointer + 7),
-	    (unsigned char)*(queue_data[port] + pointer + 8)); 
-
-/*     printf("0x%02x 0x%08lx 0x%08lx\n",  */
-/* 	   ctrl, *((uint32_t *)(data + i)), */
-/* 	   *((uint32_t *)(data + i + 4))); */
+/*      printf("0x%02x 0x%02x%02lx%02lx%02lx 0x%02x%02lx%02lx%02lx\n",   */
+/* 	    ctrl,  */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 1),  */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 2), */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 3), */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 4), */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 5), */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 6), */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 7), */
+/* 	    (unsigned char)*(queue_data[port] + pointer + 8));  */
   }
 
 
@@ -349,8 +339,8 @@ load_pcap(const char *filename, int port, int delay) {
     }
 
 
-    printf("load packet on queue %d, with delay %d\n", 
-	   port, delay);
+    //    printf("load packet on queue %d, with delay %d\n", 
+    //	   port, delay);
 
     if(load_packet(&h, data, port, delay) == 0) 
       num_pkts[port]++;
@@ -412,6 +402,7 @@ rate_limiter_enable(int queue) {
 int
 rate_limiter_disable(int queue) {
   uint32_t rate_limit_offset = RATE_LIMIT_1_CTRL_REG - RATE_LIMIT_0_CTRL_REG;
+  printf("rate limiter port %d %08x\n", queue, RATE_LIMIT_0_CTRL_REG+(queue*rate_limit_offset));
    writeReg(&nf2, RATE_LIMIT_0_CTRL_REG+(queue*rate_limit_offset), 0x0);
    return 0;
 }
@@ -573,24 +564,24 @@ queue_reorganize() {
   for (i = 0; i < NUM_PORTS; i++) {
     // Set queue sizes for tx-during-setup queues
     writeReg(&nf2,(OQ_QUEUE_0_ADDR_LO_REG + (i * 2)*queue_addr_offset), curr_addr);
-    printf("%08lx %08lx\n", (OQ_QUEUE_0_ADDR_LO_REG + (i * 2)*queue_addr_offset), curr_addr);
+    //    printf("%08lx %08lx\n", (OQ_QUEUE_0_ADDR_LO_REG + (i * 2)*queue_addr_offset), curr_addr);
 		 
     writeReg(&nf2, (OQ_QUEUE_0_ADDR_HI_REG + (i*2)*queue_addr_offset), curr_addr + XMIT_QUEUE_SIZE - 1);
-    printf("%08lx %08lx\n", (OQ_QUEUE_0_ADDR_HI_REG + (i*2)*queue_addr_offset), curr_addr + XMIT_QUEUE_SIZE - 1);
+    //    printf("%08lx %08lx\n", (OQ_QUEUE_0_ADDR_HI_REG + (i*2)*queue_addr_offset), curr_addr + XMIT_QUEUE_SIZE - 1);
 
     writeReg(&nf2, (OQ_QUEUE_0_CTRL_REG + (i*2)*queue_addr_offset), 0x02);
-    printf("%08lx %08lx\n", (OQ_QUEUE_0_CTRL_REG + (i*2)*queue_addr_offset), 0x02);
+    //    printf("%08lx %08lx\n", (OQ_QUEUE_0_CTRL_REG + (i*2)*queue_addr_offset), 0x02);
     curr_addr += XMIT_QUEUE_SIZE;
 
     // Set queue sizes for RX queues
     writeReg(&nf2, (OQ_QUEUE_0_ADDR_LO_REG + (i*2+1)*queue_addr_offset), curr_addr);
-    printf("%08lx %08lx\n", (OQ_QUEUE_0_ADDR_LO_REG + (i*2+1)*queue_addr_offset), curr_addr);
+    //    printf("%08lx %08lx\n", (OQ_QUEUE_0_ADDR_LO_REG + (i*2+1)*queue_addr_offset), curr_addr);
     
     writeReg(&nf2, (OQ_QUEUE_0_ADDR_HI_REG + (i*2+1)*queue_addr_offset), curr_addr + rx_queue_size[i] - 1);
-    printf("%08lx %08lx\n", (OQ_QUEUE_0_ADDR_HI_REG + (i*2+1)*queue_addr_offset), curr_addr + rx_queue_size[i] - 1);
+    //    printf("%08lx %08lx\n", (OQ_QUEUE_0_ADDR_HI_REG + (i*2+1)*queue_addr_offset), curr_addr + rx_queue_size[i] - 1);
     
     writeReg(&nf2,(OQ_QUEUE_0_CTRL_REG + (i*2 + 1) * queue_addr_offset), 0x02);
-    printf("%08lx %08lx\n", (OQ_QUEUE_0_CTRL_REG + (i*2 + 1) * queue_addr_offset), 0x02);
+    //    printf("%08lx %08lx\n", (OQ_QUEUE_0_CTRL_REG + (i*2 + 1) * queue_addr_offset), 0x02);
     curr_addr += rx_queue_size[i];
   }
 
@@ -599,13 +590,13 @@ queue_reorganize() {
 
     // Set queue sizes for TX queues
     writeReg(&nf2, (OQ_QUEUE_0_ADDR_LO_REG + (i + 2*NUM_PORTS)*queue_addr_offset), curr_addr);
-    printf("%08lx %08lx\n", (OQ_QUEUE_0_ADDR_LO_REG + (i + 2*NUM_PORTS)*queue_addr_offset), curr_addr);
-    
+    //    printf("%08lx %08lx\n", (OQ_QUEUE_0_ADDR_LO_REG + (i + 2*NUM_PORTS)*queue_addr_offset), curr_addr);
+    //
     writeReg(&nf2, (OQ_QUEUE_0_ADDR_HI_REG + (i + 2*NUM_PORTS)*queue_addr_offset), curr_addr + queue_size - 1);
-    printf("%08lx %08lx\n", (OQ_QUEUE_0_ADDR_HI_REG + (i + 2*NUM_PORTS)*queue_addr_offset), curr_addr + queue_size - 1);
+    //    printf("%08lx %08lx\n", (OQ_QUEUE_0_ADDR_HI_REG + (i + 2*NUM_PORTS)*queue_addr_offset), curr_addr + queue_size - 1);
     
     writeReg(&nf2, (OQ_QUEUE_0_CTRL_REG + (i + 2*NUM_PORTS)*queue_addr_offset),0x02);
-    printf("%08lx %08lx\n", (OQ_QUEUE_0_CTRL_REG + (i + 2*NUM_PORTS)*queue_addr_offset),0x02);
+    //    printf("%08lx %08lx\n", (OQ_QUEUE_0_CTRL_REG + (i + 2*NUM_PORTS)*queue_addr_offset),0x02);
 
     queue_base_addr[i] = curr_addr;
     curr_addr += queue_size;
@@ -614,7 +605,7 @@ queue_reorganize() {
   // Enable Output Queues that are not associated with Packet Generation
   for (i = 0; i < 2*NUM_PORTS; i++)
     writeReg(&nf2, (OQ_QUEUE_0_CTRL_REG + i*queue_addr_offset), 0x01);
-    printf("%08lx %08lx\n",(OQ_QUEUE_0_CTRL_REG + i*queue_addr_offset), 0x01);
+  //    printf("%08lx %08lx\n",(OQ_QUEUE_0_CTRL_REG + i*queue_addr_offset), 0x01);
 
   return 0;
 }
@@ -628,6 +619,7 @@ time() {
 
 //////////////////////////////////////////////////////////
 // Name: load_queues
+  float epsilon = 0.001;
 //
 // Loads the packets into NetFPGA RAM from the hosts memory
 //
@@ -647,10 +639,10 @@ load_queues(int queue) {
 	     htonl(*((uint32_t *)(queue_data[queue] + i + 1))));
     writeReg(&nf2, (sram_addr+0xc), 
 	     htonl(*(uint32_t *)(queue_data[queue] + i + 5)));
-    printf("%x %x %x %08lx %x %08lx\n",  
-	   (sram_addr+0x4), *((uint8_t *)(queue_data[queue] + i)),  
- 	   (sram_addr+0x8), htonl(*((uint32_t *)(queue_data[queue] + i + 1))),  
- 	   (sram_addr+0xc), htonl(*((uint32_t *)(queue_data[queue] + i + 5)))); 
+    printf("%x %x %x %08lx %x %08lx\n",
+	   (sram_addr+0x4), *((uint8_t *)(queue_data[queue] + i)),
+ 	   (sram_addr+0x8), htonl(*((uint32_t *)(queue_data[queue] + i + 1))),
+ 	   (sram_addr+0xc), htonl(*((uint32_t *)(queue_data[queue] + i + 5))));
     sram_addr += 16;
   }
   return 0;
@@ -666,6 +658,7 @@ void
 wait_for_last_packet(uint32_t start) {
   float last_pkt = 0;
   float delta = 0;
+  float last;
 
   int i;
 
@@ -684,7 +677,6 @@ wait_for_last_packet(uint32_t start) {
   // Wait the requesite number of seconds
   printf("Last packet scheduled for transmission at %1.3f seconds\n", last_pkt);
   while (delta <= last_pkt) {
-    printf("\r%1.3f seconds elapsed...", delta);
     sleep(1);
     delta = time() - start;
   }
@@ -737,17 +729,12 @@ finish_gen() {
   packet_generator_enable(0x0);
   reset_delay();
 
-/*   if (capture_enable) { */
-/*     save_pcap(); */
-/*   } */
-
   //display_xmit_metrics();
   //display_capture_metrics();
   
   if (capture_enable) {
     printf("Ignore warnings about scalars leaked...\n");
   }
-  //exit (0);
 }
 
 
@@ -760,7 +747,7 @@ main(int argc, char *argv[]) {
 
   init();
 
-
+  float epsilon = 0.001;
   if(packet_generator_enable(0x0)) {
     perror("packet_generator_enable");
     exit(1);
@@ -770,9 +757,9 @@ main(int argc, char *argv[]) {
 /*   load_pcap("/root/netfpga/projects/packet_generator/sw/udp_lite_full_coverage_0.pcap", 2,  */
 /* 	    0); */
   send_enable = 1;
-  pad = 1;
-  load_pcap("/root/netfpga/projects/packet_generator/sw/test_pad.pcap", 2, 0);
-  
+  pad = 0;
+  load_pcap("/root/netfpga/projects/packet_generator/sw/http.pcap", 2, 0);
+  //  load_pcap("/root/netfpga/projects/packet_generator/sw/udp_lite_full_coverage_0.pcap", 2, 0);
   queue_reorganize();
 
   // Load the packets into sram
@@ -784,26 +771,27 @@ main(int argc, char *argv[]) {
 
   //Set the rate limiter for CPU queues
   //  for (i = 0; i < 4; i++) {
-  //  rate_limiter_set(i*2+1, 200000);
+  // rate_limiter_set(i*2+1, 200000);
   //}
 
   // Set the number of iterations for the queues with pcap files
   for (i = 0; i < NUM_PORTS; i++) {
-    if (queue_data_len[i]) 
+    if (queue_data_len[i])
       set_number_iterations (iterations[i], 1, i);
 
     // Enable the rate limiter
-    if (rate[i] > 0) 
+    if (rate[i] > 0)
       rate_limiter_enable(i * 2);
-    else 
+    else
       rate_limiter_disable(i * 2);
   }
+  rate_limiter_set(4, 200000);
+  rate_limiter_enable(4);
 
   // Enable the rate limiter on the CPU queues
   for (i = 0; i < 4; i++) {
     rate_limiter_enable(i*2 + 1);
   }
-
 
   //Enable the packet generator hardware to send the packets
   int drop = 0;
@@ -820,7 +808,7 @@ main(int argc, char *argv[]) {
   for (i = 0; i < NUM_PORTS; i++) 
     printf("queue size %d : %d %x\n", i, queue_data_len[i], drop);
 
-  packet_generator_enable (drop | 0xF);
+  packet_generator_enable (0xF);
 
   // Wait until the correct number of packets is sent
   start = time();
