@@ -298,12 +298,10 @@ load_config_file(oflops_context * ctx, const char *config) {
 	perror_and_exit("read_objid failed", 1);  
     } while (( end = strtok(NULL, ";")) != NULL);
   }
-
   //setting up details regarding the data ports from the data 
   if((data = config_lookup(&conf, "oflops.data") ) != NULL ) {
     for (i=0; i < config_setting_length(data); i++) {
       elem = config_setting_get_elem(data, i);
-
       if(config_setting_get_member(elem, "dev") != NULL) {
 	if(ctx->n_channels >= ctx->max_channels) {
 	  ctx->max_channels *= 2;

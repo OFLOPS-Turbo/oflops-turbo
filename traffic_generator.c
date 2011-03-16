@@ -189,7 +189,6 @@ read_mac_addr(uint8_t *addr, char *str) {
 int
 innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det) {  
   int l3_size;
-
   state->data = (void *)xmalloc(det->pkt_size); 
   state->data_len = det->pkt_size;
 
@@ -282,8 +281,6 @@ start_user_traffic_generator(oflops_context *ctx) {
   };
   return 1;
 }
-
-
 
 int 
 start_nf_traffic_generator(oflops_context *ctx) {

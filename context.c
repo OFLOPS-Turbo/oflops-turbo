@@ -47,14 +47,12 @@ oflops_context * oflops_default_context(void) {
   ctx->dump_controller = 0;
   //ctx->cpuOID_len = MAX_OID_LEN;
   ctx->cpuOID_count = 0;
-
   return ctx;
 }
 
 // Reset any counters in the context
 // 	run me between tests
-int reset_context(oflops_context * ctx)
-{
+int reset_context(oflops_context * ctx) {
   // reset any state between experiments
   //timer_init(ctx);
   // clean up after test (each test does its own cleanup, except for the 

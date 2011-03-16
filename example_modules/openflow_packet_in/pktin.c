@@ -263,8 +263,6 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
 
   for(vars = se->pdu->variables; vars; vars = vars->next_variable)  {
     snprint_value(msg, len, vars->name, vars->name_length, vars);
-
-
     for (i = 0; i < ctx->cpuOID_count; i++) {
       if((vars->name_length == ctx->cpuOID_len[i]) &&
 	 (memcmp(vars->name, ctx->cpuOID[i],  ctx->cpuOID_len[i] * sizeof(oid)) == 0) ) {

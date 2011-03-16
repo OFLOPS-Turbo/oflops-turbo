@@ -102,7 +102,6 @@ fail(const char * msg) {
 }
 
 /*
->>>>>>> integrating work at t-labs with main code
 uint64_t
 ntohll(uint64_t val) {
   uint64_t ret = 0;

@@ -43,7 +43,6 @@ void fail(const char *msg);
  */
 uint64_t ntohll(uint64_t val);
 uint16_t ip_sum_calc(uint16_t len_ip_header, uint16_t buff[]);
-
 int get_mac_address(char *intf_name, char mac_addr[]);
 
 #endif
