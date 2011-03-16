@@ -432,6 +432,7 @@ stop_traffic_generator() {
   return 1;
 };
 
+//check here whether the pktgen format is correct
 struct pktgen_hdr *
 extract_pktgen_pkt(unsigned char *b, int len, struct flow *fl) {
   struct ether_header *ether = (struct ether_header *)b;
