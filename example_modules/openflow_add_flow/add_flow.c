@@ -455,7 +455,8 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
   } else if ((ch == OFLOPS_DATA1) || (ch == OFLOPS_DATA2) || (ch == OFLOPS_DATA3)) {
     struct flow fl;
     struct timeval now;
-    pktgen = extract_pktgen_pkt(ctx, ch, pe->data, pe->pcaphdr.caplen, &fl);
+    if((pktgen = extract_pktgen_pkt(ctx, ch, pe->data, pe->pcaphdr.caplen, &fl)) == NULL)
+       return 0;
     if((ch == OFLOPS_DATA1) && (!first_pkt)) {
       oflops_log(pe->pcaphdr.ts, GENERIC_MSG, "FIRST_PKT_RCV");
       oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);

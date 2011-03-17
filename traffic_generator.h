@@ -40,7 +40,7 @@ struct pktgen_hdr {
 int init_traf_gen(struct oflops_context *ctx);
 int add_traffic_generator(struct oflops_context *ctx, int channel, struct traf_gen_det *det);
 int start_traffic_generator();
-int stop_traffic_generator();
+int stop_traffic_generator( oflops_context *ctx);
 
 char *report_traffic_generator(oflops_context *ctx);
 

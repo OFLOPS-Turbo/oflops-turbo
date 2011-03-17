@@ -148,6 +148,13 @@ int start(struct oflops_context * ctx) {
   fl->nw_dst =  inet_addr("10.1.1.2");
   fl->tp_src = htons(8080);            
   fl->tp_dst = htons(8080); 
+
+  len = make_ofp_flow_add(&b, fl, OFPP_IN_PORT, 0, OFP_FLOW_PERMANENT);
+  write(ctx->control_fd, b, len);
+  free(b);
+
+  fl->in_port = htons(ctx->channels[OFLOPS_DATA2].of_port); 
+  fl->nw_dst =  inet_addr("192.168.1.0");
   for (i = 0 ; i <= 11; i++) {
     len = make_ofp_flow_add(&b, fl, OFPP_IN_PORT, 0, OFP_FLOW_PERMANENT);
     write(ctx->control_fd, b, len);
@@ -223,8 +230,8 @@ handle_traffic_generation (oflops_context *ctx) {
   strcpy(det.dst_ip_max, "10.1.1.2");
   
   struct in_addr in;
-  in.s_addr = htonl(ntohl(inet_addr("10.1.1.2")) + 10);
-  strcpy(det.dst_ip_max,  inet_ntoa(in));
+/*   in.s_addr = htonl(ntohl(inet_addr("10.1.1.2")) + 10); */
+/*   strcpy(det.dst_ip_max,  inet_ntoa(in)); */
   
   if(ctx->trafficGen == PKTGEN)
     strcpy(det.mac_src, "00:00:00:00:00:00");
@@ -249,7 +256,15 @@ handle_traffic_generation (oflops_context *ctx) {
   
   //start packet generator
   add_traffic_generator(ctx, OFLOPS_DATA1, &det);
+
+/*   strcpy(det.src_ip,"10.1.1.1"); */
+/*   strcpy(det.dst_ip_min,"192.168.1.0"); */
+/*   in.s_addr = htonl(ntohl(inet_addr("192.168.1.0")) + 10); */
+/*   strcpy(det.dst_ip_max,  inet_ntoa(in)); */
+/*   add_traffic_generator(ctx, OFLOPS_DATA2, &det); */
+
   start_traffic_generator(ctx);
+
   
   
 /*   gsl_sort (delay, 1, delay_count); */

@@ -302,7 +302,7 @@ start_nf_traffic_generator(oflops_context *ctx) {
       printf("Found %d flows %d pkt size\n", flow_num, h.caplen );
 
       innitialize_generator_packet(&pkt_state, ctx->channels[ix].det);
-      nf_gen_set_number_iterations (9, 1, ix-1);
+      nf_gen_set_number_iterations (100, 1, ix-1);
       
       pkt_count = flow_num;
       if(strstr(det->flags, "IPDST_RND") != NULL) 
@@ -321,8 +321,17 @@ start_nf_traffic_generator(oflops_context *ctx) {
     }
   }
 
-  nf_start(1);
+  nf_start(0);
+  while(!ctx->should_end) {
+    pthread_yield();
+    if(nf_gen_finished()) {
+      printf("Packet generation finished. Restarting...\n");
+      nf_finish();
+      nf_start(0);
+    }
+  }
   
+  nf_finish();
   return 1;
 }
 
@@ -418,16 +427,20 @@ start_pktgen_traffic_generator(oflops_context *ctx) {
 };
 
 int 
-stop_traffic_generator() {
-  //terminate process of packet generation
-  FILE *ctrl = fopen("/proc/net/pktgen/pgctrl", "w");
-  if(ctrl == NULL) 
-    perror_and_exit("failed to open file to terminate pktgen process", 1);
-
-  if (fprintf(ctrl, "stop") < 0)
-    perror_and_exit("failed to stop packet generation process", 1);
-
-  fclose(ctrl);
+stop_traffic_generator( oflops_context *ctx) {
+  if(ctx->trafficGen == PKTGEN) {
+    nf_finish();
+  } else if(ctx->trafficGen == NF_PKTGEN) {
+    //terminate process of packet generation
+    FILE *ctrl = fopen("/proc/net/pktgen/pgctrl", "w");
+    if(ctrl == NULL) 
+      perror_and_exit("failed to open file to terminate pktgen process", 1);
+    
+    if (fprintf(ctrl, "stop") < 0)
+      perror_and_exit("failed to stop packet generation process", 1);
+    
+    fclose(ctrl);
+  }
 
   return 1;
 };
