@@ -289,6 +289,19 @@ start_nf_traffic_generator(oflops_context *ctx) {
   struct pkt_details pkt_state;
   struct pcap_pkthdr h;
   int pkt_count;
+  int max_packets = 10000000;
+  int iteration[] = {0,0,0,0};
+
+
+  for(ix = 1; ix < ctx->n_channels; ix++) {
+    if(ctx->channels[ix].det != NULL) {
+      det = ctx->channels[ix].det;
+      flow_num = ntohl(inet_addr(det->dst_ip_max)) - ntohl(inet_addr(det->dst_ip_min)) + 1;
+      if(strstr(det->flags, "IPDST_RND") != NULL) 
+	pkt_count = 1.2*flow_num;
+      iteration[ix-1] = max_packets/pkt_count;
+    }
+  }
   
   printf("Running nf packet gen\n");
   for(ix = 0; ix < ctx->n_channels; ix++) {
@@ -299,10 +312,10 @@ start_nf_traffic_generator(oflops_context *ctx) {
       h.ts.tv_sec = 0;
       h.ts.tv_usec = 0;
       flow_num = ntohl(inet_addr(det->dst_ip_max)) - ntohl(inet_addr(det->dst_ip_min)) + 1;
-      printf("Found %d flows %d pkt size\n", flow_num, h.caplen );
+      printf("Found %d flows %d pkt size iteration %d\n", flow_num, h.caplen, iteration[ix] );
 
       innitialize_generator_packet(&pkt_state, ctx->channels[ix].det);
-      nf_gen_set_number_iterations (100, 1, ix-1);
+      nf_gen_set_number_iterations (iteration[ix - 1], 1, ix-1);
       
       pkt_count = flow_num;
       if(strstr(det->flags, "IPDST_RND") != NULL) 

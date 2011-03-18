@@ -9,6 +9,8 @@
 #include "log.h"
 #include "traffic_generator.h"
 
+#define BYESTR "bye bye"
+
 /** @ingroup modules
  * queue delay module.
  * This module send a a single packet probe in 
@@ -115,6 +117,7 @@ int start(struct oflops_context * ctx) {
   void *b;
   struct flow *fl = (struct flow*)xmalloc(sizeof(struct flow));
   int ret, res, len, i;
+  struct timeval now;
   msg_init();  
 
   //get the mac address of channel 1
@@ -165,7 +168,21 @@ int start(struct oflops_context * ctx) {
 
   free(fl);
 
+  //end process 
+  gettimeofday(&now, NULL);
+  add_time(&now, 60, 0);
+  oflops_schedule_timer_event(ctx,&now, BYESTR);
+
   return 0;
+}
+
+int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {  
+  //terminate process 
+  if (strcmp(te->arg, BYESTR) == 0) {
+    printf("terminating test....\n");
+    oflops_end_test(ctx,1);
+    return 0;    
+  }
 }
 
 /** Register pcap filter.
@@ -176,7 +193,7 @@ int start(struct oflops_context * ctx) {
  */
 int get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc, char * filter, int buflen) {
   //set the system to listwn on port 1
-  if(ofc == OFLOPS_DATA1) 
+  if( (ofc == OFLOPS_DATA1) || (ofc == OFLOPS_DATA2))
     return snprintf(filter,buflen," ");
   else 
     return 0;
@@ -188,7 +205,7 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
   struct pktgen_hdr *pktgen;
   struct in_addr in;
 
-  if(ch == OFLOPS_DATA1) { 
+  if( (ch == OFLOPS_DATA1) || (ch == OFLOPS_DATA2)){  
 
     struct flow fl; 
     pktgen = extract_pktgen_pkt(ctx, ch, pe->data, pe->pcaphdr.caplen, &fl); 
@@ -257,11 +274,11 @@ handle_traffic_generation (oflops_context *ctx) {
   //start packet generator
   add_traffic_generator(ctx, OFLOPS_DATA1, &det);
 
-/*   strcpy(det.src_ip,"10.1.1.1"); */
-/*   strcpy(det.dst_ip_min,"192.168.1.0"); */
-/*   in.s_addr = htonl(ntohl(inet_addr("192.168.1.0")) + 10); */
-/*   strcpy(det.dst_ip_max,  inet_ntoa(in)); */
-/*   add_traffic_generator(ctx, OFLOPS_DATA2, &det); */
+  strcpy(det.src_ip,"10.1.1.1");
+  strcpy(det.dst_ip_min,"192.168.1.0");
+  in.s_addr = htonl(ntohl(inet_addr("192.168.1.0")) + 10);
+  strcpy(det.dst_ip_max,  inet_ntoa(in));
+  add_traffic_generator(ctx, OFLOPS_DATA2, &det);
 
   start_traffic_generator(ctx);
 
