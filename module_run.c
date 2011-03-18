@@ -318,7 +318,7 @@ static void process_pcap_event(oflops_context *ctx, test_module * mod, struct po
     count = pcap_dispatch(ctx->channels[ch].pcap_handle, 1, oflops_pcap_handler, (u_char *) & wrap);
   } else  if(ctx->channels[ch].cap_type == NF2) {
     wrap.pe = malloc_and_check(sizeof(pcap_event));
-    printf("received packet at port %d\n", ch);
+    //printf("received packet at port %d\n", ch);
     data = nf_cap_next(ctx->channels[ch].nf_cap, &wrap.pe->pcaphdr);
 
     if(data != NULL) {

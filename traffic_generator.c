@@ -289,8 +289,8 @@ start_nf_traffic_generator(oflops_context *ctx) {
   struct pkt_details pkt_state;
   struct pcap_pkthdr h;
   int pkt_count;
-  int max_packets = 10000000;
-  int iteration[] = {0,0,0,0};
+  uint32_t max_packets = 100000000;
+  uint32_t iteration[] = {0,0,0,0};
 
 
   for(ix = 1; ix < ctx->n_channels; ix++) {
@@ -299,7 +299,10 @@ start_nf_traffic_generator(oflops_context *ctx) {
       flow_num = ntohl(inet_addr(det->dst_ip_max)) - ntohl(inet_addr(det->dst_ip_min)) + 1;
       if(strstr(det->flags, "IPDST_RND") != NULL) 
 	pkt_count = 1.2*flow_num;
-      iteration[ix-1] = max_packets/pkt_count;
+      if(pkt_count) iteration[ix-1] = max_packets/pkt_count;
+      else iteration[ix-1] = max_packets;
+      printf("queue %d: flow_mum %d iterations %u (%s - %s)\n", 
+	     ix-1, pkt_count, iteration[ix-1], det->dst_ip_max, det->dst_ip_min);
     }
   }
   

@@ -488,7 +488,7 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
       }
     }
     if(pktgen->seq_num % 100000 == 0)
-      printf("data packet received %d\n", htonl(pktgen->seq_num));
+      printf("data packet received %d\n", pktgen->seq_num);
     
     struct entry *n1 = malloc(sizeof(struct entry));
     n1->snd.tv_sec = pktgen->tv_sec;
@@ -580,6 +580,8 @@ handle_traffic_generation (oflops_context *ctx) {
   struct traf_gen_det det;
   struct in_addr ip_addr;
 
+  init_traf_gen(ctx);
+
   //background data
   strcpy(det.src_ip,"10.1.1.1");
   strcpy(det.dst_ip_min,"192.168.2.0");
@@ -592,7 +594,11 @@ handle_traffic_generation (oflops_context *ctx) {
   ip_addr.s_addr = htonl(ip_addr.s_addr);
   //str_ip = inet_ntoa(ip_addr);
   strcpy(det.dst_ip_max,  inet_ntoa(ip_addr));
-  strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
+  if(ctx->trafficGen == PKTGEN)
+    strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
+  else 
+    strcpy(det.mac_src,data_mac);
+    
   strcpy(det.mac_dst,"00:15:17:7b:92:0a");
   det.vlan = 0xffff;
   det.vlan_p = 0;
@@ -604,11 +610,13 @@ handle_traffic_generation (oflops_context *ctx) {
   strcpy(det.flags, "");
   add_traffic_generator(ctx, OFLOPS_DATA2, &det);
 
-  init_traf_gen(ctx);
   strcpy(det.src_ip,"10.1.1.1");
   strcpy(det.dst_ip_min,"10.1.1.2");
   strcpy(det.dst_ip_max,"10.1.1.2");
-  strcpy(det.mac_src,"00:00:00:00:00:00");
+  if(ctx->trafficGen == PKTGEN)
+    strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
+  else 
+    strcpy(det.mac_src,local_mac);
   strcpy(det.mac_dst,"00:15:17:7b:92:0a");
   det.vlan = 0xffff;
   det.vlan_p = 0;

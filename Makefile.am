@@ -6,7 +6,9 @@ CFLAGS+=-Wall -I$(OFSRC)/include -I./netfpga-packet-generator-c-library/include/
 	`pkg-config --cflags libconfig`
 LDFLAGS+=-L$(OFSRC)/lib `pkg-config --libs libconfig` 
 
-LDADD=-ldl -lpcap -lnetsnmp -loflops_test -lpthread netfpga-packet-generator-c-library/src/libnf_pktgten.la 
+LDADD=-ldl -lpcap -lnetsnmp -loflops_test -lpthread \
+	netfpga-packet-generator-c-library/src/libnf_pktgten.la \
+	 -lgsl  -lgslcblas
 #LDADD+=-lefence
 
 EXTRA_DIST=./doc
