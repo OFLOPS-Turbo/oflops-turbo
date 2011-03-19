@@ -71,11 +71,23 @@ int main(int argc, char * argv[])
     free(thread);
     gettimeofday(&now, NULL);
     for(j = 0 ; j < ctx->n_channels;j++) {
-      if(ctx->channels[j].pcap_handle == NULL) continue;
-      pcap_stats(ctx->channels[j].pcap_handle, &ps);
-      snprintf(msg, 1024, "%s:%u:%u",ctx->channels[j].dev, ps.ps_recv, ps.ps_drop);
-      oflops_log(now, PCAP_MSG, msg);
-      printf("%s\n", msg);
+      if((ctx->channels[j].cap_type == PCAP) && 
+	 (ctx->channels[j].pcap_handle == NULL)) {
+	pcap_stats(ctx->channels[j].pcap_handle, &ps);
+	snprintf(msg, 1024, "%s:%u:%u",ctx->channels[j].dev, ps.ps_recv, ps.ps_drop);
+	oflops_log(now, PCAP_MSG, msg);
+	printf("%s\n", msg);
+      } else if((ctx->channels[j].cap_type == NF2) &&
+		(ctx->channels[j].nf_cap != NULL)) {
+	struct nf_cap_stats stat;
+	nf_cap_stat(j-1, &stat);
+	//pcap_stats(ctx->channels[j].pcap_handle, &ps);
+	snprintf(msg, 1024, "%s:%u:%u",ctx->channels[j].dev, 
+		 stat.pkt_cnt, 
+		 (stat.pkt_cnt - stat.capture_packet_cnt));
+	oflops_log(now, PCAP_MSG, msg);
+	printf("%s\n", msg);
+      }
     }
 
     char *ret = report_traffic_generator(ctx);
