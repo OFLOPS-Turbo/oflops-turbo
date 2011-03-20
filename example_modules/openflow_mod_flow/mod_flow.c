@@ -35,7 +35,7 @@
  * @return name of module
  */
 char * name() {
-	return "openflow_add_flow";
+	return "openflow_mod_flow";
 }
 
 /*
@@ -147,11 +147,10 @@ start(struct oflops_context * ctx) {
   msg_init();  
   snprintf(msg, 1024,  "Intializing module %s", name());
 
-  get_mac_address(ctx->channels[OFLOPS_DATA1].dev, local_mac);
-  printf("%s: %02x:%02x:%02x:%02x:%02x:%02x\n", ctx->channels[OFLOPS_DATA2].dev,
-	 (unsigned char)local_mac[0], (unsigned char)local_mac[1], (unsigned char)local_mac[2], 
-	 (unsigned char)local_mac[3], (unsigned char)local_mac[4], (unsigned char)local_mac[5]);
-  get_mac_address(ctx->channels[OFLOPS_DATA2].dev, data_mac);
+  bzero(&flow_mod_timestamp, sizeof(struct timeval));
+
+  get_mac_address(ctx->channels[OFLOPS_DATA2].dev, local_mac);
+  get_mac_address(ctx->channels[OFLOPS_DATA1].dev, data_mac);
 
   //log when I start module
   gettimeofday(&now, NULL);
@@ -177,11 +176,13 @@ start(struct oflops_context * ctx) {
   if(table == 0)
     fl->mask = 0; //if table is 0 the we generate an exact match */
   else 
-    fl->mask = OFPFW_DL_DST | OFPFW_DL_SRC | (32 << OFPFW_NW_SRC_SHIFT) | 
-      (32 << OFPFW_NW_DST_SHIFT) | OFPFW_DL_VLAN | OFPFW_TP_DST | OFPFW_NW_PROTO | 
-      OFPFW_TP_SRC | OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS;
+    fl->mask =OFPFW_IN_PORT | OFPFW_DL_DST | OFPFW_DL_SRC | 
+      (0 << OFPFW_NW_SRC_SHIFT) | 
+      (0 << OFPFW_NW_DST_SHIFT) | OFPFW_DL_VLAN | 
+      OFPFW_NW_PROTO |  OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS;
 
-  fl->in_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
+  //fl->mask = OFPFW_ALL;
+  fl->in_port = htons(ctx->channels[OFLOPS_DATA2].of_port);
   fl->dl_type = htons(ETHERTYPE_IP);         
   memcpy(fl->dl_src, local_mac, 6);
   memcpy(fl->dl_dst, "\x00\x15\x17\x7b\x92\x0a", 6);
@@ -201,7 +202,7 @@ start(struct oflops_context * ctx) {
     //    ip++;
   }
 
-  fl->in_port = htons(ctx->channels[OFLOPS_DATA2].of_port);
+  fl->in_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
   memcpy(fl->dl_src, data_mac, 6);
   fl->nw_dst =  inet_addr("10.1.1.2");
   len = make_ofp_flow_add(&b, fl, ctx->channels[OFLOPS_DATA3].of_port, 1, 120);
@@ -234,9 +235,11 @@ start(struct oflops_context * ctx) {
   oflops_schedule_timer_event(ctx,&now, BYESTR);
 
 
-  gettimeofday(&now, NULL);
+  /*gettimeofday(&now, NULL);
   add_time(&now, 1, 0);
-  oflops_schedule_timer_event(ctx,&now, SEND_ECHO_REQ);
+  oflops_schedule_timer_event(ctx,&now, SEND_ECHO_REQ); */
+
+  printf("flow mod start finished\n");
   return 0;
 }
 
@@ -351,29 +354,36 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
     if(table == 0)
       fl_probe->mask = 0; //if table is 0 the we generate an exact match */
     else 
-      fl_probe->mask = OFPFW_DL_DST | OFPFW_DL_SRC | (32 << OFPFW_NW_SRC_SHIFT) | 
-	(32 << OFPFW_NW_DST_SHIFT) | OFPFW_DL_VLAN | OFPFW_TP_DST | OFPFW_NW_PROTO | 
-	OFPFW_TP_SRC | OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS;
-
+      fl_probe->mask =  OFPFW_IN_PORT | OFPFW_DL_DST | OFPFW_DL_SRC | 
+	(0 << OFPFW_NW_SRC_SHIFT) | 
+	(0 << OFPFW_NW_DST_SHIFT) | OFPFW_DL_VLAN | 
+	OFPFW_NW_PROTO |  OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS;
     memcpy(fl_probe->dl_src, local_mac, 6);
     memcpy(fl_probe->dl_dst, "\x00\x15\x17\x7b\x92\x0a", 6);
-    fl_probe->in_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
+    fl_probe->in_port = htons(ctx->channels[OFLOPS_DATA2].of_port);
     ip_addr.s_addr =  ntohl(inet_addr(network));
     for(i=0; i< flows; i++) {
     fl_probe->nw_dst =  htonl(ip_addr.s_addr);
       len = make_ofp_flow_modify_output_port(&b, fl_probe, OFPP_IN_PORT, 1, 1200);
+      ((struct ofp_flow_mod *)b)->priority = htons(128);
       oflops_send_of_mesgs(ctx, b, len);
       free(b);
       ip_addr.s_addr++;
     }
     memcpy(fl_probe->dl_src, data_mac, 6);
-    fl_probe->in_port = htons(ctx->channels[OFLOPS_DATA2].of_port);
+    fl_probe->in_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
     fl_probe->nw_dst =  inet_addr("10.1.1.2");
     len = make_ofp_flow_modify_output_port(&b, fl_probe, OFPP_IN_PORT,
 					   1, 1200);
-    oflops_send_of_mesg(ctx, b);
+    ((struct ofp_flow_mod *)b)->priority = htons(128);
+    oflops_send_of_mesgs(ctx, b, len);
     free(b);
     printf("sending flow modifications ....\n"); 
+    
+    make_ofp_hello(&b);
+    ((struct ofp_header *)b)->type = OFPT_BARRIER_REQUEST;
+    oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_header));
+    free(b);  
 
   } else if(strcmp(str, SNMPGET) == 0) {
     for(i = 0; i < ctx->cpuOID_count; i++) {
@@ -462,33 +472,46 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
 	if( (ntohl(ofp->xid) < 100) && (ntohl(ofp->xid) > 0))
 	  memcpy(&echo_data[ntohl(ofp->xid)].rcv, &pe->pcaphdr.ts, sizeof(struct timeval));
 	break;  
+      case  OFPT_BARRIER_REPLY:
+	printf("BARRIER_REPLY:%d\n", time_diff(&flow_mod_timestamp, 
+					       &pe->pcaphdr.ts));
+	snprintf(msg, 1024, "BARRIER_REPLY:%d", 
+		 time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
+	oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
+	break;  
       }
     }
-  } else if ((ch == OFLOPS_DATA1) || (ch == OFLOPS_DATA2) || (ch == OFLOPS_DATA3)) {
+  } else if ((ch == OFLOPS_DATA1) || (ch == OFLOPS_DATA2) || 
+	     (ch == OFLOPS_DATA3)) {
     struct flow fl;
     struct timeval now;
     pktgen = extract_pktgen_pkt(ctx, ch, pe->data, pe->pcaphdr.caplen, &fl);
-    if((ch == OFLOPS_DATA2) && (!first_pkt)) {
+    if(((pktgen == NULL) || (fl.tp_dst != 8080) || fl.tp_src != 8080)){
+	    printf("Failed to parse packet\n");
+	    return 0;
+    }
+    if((ch == OFLOPS_DATA1) && (!first_pkt) && (stored_flow_mod_time )) {
       oflops_log(pe->pcaphdr.ts, GENERIC_MSG, "FIRST_PKT_RCV");
       oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
       printf("INSERT_DELAY:%d\n", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
       snprintf(msg, 1024, "INSERT_DELAY:%d", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
       oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
       first_pkt = 1;
-      gettimeofday(&now, NULL);
-      add_time(&now, 1, 0);
+      //gettimeofday(&now, NULL);
+      //add_time(&now, 1, 0);
       //oflops_schedule_timer_event(ctx,&now, BYESTR);
-    } else if (ch == OFLOPS_DATA1) {
+    } else if (ch == OFLOPS_DATA2) {
       int id = ntohl(fl.nw_dst) - ntohl(inet_addr(network));
       //printf("id %d %x %x\n", id, ntohl(fl.nw_dst),  ntohl(inet_addr(network)));
-      if ((id >= 0) && (id < flows) && (!ip_received[id])) {
+      if ((id >= 0) && (id < flows) && (!ip_received[id]) && 
+	  (stored_flow_mod_time )) {
 	ip_received_count++;
 	ip_received[id] = 1;
-	if (ip_received_count == flows) {
+	if (ip_received_count >= flows) {
 	  gettimeofday(&now, NULL);
 	  add_time(&now, 1, 0);
 	  oflops_schedule_timer_event(ctx,&now, BYESTR);
-	  printf("Received all packets to channel 2\n");
+	  printf("Received all packets to channel 1\n");
 	  oflops_log(pe->pcaphdr.ts, GENERIC_MSG, "LAST_PKT_RCV");
 	  oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
 
@@ -498,8 +521,8 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
 	}
       }
     }
-    if(htonl(pktgen->seq_num) % 100000 == 0)
-      printf("data packet received %d\n", htonl(pktgen->seq_num));
+    if(pktgen->seq_num % 100000 == 0)
+      printf("data packet received %d\n", pktgen->seq_num);
     
     struct entry *n1 = malloc(sizeof(struct entry));
     n1->snd.tv_sec = pktgen->tv_sec;
@@ -535,6 +558,7 @@ of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph
 
   make_ofp_hello(&b);
   ((struct ofp_header *)b)->type = OFPT_ECHO_REPLY;
+  ((struct ofp_header *)b)->xid = ofph->xid;
   res = oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
   free(b);
   return 0;
@@ -591,35 +615,20 @@ handle_traffic_generation (oflops_context *ctx) {
   struct traf_gen_det det;
   struct in_addr ip_addr;
 
-  //background data
-  strcpy(det.src_ip,"10.1.1.1");
-  strcpy(det.dst_ip_min,"192.168.2.0");
-
-  ip_addr.s_addr = ntohl(inet_addr("192.168.2.0"));
-  //if(table == 1)
-  //  ip_addr.s_addr += ((flows-1) << 8);
-  //else 
-  ip_addr.s_addr += (flows-1);
-  ip_addr.s_addr = htonl(ip_addr.s_addr);
-  //str_ip = inet_ntoa(ip_addr);
-  strcpy(det.dst_ip_max,  inet_ntoa(ip_addr));
-  strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
-  strcpy(det.mac_dst,"00:15:17:7b:92:0a");
-  det.vlan = 0xffff;
-  det.vlan_p = 0;
-  det.vlan_cfi = 0;
-  det.udp_src_port = 8080;
-  det.udp_dst_port = 8080;
-  det.pkt_size = pkt_size;
-  det.delay = data_snd_interval*1000;
-  strcpy(det.flags, "");
-  add_traffic_generator(ctx, OFLOPS_DATA1, &det);
-
+  printf("start traffic gen\n");
   init_traf_gen(ctx);
+
   strcpy(det.src_ip,"10.1.1.1");
   strcpy(det.dst_ip_min,"10.1.1.2");
   strcpy(det.dst_ip_max,"10.1.1.2");
-  strcpy(det.mac_src,"00:00:00:00:00:00");
+  if(ctx->trafficGen == PKTGEN) 
+    strcpy(det.mac_src,"00:00:00:00:00:00");
+  else 
+    snprintf(det.mac_src, 20, "%02x:%02x:%02x:%02x:%02x:%02x",
+	     (unsigned char)data_mac[0], (unsigned char)data_mac[1], 
+	     (unsigned char)data_mac[2], (unsigned char)data_mac[3], 
+	     (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
+  
   strcpy(det.mac_dst,"00:15:17:7b:92:0a");
   det.vlan = 0xffff;
   det.vlan_p = 0;
@@ -629,7 +638,34 @@ handle_traffic_generation (oflops_context *ctx) {
   det.pkt_size = pkt_size;
   det.delay = probe_snd_interval*1000;
   strcpy(det.flags, "");
-  add_traffic_generator(ctx, OFLOPS_DATA2, &det);  
+  add_traffic_generator(ctx, OFLOPS_DATA1, &det); 
+
+  //background data
+  strcpy(det.src_ip,"10.1.1.1");
+  strcpy(det.dst_ip_min,network);
+
+  ip_addr.s_addr = ntohl(inet_addr(network));
+  ip_addr.s_addr += (flows-1);
+  ip_addr.s_addr = htonl(ip_addr.s_addr);
+  strcpy(det.dst_ip_max,  inet_ntoa(ip_addr));
+  if(ctx->trafficGen == PKTGEN)
+    strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
+  else 
+    snprintf(det.mac_src, 20, "%02x:%02x:%02x:%02x:%02x:%02x",
+	     (unsigned char)local_mac[0], (unsigned char)local_mac[1], 
+	     (unsigned char)local_mac[2], (unsigned char)local_mac[3], 
+	     (unsigned char)local_mac[4], (unsigned char)local_mac[5]);
+    
+  strcpy(det.mac_dst,"00:15:17:7b:92:0a");
+  det.vlan = 0xffff;
+  det.vlan_p = 0;
+  det.vlan_cfi = 0;
+  det.udp_src_port = 8080;
+  det.udp_dst_port = 8080;
+  det.pkt_size = pkt_size;
+  det.delay = data_snd_interval*1000;
+  strcpy(det.flags, "");
+  add_traffic_generator(ctx, OFLOPS_DATA2, &det); 
   
   start_traffic_generator(ctx);
   return 1;
@@ -696,7 +732,7 @@ int init(struct oflops_context *ctx, char * config_str) {
       } else if(strcmp(param, "flows") == 0) {
 	//parse int to get pkt size
         flows = strtol(value, NULL, 0);
-        if(flows <= 0)  
+        if(flows < 0)  
           perror_and_exit("Invalid flow number", 1);
       } else if(strcmp(param, "print") == 0) {
 	//parse int to get pkt size

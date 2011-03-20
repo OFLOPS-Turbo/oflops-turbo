@@ -170,8 +170,11 @@ send_pkt(struct oflops_context *ctx, int ix) {
 
 int 
 read_mac_addr(uint8_t *addr, char *str) {
-  char *p = str, *tmp;
+  char *p, *tmp;
   int i = 0;
+  char data[20];
+  strcpy(data, str);
+  p = data;
   do {    
     tmp = index(p, ':');
     if(tmp != NULL) {
@@ -182,7 +185,7 @@ read_mac_addr(uint8_t *addr, char *str) {
     i++;
     p = tmp;
   } while (p!= NULL);
-  //fprintf(stderr, "mac %x:%x:%x:%x:%x:%x\n", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+  fprintf(stderr, "mac %x:%x:%x:%x:%x:%x\n", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
   return 0;
 }
 
@@ -237,7 +240,7 @@ innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det
   state->ip->protocol = IPPROTO_UDP; //udp protocol
   state->ip->saddr = inet_addr(det->src_ip); 
   state->ip->daddr = inet_addr(det->dst_ip_min); //test.nw_dst;
-  
+  state->ip->tos = 0x0;
   state->ip->check=ip_sum_calc(20, (void *)state->ip);
 
   state->udp->source = htons(det->udp_src_port);
@@ -320,8 +323,9 @@ start_nf_traffic_generator(oflops_context *ctx) {
       h.caplen = det->pkt_size;
       h.ts.tv_sec = 0;
       h.ts.tv_usec = 0;
-      flow_num = ntohl(inet_addr(det->dst_ip_max)) - ntohl(inet_addr(det->dst_ip_min)) + 1;
-      printf("Found %d flows %d pkt size iteration %d\n", flow_num, h.caplen, iteration[ix] );
+      flow_num = ntohl(inet_addr(det->dst_ip_max)) - 
+	ntohl(inet_addr(det->dst_ip_min));
+      flow_num++;
 
       innitialize_generator_packet(&pkt_state, ctx->channels[ix].det);
       nf_gen_set_number_iterations (iteration[ix - 1], 1, ix-1);

@@ -63,8 +63,8 @@ int main(int argc, char * argv[])
     setup_test_module(ctx,i);
     thread =  malloc_and_check(sizeof(pthread_t));
     pthread_create(thread, NULL, run_module, (void *)param);
-    pthread_create(&traffic_gen, NULL, start_traffic_thread, (void *)param);
     pthread_create(&event_thread, NULL, event_loop, (void *)param);
+    pthread_create(&traffic_gen, NULL, start_traffic_thread, (void *)param);
     pthread_join(*thread, NULL);
     pthread_join(event_thread, NULL);
     pthread_cancel(traffic_gen); 
@@ -80,6 +80,7 @@ int main(int argc, char * argv[])
       } else if((ctx->channels[j].cap_type == NF2) &&
 		(ctx->channels[j].nf_cap != NULL)) {
 	struct nf_cap_stats stat;
+	struct nf_gen_stats gen_stat;
 	nf_cap_stat(j-1, &stat);
 	//pcap_stats(ctx->channels[j].pcap_handle, &ps);
 	snprintf(msg, 1024, "%s:%u:%u",ctx->channels[j].dev, 
@@ -87,6 +88,8 @@ int main(int argc, char * argv[])
 		 (stat.pkt_cnt - stat.capture_packet_cnt));
 	oflops_log(now, PCAP_MSG, msg);
 	printf("%s\n", msg);
+	nf_cap_stat(j-1, &gen_stat);
+	printf("%s: send packet %d\n", ctx->channels[j].dev,gen_stat.pkt_snd_cnt);
       }
     }
 
