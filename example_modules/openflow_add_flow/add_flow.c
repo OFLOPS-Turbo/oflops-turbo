@@ -488,7 +488,6 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
     //  printf("Channel %d : %s\n", ch, inet_ntoa(in));
     if((ch == OFLOPS_DATA1) && (!first_pkt) && (stored_flow_mod_time )) {
 	    oflops_log(pe->pcaphdr.ts, GENERIC_MSG, "FIRST_PKT_RCV");
-	    oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
       printf("INSERT_DELAY:%d\n", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
       snprintf(msg, 1024, "INSERT_DELAY:%d", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
       oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
@@ -499,16 +498,15 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
       if ((id >= 0) && (id < flows) && (!ip_received[id]) &&  (stored_flow_mod_time)) {
 	ip_received_count++;
 	ip_received[id] = 1;
-	if (ip_received_count == flows) {
+	if (ip_received_count >= flows) {
 	  gettimeofday(&now, NULL);
 	  add_time(&now, 1, 0);
 	  oflops_schedule_timer_event(ctx,&now, BYESTR);
 	  printf("Received all packets to channel 2\n");
 	  oflops_log(pe->pcaphdr.ts, GENERIC_MSG, "LAST_PKT_RCV");
-	  oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
 
 	  printf("COMPLETE_INSERT_DELAY:%u\n", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
-	  snprintf(msg, 1024, "INSERT_DELAY:%u", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
+	  snprintf(msg, 1024, "COMPLETE_INSERT_DELAY:%u", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
 	  oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
 	}
       }
