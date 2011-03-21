@@ -56,6 +56,7 @@ TAILQ_HEAD(tailhead, entry) head;
 FILE *measure_output;
 double *delay;
 uint32_t delay_count;
+uint64_t max_pkt_count;
 
 int init(struct oflops_context *ctx, char * config_str) {
   char *pos = NULL;
@@ -103,7 +104,7 @@ int init(struct oflops_context *ctx, char * config_str) {
   } 
 
   //calculate maximum number of packet I may receive
-  uint64_t max_pkt_count = duration*1000000000 / 
+  max_pkt_count = duration*1000000000 / 
     ((pkt_size * byte_to_bits * sec_to_usec) / (mbits_to_bits));
   delay = (double *)xmalloc(max_pkt_count * sizeof(double));
     printf("delay_count : %llu\n", max_pkt_count);
@@ -130,19 +131,17 @@ int start(struct oflops_context * ctx) {
 
   make_ofp_hello(&b);
   ret = write(ctx->control_fd, b, sizeof(struct ofp_hello));
-  printf("sending %d bytes\n", ret);
   free(b);  
 
   // send a delete all message to clean up flow table.
-  make_ofp_feat_req(&b);
-  printf("sending %d bytes\n", ret);
-  free(b);
+  //ret = make_ofp_feat_req(&b);
+  //ret = write(ctx->control_fd, b, res);
+  //free(b);
 
   // send a features request, to stave off timeout (ignore response)
   printf("cleaning up flow table...\n");
   res = make_ofp_flow_del(&b);
   ret = write(ctx->control_fd, b, res);
-  printf("sending %d bytes\n", ret);
   free(b);
 
   //Send a singe ruke to route the traffic we will generate
@@ -188,8 +187,13 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
   struct timeval snd, rcv;
 
   if(ch == OFLOPS_DATA1) {
+    if(delay_count == max_pkt_count) return 0;
     struct flow fl;
     pktgen = extract_pktgen_pkt(ctx, ch, pe->data, pe->pcaphdr.caplen, &fl);
+    if(pktgen == NULL) {
+      printf("Malformed packet\n");
+      return 0;
+    }
     
    /*  if(htonl(pktgen->seq_num) % 100000 == 0) */
 /*       printf("data packet received %d\n", htonl(pktgen->seq_num)); */
