@@ -209,7 +209,6 @@ handle_traffic_generation (oflops_context *ctx) {
   int datarate[]={10, 50, 100, 200, 300, 400, 
 		  500, 600, 700, 800, 900, 1000};
   int i, datarate_count = 12, status;
-  uint64_t data_snd_interval;
   uint32_t mean, std, median;
   float loss;
   FILE *input;
@@ -224,7 +223,13 @@ handle_traffic_generation (oflops_context *ctx) {
   strcpy(det.src_ip,"10.1.1.1");
   strcpy(det.dst_ip_min,"10.1.1.2");
   strcpy(det.dst_ip_max, "10.1.1.2");
-  strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
+  if(ctx->trafficGen == PKTGEN)
+    strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
+  else 
+    snprintf(det.mac_src, 20, "%02x:%02x:%02x:%02x:%02x:%02x",
+	     (unsigned char)local_mac[0], (unsigned char)local_mac[1], 
+	     (unsigned char)local_mac[2], (unsigned char)local_mac[3], 
+	     (unsigned char)local_mac[4], (unsigned char)local_mac[5]);
   strcpy(det.mac_dst,"00:1e:68:9a:c5:75");
   det.vlan = 0xffff;
   det.vlan_p = 1;
@@ -266,16 +271,15 @@ handle_traffic_generation (oflops_context *ctx) {
     delay_count = 0;
     
     //claculate interpacket gap
-    data_snd_interval = (pkt_size * byte_to_bits * sec_to_usec*1000) / (datarate[i] * mbits_to_bits);
-    det.delay = data_snd_interval;
+    det.delay = (pkt_size * byte_to_bits * sec_to_usec*1000) / (datarate[i] * mbits_to_bits);
     //calculate packets send
-    if(data_snd_interval)
-      det.pkt_count = ((uint64_t)(duration*1000000000) / (data_snd_interval));
+    if(det.delay)
+      det.pkt_count = ((uint64_t)(duration*1000000000) / (det.delay));
     else 
       det.pkt_count = (uint64_t)(duration*1000000000);
     //print sending probe details
     fprintf(stderr, "Sending data interval : %u nsec (pkt_size: %u bytes, rate: %u Mbits/sec %llu packets)\n", 
-	    (uint32_t)data_snd_interval, (uint32_t)pkt_size, (uint32_t)datarate[i],  det.pkt_count);
+	    (uint32_t)det.delay, (uint32_t)pkt_size, (uint32_t)datarate[i],  det.pkt_count);
 
     //start packet generator
     add_traffic_generator(ctx, OFLOPS_DATA1, &det);
@@ -293,15 +297,18 @@ handle_traffic_generation (oflops_context *ctx) {
 	     datarate[i], mean, median, std, loss, delay_count);
     gettimeofday(&now, NULL);
     oflops_log(now, GENERIC_MSG, msg);
-    // TODO: snprintf the name of of_data1 device instead
-    input = popen ("tail -2 /proc/net/pktgen/eth1", "r");
-    if(input != NULL) {
-      while(fgets(line, 1024, input) != NULL) {
-	snprintf(msg, 1024, "pktgen:%d:%s", datarate[i], line);
-	oflops_log(now, GENERIC_MSG, msg);
-	printf("%s\n", msg);
+
+    if(ctx->trafficGen == PKTGEN) {
+      // TODO: snprintf the name of of_data1 device instead
+      input = popen ("tail -2 /proc/net/pktgen/eth1", "r");
+      if(input != NULL) {
+	while(fgets(line, 1024, input) != NULL) {
+	  snprintf(msg, 1024, "pktgen:%d:%s", datarate[i], line);
+	  oflops_log(now, GENERIC_MSG, msg);
+	  printf("%s\n", msg);
+	}
+	pclose(input);
       }
-      pclose(input);
     }
   }
 
