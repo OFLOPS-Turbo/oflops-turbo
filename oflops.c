@@ -67,12 +67,15 @@ int main(int argc, char * argv[])
     pthread_create(&traffic_gen, NULL, start_traffic_thread, (void *)param);
     pthread_join(*thread, NULL);
     pthread_join(event_thread, NULL);
-    pthread_cancel(traffic_gen); 
+    if(ctx->trafficGen == PKTGEN)
+      pthread_cancel(traffic_gen); 
+    else 
+      pthread_join(traffic_gen, NULL);
     free(thread);
     gettimeofday(&now, NULL);
     for(j = 0 ; j < ctx->n_channels;j++) {
       if((ctx->channels[j].cap_type == PCAP) && 
-	 (ctx->channels[j].pcap_handle == NULL)) {
+	 (ctx->channels[j].pcap_handle != NULL)) {
 	pcap_stats(ctx->channels[j].pcap_handle, &ps);
 	snprintf(msg, 1024, "%s:%u:%u",ctx->channels[j].dev, ps.ps_recv, ps.ps_drop);
 	oflops_log(now, PCAP_MSG, msg);

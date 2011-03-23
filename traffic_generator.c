@@ -294,6 +294,7 @@ start_nf_traffic_generator(oflops_context *ctx) {
   uint32_t pkt_count, flow_num, max_packets = 100000000;
   uint32_t iteration[] = {0,0,0,0};
   ldiv_t res; 
+  nf_finish();
 
   for(ix = 1; ix < ctx->n_channels; ix++) {
     if(ctx->channels[ix].det != NULL) {

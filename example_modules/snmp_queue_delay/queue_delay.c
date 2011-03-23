@@ -36,7 +36,7 @@ const uint64_t byte_to_bits = 8, mbits_to_bits = 1024*1024;
 /** Send sequence
  */
 uint32_t sendno;
-
+uint64_t max_pkt_count;
 char local_mac[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 int finished;
 int pkt_size = 1500;
@@ -100,10 +100,10 @@ int init(struct oflops_context *ctx, char * config_str) {
       }
       param = pos;
     }
-  } 
+  }
 
   //calculate maximum number of packet I may receive
-  uint64_t max_pkt_count = duration*1000000000 / 
+  max_pkt_count = duration*10000000000 / 
     ((pkt_size * byte_to_bits * sec_to_usec) / (mbits_to_bits));
   delay = (double *)xmalloc(max_pkt_count * sizeof(double));
     printf("delay_count : %llu\n", max_pkt_count);
@@ -130,19 +130,17 @@ int start(struct oflops_context * ctx) {
 
   make_ofp_hello(&b);
   ret = write(ctx->control_fd, b, sizeof(struct ofp_hello));
-  printf("sending %d bytes\n", ret);
   free(b);  
 
   // send a delete all message to clean up flow table.
-  make_ofp_feat_req(&b);
-  printf("sending %d bytes\n", ret);
+  res = make_ofp_feat_req(&b);
+  ret = write(ctx->control_fd, b, res);
   free(b);
 
   // send a features request, to stave off timeout (ignore response)
   printf("cleaning up flow table...\n");
   res = make_ofp_flow_del(&b);
   ret = write(ctx->control_fd, b, res);
-  printf("sending %d bytes\n", ret);
   free(b);
 
   //Send a singe ruke to route the traffic we will generate
@@ -188,6 +186,7 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
   struct timeval snd, rcv;
 
   if(ch == OFLOPS_DATA1) {
+    if(delay_count == max_pkt_count)  return;
     struct flow fl;
     pktgen = extract_pktgen_pkt(ctx, ch, pe->data, pe->pcaphdr.caplen, &fl);
     
@@ -206,8 +205,8 @@ int
 handle_traffic_generation (oflops_context *ctx) {
   struct traf_gen_det det;
   char msg[1024], line[1024];
-  int datarate[]={10, 50, 100, 200, 300, 400, 
-		  500, 600, 700, 800, 900, 1000};
+  //int datarate[]={1, 8, 64, 256, 512, 1000};
+  int datarate[]={256, 512, 1000};
   int i, datarate_count = 12, status;
   uint32_t mean, std, median;
   float loss;
