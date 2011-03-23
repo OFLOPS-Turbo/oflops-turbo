@@ -104,7 +104,7 @@ int init(struct oflops_context *ctx, char * config_str) {
   } 
 
   //calculate maximum number of packet I may receive
-  max_pkt_count = duration*1000000000 / 
+  uint64_t max_pkt_count = duration*1000000000 / 
     ((pkt_size * byte_to_bits * sec_to_usec) / (mbits_to_bits));
   delay = (double *)xmalloc(max_pkt_count * sizeof(double));
     printf("delay_count : %llu\n", max_pkt_count);
@@ -131,17 +131,19 @@ int start(struct oflops_context * ctx) {
 
   make_ofp_hello(&b);
   ret = write(ctx->control_fd, b, sizeof(struct ofp_hello));
+  printf("sending %d bytes\n", ret);
   free(b);  
 
   // send a delete all message to clean up flow table.
-  //ret = make_ofp_feat_req(&b);
-  //ret = write(ctx->control_fd, b, res);
-  //free(b);
+  res = make_ofp_feat_req(&b);
+  write(ctx->control_fd, b, res);
+  free(b);
 
   // send a features request, to stave off timeout (ignore response)
   printf("cleaning up flow table...\n");
   res = make_ofp_flow_del(&b);
   ret = write(ctx->control_fd, b, res);
+  printf("sending %d bytes\n", ret);
   free(b);
 
   //Send a singe ruke to route the traffic we will generate

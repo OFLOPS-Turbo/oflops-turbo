@@ -34,6 +34,10 @@
  */
 #define MIN_PKT_SIZE 64
 #define MAX_PKT_SIZE 1500
+#define TEST_DURATION 60
+#define MIN_QUERY_DELAY 1000
+
+#define SEC_TO_USEC 1000000
 
 #define LOG_FILE "measure.log"
 
@@ -43,6 +47,7 @@
 int flows = 128;
 int flows_exponent, query_exponent;
 int query = 64;
+int query_delay = 1000000; //1 sec
 /** The iniitial ip from which we start
  */
 char *network = "192.168.2.0";
@@ -77,20 +82,20 @@ char *logfile = LOG_FILE;
 struct entry {
   struct timeval snd,rcv;
   int ch, id;
+  uint32_t nw_dst;
   TAILQ_ENTRY(entry) entries;         /* Tail queue. */
 }; 
 TAILQ_HEAD(tailhead, entry) head;
 
 struct stats_entry {
-  struct timeval rcv;
-  int id;
-  TAILQ_ENTRY(entry) entries;         /* Tail queue. */
-}; 
-TAILQ_HEAD(stats_tailhead, stats_entry) stats_head;
+  struct timeval rcv,snd;
+  int pkt_count;
+} stats_counter[(TEST_DURATION * SEC_TO_USEC)/MIN_QUERY_DELAY];
+
 int stats_count = 0;
 
 // control whether detailed packet information is printed
-int print = 0;
+int print = 0, table = 0;
 int count[] = {0,0,0}; // counting how many packets where received over a 
                        // specific channel
 //the local mac address of the probe 
@@ -125,7 +130,6 @@ int init(struct oflops_context *ctx, char * config_str) {
 
   //init measurement queue
   TAILQ_INIT(&head); 
-  TAILQ_INIT(&stats_head); 
 
   while(*config_str == ' ') {
     config_str++;
@@ -151,41 +155,53 @@ int init(struct oflops_context *ctx, char * config_str) {
         if(flows <= 0)
           perror_and_exit("Invalid flow number",1);
       } else if(strcmp(param, "query") == 0) {
+	//define the number of flows queried in each turn
         query = atoi(value);
         if(query <= 0)
           perror_and_exit("Invalid flow number",1);
-
 	exponent = log2(query);
 	if(exponent - floor(exponent) != 0) {
-	  printf("query=%d, exponent=%f, floor exponent:%f\n", query, exponent, floor(exponent));
 	  query = (int)pow(2, ceil(exponent));
 	  printf("query size must be a power of 2. converting to %d\n", query);
 	}
-
       } else if(strcmp(param, "network") == 0) {
+	//network range to send data for the data probe
         network = (char *)xmalloc(strlen(value) + 1);
         strcpy(network, value);
       } else if(strcmp(param, "pkt_size") == 0) {
-        //parse int to get pkt size
+        //packet size for the probes
         pkt_size = strtol(value, NULL, 0);
         if((pkt_size < MIN_PKT_SIZE) && (pkt_size > MAX_PKT_SIZE))  {
           perror_and_exit("Invalid packet size value", 1);
         }
       } else if(strcmp(param, "data_rate") == 0) {
-        //parse int to get pkt size
+        //multituple data rate
         datarate = strtol(value, NULL, 0);
         if((datarate <= 0) || (datarate > 1010))  {
           perror_and_exit("Invalid data rate param(Values between 1 and 1010)", 1);
         }
+
       } else if(strcmp(param, "probe_rate") == 0) {
-        //parse int to get pkt size
+        //single tuple data rate
         proberate = strtol(value, NULL, 0);
         if((proberate <= 0) || (proberate >= 1010)) {
           perror_and_exit("Invalid probe rate param(Value between 1 and 1010)", 1);
         }
+
+	//time gap between querries in usec
+      } else if(strcmp(param, "query_delay") == 0) {
+        query_delay = strtol(value, NULL, 0);
+        if(query_delay <= MIN_QUERY_DELAY) {
+          perror_and_exit("Invalid probe rate param(Value between 1 and 1010)", 1);
+        }
+	printf("query delay %d\n", query_delay);
+	//should packet timestamp be printed
       } else if(strcmp(param, "print") == 0) {
         //parse int to get pkt size
         print = strtol(value, NULL, 0);
+      }else if(strcmp(param, "table") == 0) {
+        //parse int to get pkt size
+        table = strtol(value, NULL, 0);
       } else {
         fprintf(stderr, "Invalid parameter:%s\n", param);
       }
@@ -200,6 +216,9 @@ int init(struct oflops_context *ctx, char * config_str) {
   probe_snd_interval = (pkt_size * byte_to_bits * sec_to_usec) / (proberate * mbits_to_bits);
   fprintf(stderr, "Sending probe interval : %u usec (pkt_size: %u bytes, rate: %u Mbits/sec )\n", 
 	  (uint32_t)probe_snd_interval, (uint32_t)pkt_size, (uint32_t)proberate);
+  fprintf(stderr, "sending %d flows, quering %d flows every %u usec\n", 
+	  flows, query, query_delay);
+
 
   return 0;
 }
@@ -210,91 +229,103 @@ int destroy(struct oflops_context *ctx) {
   struct timeval now;
   FILE *out = fopen(logfile, "w");
   struct entry *np;
-  struct stats_entry *stats_np;
   uint32_t mean, median, std;
-  int min_id[] = {INT_MAX, INT_MAX, INT_MAX, INT_MAX, INT_MAX, INT_MAX}, 
-    max_id[] = {INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN},
-      ix[] = {0, 0, 0, 0, 0, 0}, delay;
-  int ch, i, first=1;
+  int min_id[] = {INT_MAX, INT_MAX, INT_MAX}; 
+  int max_id[] = {INT_MIN, INT_MIN, INT_MIN};
+  int ix[] = {0, 0, 0};
+  int ch, i;
   float loss;
   double **data;
-
+  struct in_addr in;
+  
   gettimeofday(&now, NULL);
   fprintf(stderr, "This is the destroy code of the module\n");
+  
+  printf("%d %d %d\n", count[0], count[1], count[2]);
 
-  data = (double **)malloc(6*sizeof(double*));
-  for(ch = 0; ch < 6; ch++) 
-    data[ch] = (double *)malloc(count[(int)(ch/2)] * sizeof(double));
-    
+  data = (double **)malloc(3*sizeof(double*));
+  for(ch = 0; ch < 3; ch++) 
+    if(count[ch])
+      data[ch] = (double *)malloc(count[ch] * sizeof(double));
+    else
+      data[ch] = NULL;
+  
   for (np = head.tqh_first; np != NULL; np = np->entries.tqe_next) {
     if((np->ch > OFLOPS_DATA3) || ((np->ch < OFLOPS_DATA1))){ 
       printf("Invalid channel %d. skipping packet\n", np->ch);
       continue;
     }
-    if(print)
-      if(fprintf(out, "%lu;%lu.%06lu;%lu.%06lu;%d\n", 
+    ch = np->ch - 1;
+    if(print) {
+      in.s_addr = np->nw_dst;
+      if(fprintf(out, "%lu %lu.%06lu %lu.%06lu %d %s\n", 
 		 (long unsigned int)np->id,  
 		 (long unsigned int)np->snd.tv_sec, 
 		 (long unsigned int)np->snd.tv_usec,
 		 (long unsigned int)np->rcv.tv_sec, 
-		 (long unsigned int)np->rcv.tv_usec,  np->ch) < 0)  
+		 (long unsigned int)np->rcv.tv_usec,  
+		 np->ch, inet_ntoa(in)) < 0)  
 	perror_and_exit("fprintf fail", 1); 
-
-    i = (time_cmp(&stats_start, &np->snd)<=0)?0:1;
-    ch = 2*(np->ch - 1) + i;
-    ix[ch]++; 
-    min_id[ch] = (np->id < min_id[ch])?np->id:min_id[ch];
-    max_id[ch] = (np->id > max_id[ch])?np->id:max_id[ch];
-    data[ch][ix[ch]] = (double) time_diff(&np->snd, &np->rcv);
+    }
+    if( time_cmp(&np->snd, &np->rcv)> 0) {
+      ix[ch]++; 
+      min_id[ch] = (np->id < min_id[ch])?np->id:min_id[ch];
+      max_id[ch] = (np->id > max_id[ch])?np->id:max_id[ch];
+      data[ch][ix[ch]] = (double) time_diff(&np->snd, &np->rcv);
+    }
     free(np);
   }
-
-  for(ch = 0; ch < 6; ch++) {
-      if(ix[ch] == 0) continue;
-      gsl_sort (data[ch], 1, ix[ch]);
-      mean = (uint32_t)gsl_stats_mean(data[ch], 1, ix[ch]);
-      std = (uint32_t)sqrt(gsl_stats_variance(data[ch], 1, ix[ch]));
-      median = (uint32_t)gsl_stats_median_from_sorted_data (data[ch], 1, ix[ch]);
-      loss = (float)ix[ch]/(float)(max_id[ch] - min_id[ch]);
-      snprintf(msg, 1024, "statistics:port:%d.%d:%u:%u:%u:%.4f:%d", 
-	       (ch/2),(ch%2), mean, median, std, loss, ix[ch]);
-      printf("%s\n", msg);
-      oflops_log(now, GENERIC_MSG, msg);
-      
+  
+  for(ch = 0; ch < 3; ch++) {
+    if(ix[ch] == 0) continue;
+    gsl_sort (data[ch], 1, ix[ch]);
+    mean = (uint32_t)gsl_stats_mean(data[ch], 1, ix[ch]);
+    std = (uint32_t)sqrt(gsl_stats_variance(data[ch], 1, ix[ch]));
+    median = (uint32_t)gsl_stats_median_from_sorted_data (data[ch], 1, ix[ch]);
+    loss = (float)ix[ch]/(float)(max_id[ch] - min_id[ch]);
+    snprintf(msg, 1024, "statistics:port:%d:%u:%u:%u:%.4f:%d", 
+	     ch, mean, median, std, loss, ix[ch]);
+    printf("%s\n", msg);
+    oflops_log(now, GENERIC_MSG, msg);
+    
   }
-
+  
   ix[0] = 0;
-  free(data[0]);
+  if(data[0] != NULL)
+    free(data[0]);
   data[0] = (double *)malloc(sizeof(double)*(stats_count));
-
-  for (stats_np = stats_head.tqh_first; 
-       stats_np != NULL; stats_np = stats_np->entries.tqe_next) {
-    delay = time_diff(&now, &stats_np->rcv);
-    memcpy(&now,&stats_np->rcv, sizeof(struct timeval));
-    if( (print) && (ix[0] > 0)) {
-      snprintf(msg, 1024, "STATS_REPLY:%d:%lu.%06lu:%u", 
-	       stats_np->id, stats_np->rcv.tv_sec, stats_np->rcv.tv_usec, delay);
-      oflops_log(now, GENERIC_MSG, msg);
-    }
-    if(ix[0] > 0) 
-      data[0][ix[0] - 1] = delay;    
+  
+  for (i = 0; i < trans_id; i++) {
+    if(((stats_counter[i].rcv.tv_sec == 0) && 
+	(stats_counter[i].rcv.tv_usec == 0)) || 
+       (ix[0] >=  stats_count)) continue;
+    data[0][ix[0] - 1]  = (double) time_diff(&stats_counter[i].snd, &stats_counter[i].rcv);
     ix[0]++;
+    snprintf(msg, 1024, "stats:%u:%d:%u.%06u:%u.%06u:%u",i,  
+     	   stats_counter[i].pkt_count,  
+     	   stats_counter[i].snd.tv_sec, 
+     	   stats_counter[i].snd.tv_usec,
+     	   stats_counter[i].rcv.tv_sec, 
+     	   stats_counter[i].rcv.tv_usec,
+     	   time_diff(&stats_counter[i].snd,  
+     		     &stats_counter[i].rcv));
+    printf("%s\n", msg);
+    oflops_log(now, GENERIC_MSG, msg);
     //free(stats_np);
   }
-
-  ix[0]--; //we have added 1 on the last round which we have to remove
+  
   if(ix[0] > 0) {
-      gsl_sort (data[0], 1, ix[0]);
-      mean = (uint32_t)gsl_stats_mean(data[0], 1, ix[0]);
-      std = (uint32_t)sqrt(gsl_stats_variance(data[0], 1, ix[0]));
-      median = (uint32_t)gsl_stats_median_from_sorted_data (data[0], 1, ix[0]);
-      loss = (float)ix[0]/(float)(max_id[0] - min_id[0]);
-      snprintf(msg, 1024, "statistics:stats:%u:%u:u:%.4f:%d", 
-	       mean, median, std, loss, ix[0]);
-      printf("%s\n", msg);
-      oflops_log(now, GENERIC_MSG, msg);
+    gsl_sort (data[0], 1, ix[0]);
+    mean = (uint32_t)gsl_stats_mean(data[0], 1, ix[0]);
+    std = (uint32_t)sqrt(gsl_stats_variance(data[0], 1, ix[0]));
+    median = (uint32_t)gsl_stats_median_from_sorted_data (data[0], 1, ix[0]);
+    loss = (float)ix[0]/(float)(max_id[0] - min_id[0]);
+    snprintf(msg, 1024, "statistics:stats:%u:%u:%u:%.04f:%d", 
+	     mean, median, std, loss, ix[0]);
+    printf("%s\n", msg);
+    oflops_log(now, GENERIC_MSG, msg);
   } else {
-      oflops_log(now, GENERIC_MSG, "stats_stats:fail");
+    oflops_log(now, GENERIC_MSG, "stats_stats:fail");
   }
   return 0;
 }
@@ -306,7 +337,6 @@ int start(struct oflops_context * ctx)
 {
   int res = -1, i, len = 0;
   struct timeval now;
-  struct in_addr ip_addr;
   struct pollfd * poll_set = malloc(sizeof(struct pollfd));
   struct flow *fl = (struct flow*)xmalloc(sizeof(struct flow));
   int ret = 0;
@@ -355,7 +385,13 @@ int start(struct oflops_context * ctx)
 
   //Send a singe ruke to route the traffic we will generate
   bzero(fl, sizeof(struct flow));
-  fl->mask = OFPFW_IN_PORT | OFPFW_TP_DST; 
+  if (table) 
+    fl->mask =  OFPFW_IN_PORT | OFPFW_DL_DST | OFPFW_DL_SRC | 
+      (0 << OFPFW_NW_SRC_SHIFT) | (0 << OFPFW_NW_DST_SHIFT) | 
+      OFPFW_DL_VLAN | OFPFW_TP_DST | OFPFW_NW_PROTO | 
+      OFPFW_TP_SRC | OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS;
+  else
+    fl->mask = 0;
   fl->in_port = htons(ctx->channels[OFLOPS_DATA2].of_port); 
   fl->dl_type = htons(ETHERTYPE_IP); 
   memcpy(fl->dl_src, probe_mac, ETH_ALEN); 
@@ -402,12 +438,12 @@ int start(struct oflops_context * ctx)
 
   //Schedule end
   gettimeofday(&now, NULL);
-  add_time(&now, 60, 0);
+  add_time(&now, TEST_DURATION, 0);
   oflops_schedule_timer_event(ctx,&now, BYESTR);
 
   //the event to request the flow statistics. 
   gettimeofday(&now, NULL);
-  add_time(&now, 30, 0);
+  add_time(&now, 1, 0);
   oflops_schedule_timer_event(ctx,&now, GETSTAT);
 
   //get port and cpu status from switch 
@@ -432,33 +468,55 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
   char *str = te->arg;
   struct timeval now;
   char msg[100];
-  uint32_t netmask = 0;
+  uint32_t flow_netmask;
+  struct ofp_flow_stats_request *reqp;
   //send flow statistics request. 
   if(strcmp(str, GETSTAT) == 0) {
-    sprintf(msg, "%d", trans_id);
-    printf("flow stats request send with xid %s\n", msg);  
-    memcpy(&stats_start, &te->sched_time, sizeof(struct timeval));
-    oflops_log(te->sched_time, OFPT_STATS_REQUEST_FLOW, msg);
+    //sprintf(msg, "%d", trans_id);
+
+    //log start of measurement
+    if(trans_id == 0) {
+      printf("flow stats request send with xid %s\n", msg);  
+      memcpy(&stats_start, &te->sched_time, sizeof(struct timeval));
+      poll_started = 1;
+    }
+    memcpy(&stats_counter[trans_id].snd, &te->sched_time, sizeof(struct timeval));
+    bzero(&stats_counter[trans_id].rcv, sizeof(struct timeval));
+    //oflops_log(te->sched_time, OFPT_STATS_REQUEST_FLOW, msg);
+    //create generic statrequest message
     len = make_ofp_flow_get_stat(&b, trans_id++);
-    struct ofp_flow_stats_request *reqp = (struct ofp_flow_stats_request *)
-      (b + sizeof(struct ofp_stats_request));
+    reqp = (struct ofp_flow_stats_request *)(b + sizeof(struct ofp_stats_request));
+    
+    //set the query mask
     reqp->match.wildcards = htonl(OFPFW_IN_PORT |  OFPFW_DL_VLAN |  OFPFW_DL_SRC |
       OFPFW_DL_DST |  OFPFW_DL_TYPE | OFPFW_NW_PROTO | OFPFW_TP_SRC |
       OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS | OFPFW_TP_DST |
      (32 << OFPFW_NW_SRC_SHIFT) | ((query_exponent) << OFPFW_NW_DST_SHIFT));
-    reqp->match.nw_dst = 
-      htonl(ntohl(inet_addr(network)) & ((0xFFFFFFFF)<<query_exponent) );
+
+    //calculate netowrk mask for the query
+    flow_netmask = (ntohl(inet_addr(network)) & ((0xFFFFFFFF)<<flows_exponent));
+    if(query_exponent < flows_exponent) 
+      flow_netmask += (stats_count%(0x1 <<(flows_exponent-query_exponent)) 
+		       << query_exponent);
+       
+    reqp->match.nw_dst = htonl(flow_netmask);
+    
+    //send stats request
     res = oflops_send_of_mesg(ctx, b);
     free(b);
-    poll_started = 1;
-    //terminate programm execution 
+
+    //schedule next query
+    gettimeofday(&now, NULL);
+    add_time(&now, query_delay/SEC_TO_USEC, query_delay%SEC_TO_USEC);
+    oflops_schedule_timer_event(ctx, &now, GETSTAT);
   } else if (strcmp(str, BYESTR) == 0) {
+    //terminate programm execution
     printf("terminating test....\n");
     oflops_end_test(ctx,1);
   } else if(strcmp(str, SNMPGET) == 0) {
-    for(i=0;i<ctx->cpuOID_count;i++) {
+    for(i=0;i<ctx->cpuOID_count;i++) 
       oflops_snmp_get(ctx, ctx->cpuOID[i], ctx->cpuOID_len[i]);
-    }
+    
     for(i=0;i<ctx->n_channels;i++) {
       oflops_snmp_get(ctx, ctx->channels[i].inOID, ctx->channels[i].inOID_len);
       oflops_snmp_get(ctx, ctx->channels[i].outOID, ctx->channels[i].outOID_len);
@@ -474,7 +532,7 @@ int
 handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
   netsnmp_variable_list *vars;
   int i, len = 1024;
-  char msg[1024], log[1024];
+  char msg[1024], count[1024];
   struct timeval now;
 
   for(vars = se->pdu->variables; vars; vars = vars->next_variable)  {    
@@ -483,8 +541,8 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
     for (i = 0; i < ctx->cpuOID_count; i++) {
       if((vars->name_length == ctx->cpuOID_len[i]) &&
 	 (memcmp(vars->name, ctx->cpuOID[i],  ctx->cpuOID_len[i] * sizeof(oid)) == 0) ) {
-	snprintf(log, len, "cpu : %s %%", msg);
-	oflops_log(now, SNMP_MSG, log);
+	snprintf(count, len, "cpu : %s %%", msg);
+	oflops_log(now, SNMP_MSG, count);
       }
     }
     
@@ -492,19 +550,19 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
       if((vars->name_length == ctx->channels[i].inOID_len) &&
 	 (memcmp(vars->name, ctx->channels[i].inOID,  
 		 ctx->channels[i].inOID_len * sizeof(oid)) == 0) ) {
-	snprintf(log, len, "port %d : rx %s pkts",  
+	snprintf(count, len, "port %d : rx %s pkts",  
 		 (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], 
 		 msg);
-	oflops_log(now, SNMP_MSG, log);
+	oflops_log(now, SNMP_MSG, count);
 	break;
       }
       
       if((vars->name_length == ctx->channels[i].outOID_len) &&
 	 (memcmp(vars->name, ctx->channels[i].outOID,  
 		 ctx->channels[i].outOID_len * sizeof(oid))==0) ) {
-	snprintf(log, len, "port %d : tx %s pkts",  
+	snprintf(count, len, "port %d : tx %s pkts",  
 		 (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], msg);
-	oflops_log(now, SNMP_MSG, log);
+	oflops_log(now, SNMP_MSG, count);
 	break;
       }
     } //for
@@ -538,18 +596,23 @@ int get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc, char * 
  */
 int handle_pcap_event(struct oflops_context *ctx, struct pcap_event *pe,
 		      oflops_channel_name ch) {
-    if ( (ch == OFLOPS_DATA3) || (ch == OFLOPS_DATA2) || (ch == OFLOPS_DATA1)){
-    struct pktgen_hdr *pktgen;
-    pktgen = extract_pktgen_pkt(ctx, ch, (unsigned char *)pe->data, pe->pcaphdr.caplen, NULL);
-    if(pktgen == NULL) //skip non IP packets
+  struct pktgen_hdr *pktgen;
+  struct flow fl;
+  
+  if ((ch == OFLOPS_DATA3) || (ch == OFLOPS_DATA2)) {
+    if(!poll_started) return 0;
+    pktgen = extract_pktgen_pkt(ctx, ch, (unsigned char *)pe->data, pe->pcaphdr.caplen, &fl);
+    if(pktgen == NULL) { //skip non IP packets
+      printf("failed to parse header\n");
       return 0;
-
-    struct entry *n1 = malloc(sizeof(struct entry));
+    }
+    struct entry *n1 = xmalloc(sizeof(struct entry));
     n1->snd.tv_sec = pktgen->tv_sec;
     n1->snd.tv_usec = pktgen->tv_usec;
     memcpy(&n1->rcv, &pe->pcaphdr.ts, sizeof(struct timeval));
     n1->id = pktgen->seq_num;
     n1->ch = ch;
+    n1->nw_dst = fl.nw_dst;
     //printf("channel %d\n", ch);
     count[ch - 1]++;
     TAILQ_INSERT_TAIL(&head, n1, entries);
@@ -573,7 +636,14 @@ handle_traffic_generation (oflops_context *ctx) {
   ip.s_addr = htonl(ip.s_addr);
   str_ip = inet_ntoa(ip);
   strcpy(det.dst_ip_max, str_ip);
-  strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
+  if(ctx->trafficGen == PKTGEN)
+    strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
+  else 
+    snprintf(det.mac_src, 20, "%02x:%02x:%02x:%02x:%02x:%02x",
+	     (unsigned char)data_mac[0], (unsigned char)data_mac[1], 
+	     (unsigned char)data_mac[2], (unsigned char)data_mac[3], 
+	     (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
+  
   strcpy(det.mac_dst,"00:1e:68:9a:c5:75");
   det.vlan = 0xffff;
   det.vlan_p = 1;
@@ -584,11 +654,16 @@ handle_traffic_generation (oflops_context *ctx) {
   det.delay = data_snd_interval*1000;
   strcpy(det.flags, "IPDST_RND");
   add_traffic_generator(ctx, OFLOPS_DATA1, &det);
-
   //measurement probe
   strcpy(det.dst_ip_min,"10.1.1.2");
   strcpy(det.dst_ip_max,"10.1.1.2");
-  strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:75");
+  if(ctx->trafficGen == PKTGEN)
+    strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
+  else 
+    snprintf(det.mac_src, 20, "%02x:%02x:%02x:%02x:%02x:%02x",
+	     (unsigned char)probe_mac[0], (unsigned char)probe_mac[1], 
+	     (unsigned char)probe_mac[2], (unsigned char)probe_mac[3], 
+	     (unsigned char)probe_mac[4], (unsigned char)probe_mac[5]);
   strcpy(det.mac_dst,"00:15:17:7b:92:0a");
   det.vlan = 0xffff;
   det.delay = probe_snd_interval*1000;
@@ -598,82 +673,23 @@ handle_traffic_generation (oflops_context *ctx) {
   return 1;
 }
 
-int 
-dummy_parse_packet(void *data, int len) {
-  // assume we have ethernet packets.
-  // skip first bytes of the ether because they are
-  // in the simple case of static length.
-  struct ether_header *eth = (struct ether_header *) data;
-  if (len < sizeof(struct ether_header))
-    return -1;
-  data += sizeof(struct ether_header);
-  if(ntohs(eth->ether_type) != ETHERTYPE_IP) {
-    return -1;
-  }
-  if (len < sizeof(struct iphdr))
-    return -1;
-  struct iphdr *ip_p = (struct iphdr *)data;
-  if (len < 4*ip_p->ihl)
-    return -1;
-  data += 4*ip_p->ihl;
-
-  if(ip_p->protocol != IPPROTO_UDP)
-    return -1;
-
-  if(len <  sizeof(struct tcphdr))
-    return -1;
-  struct udphdr *udp_p = (struct udphdr *)data;
-  if (len < sizeof(struct udphdr))
-    return -1;
-
-  if((ntohs(udp_p->source) == 8080) && 
-     (ntohs(udp_p->dest) == 8080))
-    return 0;
-  else 
-    return -1;
-
-};
-
 int
 of_event_other(struct oflops_context *ctx, const struct ofp_header * ofph) {
   struct timeval now;
   char msg[100];
   struct ofp_error_msg *err_p;
-  int len, res;
-  void *b;
 
   if(ofph->type == OFPT_STATS_REPLY) {
     struct ofp_stats_reply *ofpr = (struct ofp_stats_reply *)ofph;
+    stats_counter[ntohl(ofph->xid)].pkt_count++;
     if(ntohs(ofpr->type) == OFPST_FLOW) {
-      sprintf(msg, "%d", ntohl(ofph->xid));
-      gettimeofday(&now, NULL);
-      oflops_log(now, OFPT_STATS_REPLY_FLOW, msg);
-      if((ntohs(ofpr->flags) & OFPSF_REPLY_MORE) == 0) {
-	len = make_ofp_flow_get_stat(&b, trans_id++);
-	struct ofp_flow_stats_request *reqp = (struct ofp_flow_stats_request *)
-	  (b + sizeof(struct ofp_stats_request));
-	reqp->match.wildcards = htonl(OFPFW_IN_PORT |  OFPFW_DL_VLAN |  OFPFW_DL_SRC |
-				      OFPFW_DL_DST |  OFPFW_DL_TYPE | OFPFW_NW_PROTO | OFPFW_TP_SRC |
-				      OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS | OFPFW_TP_DST |
-				      (32 << OFPFW_NW_SRC_SHIFT) | ((query_exponent) << OFPFW_NW_DST_SHIFT));
-
-	uint32_t flow_netmask = (ntohl(inet_addr(network)) & ((0xFFFFFFFF)<<flows_exponent));
-	
-	//in case query range is smaller that flow range, round robin around ips for more
-	// variability.
-	if(query_exponent < flows_exponent) 
-	  flow_netmask += (stats_count%(0x1 <<(flows_exponent-query_exponent)) << query_exponent);
-	
-	reqp->match.nw_dst = 
-	  htonl(flow_netmask);
-	res = oflops_send_of_mesg(ctx, b);
-	free(b);
+      if(!(ntohs(ofpr->flags) & OFPSF_REPLY_MORE)) {
+	//sprintf(msg, "%d", ntohl(ofph->xid));
+	gettimeofday(&now, NULL);
+	//oflops_log(now, OFPT_STATS_REPLY_FLOW, msg);
+	memcpy(&stats_counter[ntohl(ofph->xid)].rcv, &now, sizeof(struct timeval));
+	stats_count++;
       }
-      struct stats_entry *n1 = malloc(sizeof(struct stats_entry));
-      memcpy(&n1->rcv, &now, sizeof(struct timeval));
-      n1->id =  ntohl(ofph->xid);
-      stats_count++;
-      TAILQ_INSERT_TAIL(&stats_head, n1, entries); 
     }
   } else if (ofph->type == OFPT_ERROR) {
     err_p = (struct ofp_error_msg *)ofph;
