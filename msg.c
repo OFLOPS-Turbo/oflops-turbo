@@ -398,7 +398,7 @@ make_ofp_flow_modify_output_port(void **buferp, struct flow *fl, uint32_t out_po
   ofm->idle_timeout = htons(idle_timeout);
   ofm->hard_timeout = htons(OFP_FLOW_PERMANENT);
   ofm->buffer_id = htonl(-1); //buffer_id);
-  ofm->command = htons(OFPFC_MODIFY);
+  ofm->command = htons(OFPFC_ADD);
   ofm->flags = htons(OFPFF_SEND_FLOW_REM);
   p->type = htons(OFPAT_OUTPUT);
   p->len = htons(8);
@@ -421,7 +421,7 @@ make_ofp_flow_modify(void **buferp, struct flow *fl, char *actions,  uint16_t ac
   ofm->hard_timeout = htons(OFP_FLOW_PERMANENT);
   ofm->buffer_id = htonl(-1); //buffer_id);
   //add is the approach to this problem
-  ofm->command = htons(OFPFC_MODIFY);
+  ofm->command = htons(OFPFC_ADD);
   //  p->type = htons(OFPAT_OUTPUT);
   //  p->len = htons(8);
   //  p->port = htons(out_port);

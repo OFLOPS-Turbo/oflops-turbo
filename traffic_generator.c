@@ -170,11 +170,8 @@ send_pkt(struct oflops_context *ctx, int ix) {
 
 int 
 read_mac_addr(uint8_t *addr, char *str) {
-  char *p, *tmp;
+  char *p = str, *tmp;
   int i = 0;
-  char data[20];
-  strcpy(data, str);
-  p = data;
   do {    
     tmp = index(p, ':');
     if(tmp != NULL) {
@@ -185,7 +182,7 @@ read_mac_addr(uint8_t *addr, char *str) {
     i++;
     p = tmp;
   } while (p!= NULL);
-  fprintf(stderr, "mac %x:%x:%x:%x:%x:%x\n", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+  //fprintf(stderr, "mac %x:%x:%x:%x:%x:%x\n", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
   return 0;
 }
 
@@ -240,7 +237,7 @@ innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det
   state->ip->protocol = IPPROTO_UDP; //udp protocol
   state->ip->saddr = inet_addr(det->src_ip); 
   state->ip->daddr = inet_addr(det->dst_ip_min); //test.nw_dst;
-  state->ip->tos = 0x0;
+  
   state->ip->check=ip_sum_calc(20, (void *)state->ip);
 
   state->udp->source = htons(det->udp_src_port);
@@ -287,39 +284,28 @@ start_user_traffic_generator(oflops_context *ctx) {
 
 int 
 start_nf_traffic_generator(oflops_context *ctx) {
-  int ix, i;
+  int flow_num, ix, i;
   struct traf_gen_det *det;
   struct pkt_details pkt_state;
   struct pcap_pkthdr h;
-  uint32_t pkt_count, flow_num, max_packets = 100000000;
+  int pkt_count;
+  uint32_t max_packets = 100000000;
   uint32_t iteration[] = {0,0,0,0};
-  ldiv_t res; 
-  nf_finish();
+
 
   for(ix = 1; ix < ctx->n_channels; ix++) {
     if(ctx->channels[ix].det != NULL) {
       det = ctx->channels[ix].det;
-
-      if(det->pkt_count) max_packets = det->pkt_count;
-      else max_packets = 100000000;
-
-      flow_num = ntohl(inet_addr(det->dst_ip_max)) - 
-        ntohl(inet_addr(det->dst_ip_min));
-      flow_num++;
-      pkt_count = flow_num;
+      flow_num = ntohl(inet_addr(det->dst_ip_max)) - ntohl(inet_addr(det->dst_ip_min)) + 1;
       if(strstr(det->flags, "IPDST_RND") != NULL) 
-        pkt_count = (uint32_t)1.2*flow_num;
-      if(pkt_count) {
-        res = ldiv(max_packets, pkt_count);
-        iteration[ix-1] = (uint32_t)res.quot;
-      } else 
-        iteration[ix-1] = max_packets;
-      printf("queue %d: flow_num %u iterations %u (%s - %s)\n", 
-	     ix-1, pkt_count, iteration[ix-1], det->dst_ip_max, 
-	     det->dst_ip_min);
+	pkt_count = 1.2*flow_num;
+      if(pkt_count) iteration[ix-1] = max_packets/pkt_count;
+      else iteration[ix-1] = max_packets;
+      printf("queue %d: flow_mum %d iterations %u (%s - %s)\n", 
+	     ix-1, pkt_count, iteration[ix-1], det->dst_ip_max, det->dst_ip_min);
     }
   }
-
+  
   printf("Running nf packet gen\n");
   for(ix = 0; ix < ctx->n_channels; ix++) {
     if(ctx->channels[ix].det != NULL) {
@@ -328,9 +314,8 @@ start_nf_traffic_generator(oflops_context *ctx) {
       h.caplen = det->pkt_size;
       h.ts.tv_sec = 0;
       h.ts.tv_usec = 0;
-      flow_num = ntohl(inet_addr(det->dst_ip_max)) - 
-	ntohl(inet_addr(det->dst_ip_min));
-      flow_num++;
+      flow_num = ntohl(inet_addr(det->dst_ip_max)) - ntohl(inet_addr(det->dst_ip_min)) + 1;
+      printf("Found %d flows %d pkt size iteration %d\n", flow_num, h.caplen, iteration[ix] );
 
       innitialize_generator_packet(&pkt_state, ctx->channels[ix].det);
       nf_gen_set_number_iterations (iteration[ix - 1], 1, ix-1);
@@ -339,7 +324,8 @@ start_nf_traffic_generator(oflops_context *ctx) {
       if(strstr(det->flags, "IPDST_RND") != NULL) 
 	pkt_count += 0.2*flow_num;
     
-      for(i = 0; i < pkt_count; i++) {
+      for(i = 0; i < pkt_count; i++) { 
+	printf("Adding packet %d\n", i); 
 	if(strstr(det->flags, "IPDST_RND") != NULL) 
 	  pkt_state.ip->daddr = htonl(ntohl(inet_addr(det->dst_ip_min)) + rand()%(flow_num));
 	else 
@@ -355,10 +341,6 @@ start_nf_traffic_generator(oflops_context *ctx) {
   while(!ctx->should_end) {
     pthread_yield();
     if(nf_gen_finished()) {
-      if(det->pkt_count) {
-	printf("Finish generation due to pkt_count\n");
-	break;
-      }
       printf("Packet generation finished. Restarting...\n");
       nf_finish();
       nf_start(0);

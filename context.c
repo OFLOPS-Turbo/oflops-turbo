@@ -47,10 +47,6 @@ oflops_context * oflops_default_context(void) {
   ctx->dump_controller = 0;
   //ctx->cpuOID_len = MAX_OID_LEN;
   ctx->cpuOID_count = 0;
-
-  ctx->cpuOID = NULL;
-  ctx->cpuOID_len = NULL;
-  
   return ctx;
 }
 

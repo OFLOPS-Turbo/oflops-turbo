@@ -188,9 +188,7 @@ static void process_event(oflops_context *ctx, test_module * mod, struct pollfd 
   abort();
 }
 
-
-struct pcap_event *pe = NULL;  
-  /***********************************************************************************************
+/***********************************************************************************************
  * static void process_control_event(oflops_context *ctx, test_module * mod, struct pollfd *fd);
  * 	if POLLIN is set, read an openflow message from the control channel
  * 	FIXME: handle a control channel reset here
@@ -274,7 +272,7 @@ static void process_control_event(oflops_context *ctx, test_module * mod, struct
 	  mod->of_event_echo_request(ctx, (struct ofp_header *)neobuf);
 	  break;
 	default:
-	  if(ofph->type > OFPT_BARRIER_REPLY)   // FIXME: update for new openflow versions
+	  if(ofph->type > OFPT_STATS_REPLY)   // FIXME: update for new openflow versions
 	    {
 	      fprintf(stderr, "%s:%zd :: Data buffer probably trashed : unknown openflow type %d\n",
 		      __FILE__, __LINE__, ofph->type);
@@ -314,13 +312,31 @@ static void process_pcap_event(oflops_context *ctx, test_module * mod, struct po
     }
   if(!(pfd->revents & POLLIN))		// nothing to read, return
     return;
-   
-//  printf("received packet at port %d\n", ch);
   // read the next packet from the appropriate pcap socket
   if(ctx->channels[ch].cap_type == PCAP) {
     assert(ctx->channels[ch].pcap_handle);
     count = pcap_dispatch(ctx->channels[ch].pcap_handle, 1, oflops_pcap_handler, (u_char *) & wrap);
- 
+  } else  if(ctx->channels[ch].cap_type == NF2) {
+    wrap.pe = malloc_and_check(sizeof(pcap_event));
+    //printf("received packet at port %d\n", ch);
+    data = nf_cap_next(ctx->channels[ch].nf_cap, &wrap.pe->pcaphdr);
+
+    if(data != NULL) {
+      wrap.pe->data = malloc_and_check(wrap.pe->pcaphdr.caplen);
+      memcpy(wrap.pe->data, data, wrap.pe->pcaphdr.caplen);
+    } else {
+      printf("errorous packet received\n");
+      return;
+    }
+    
+  }
+
+  //dump packet if required
+  if((ch == OFLOPS_CONTROL) && (ctx->channels[ch].pcap_handle) 
+     && (ctx->dump_controller)) {
+    pcap_dump((u_char *)ctx->channels[ch].dump, &wrap.pe->pcaphdr, wrap.pe->data);
+  }
+
   if (count == 0)
     return;
   if (count < 0)
@@ -333,30 +349,7 @@ static void process_pcap_event(oflops_context *ctx, test_module * mod, struct po
   mod->handle_pcap_event(ctx, wrap.pe, ch);
   // clean up our mess
   pcap_event_free(wrap.pe);
-  } else  if(ctx->channels[ch].cap_type == NF2) {
-    if(pe == NULL) {
-        pe = malloc_and_check(sizeof(pcap_event));
-        pe->data =  malloc_and_check(2000);
-    }
-   data = nf_cap_next(ctx->channels[ch].nf_cap, &pe->pcaphdr);
-
-    if(data != NULL) {
-      //wrap.pe->data = malloc_and_check(wrap.pe->pcaphdr.caplen);
-      memcpy(pe->data, data, pe->pcaphdr.caplen);
-      //count++;
-    } else {
-      printf("errorous packet received\n");
-      return;
-    }
-    mod->handle_pcap_event(ctx, pe, ch);    
-  }
-
-  //dump packet if required
-  if((ch == OFLOPS_CONTROL) && (ctx->channels[ch].pcap_handle) 
-     && (ctx->dump_controller)) {
-    pcap_dump((u_char *)ctx->channels[ch].dump, &wrap.pe->pcaphdr, wrap.pe->data);
-  }
- return;
+  return;
 }
 /*************************************************************************
  * int load_test_module(oflops_context *ctx, 
