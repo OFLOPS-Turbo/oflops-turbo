@@ -302,53 +302,57 @@ static void process_pcap_event(oflops_context *ctx, test_module * mod, struct po
   struct pcap_event_wrapper wrap;
   int count;
   uint8_t *data;
+  static pcap_event *pe = NULL;
 
-  if(pfd->revents & POLLOUT)
-    {
-      int err;
-      if((err=msgbuf_write(ctx->channels[ch].outgoing,ctx->channels[ch].raw_sock, ctx->channels[ch].packet_len) < 0) && 
-	 (err != EAGAIN) && (err != EWOULDBLOCK ) && (err != EINTR))
-	perror_and_exit("channel write()",1);
-    }
+  if(pfd->revents & POLLOUT) {
+    int err;
+    if((err=msgbuf_write(ctx->channels[ch].outgoing,ctx->channels[ch].raw_sock, ctx->channels[ch].packet_len) < 0) && 
+       (err != EAGAIN) && (err != EWOULDBLOCK ) && (err != EINTR))
+      perror_and_exit("channel write()",1);
+  }
   if(!(pfd->revents & POLLIN))		// nothing to read, return
     return;
+  
   // read the next packet from the appropriate pcap socket
   if(ctx->channels[ch].cap_type == PCAP) {
     assert(ctx->channels[ch].pcap_handle);
     count = pcap_dispatch(ctx->channels[ch].pcap_handle, 1, oflops_pcap_handler, (u_char *) & wrap);
+    
+    //dump packet if required
+    if((ch == OFLOPS_CONTROL) && (ctx->channels[ch].pcap_handle) 
+       && (ctx->dump_controller)) {
+      pcap_dump((u_char *)ctx->channels[ch].dump, &wrap.pe->pcaphdr, wrap.pe->data);
+    }
+    
+    if (count == 0)
+      return;
+    if (count < 0)
+      {
+	fprintf(stderr,"process_pcap_event:pcap_dispatch returned %d :: %s \n", count,
+		pcap_geterr(ctx->channels[ch].pcap_handle));
+	return;
+      }
+    // dispatch it to the test module
+    mod->handle_pcap_event(ctx, wrap.pe, ch);
+    // clean up our mess
+    pcap_event_free(wrap.pe);
   } else  if(ctx->channels[ch].cap_type == NF2) {
-    wrap.pe = malloc_and_check(sizeof(pcap_event));
+    if(pe == NULL) {
+      pe = malloc_and_check(sizeof(pcap_event));
+      //This is a hack
+      pe->data = malloc_and_check(2000);
+    }
     //printf("received packet at port %d\n", ch);
-    data = nf_cap_next(ctx->channels[ch].nf_cap, &wrap.pe->pcaphdr);
-
+    data = nf_cap_next(ctx->channels[ch].nf_cap, &pe->pcaphdr);
+    
     if(data != NULL) {
-      wrap.pe->data = malloc_and_check(wrap.pe->pcaphdr.caplen);
-      memcpy(wrap.pe->data, data, wrap.pe->pcaphdr.caplen);
+      memcpy(pe->data, data, pe->pcaphdr.caplen);
+      mod->handle_pcap_event(ctx,pe, ch);
     } else {
       printf("errorous packet received\n");
       return;
     }
-    
   }
-
-  //dump packet if required
-  if((ch == OFLOPS_CONTROL) && (ctx->channels[ch].pcap_handle) 
-     && (ctx->dump_controller)) {
-    pcap_dump((u_char *)ctx->channels[ch].dump, &wrap.pe->pcaphdr, wrap.pe->data);
-  }
-
-  if (count == 0)
-    return;
-  if (count < 0)
-    {
-      fprintf(stderr,"process_pcap_event:pcap_dispatch returned %d :: %s \n", count,
-	      pcap_geterr(ctx->channels[ch].pcap_handle));
-      return;
-    }
-  // dispatch it to the test module
-  mod->handle_pcap_event(ctx, wrap.pe, ch);
-  // clean up our mess
-  pcap_event_free(wrap.pe);
   return;
 }
 /*************************************************************************

@@ -472,6 +472,7 @@ extract_pktgen_pkt( oflops_context *ctx, int port,
   uint8_t *data = b;
   
   if( (ntohs(ether->ether_type) == 0x8100) && (ntohs(ether_vlan->ether_type) == 0x0800)) {
+    printf("This is vlan traffic\n");
     b = b + sizeof(struct ether_vlan_header);
     len -= sizeof(struct ether_vlan_header);
   } else if(ntohs(ether->ether_type) == 0x0800) {
@@ -499,7 +500,7 @@ extract_pktgen_pkt( oflops_context *ctx, int port,
       fl->dl_vlan = (0x0FFF&ntohs(ether_vlan->vid<<4));
     } else {
       fl->dl_type = ntohs(ether->ether_type);
-      fl->dl_vlan = 0;
+      fl->dl_vlan = 0xFFFF;
     }
 
     //ip fields

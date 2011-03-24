@@ -416,7 +416,7 @@ make_ofp_flow_modify(void **buferp, struct flow *fl, char *actions,  uint16_t ac
   if(make_flow_mod(*buferp, OFPFC_MODIFY, len, fl) < 0 ) 
     fail("Error: falied to create flow modification packet.");
   struct ofp_flow_mod *ofm = *buferp;
-  memcpy(ofm->actions, actions, action_len);
+  memcpy(((void *)ofm)+sizeof(struct ofp_flow_mod), (void *)actions, action_len);
   ofm->idle_timeout = htons(idle_timeout);
   ofm->hard_timeout = htons(OFP_FLOW_PERMANENT);
   ofm->buffer_id = htonl(-1); //buffer_id);
