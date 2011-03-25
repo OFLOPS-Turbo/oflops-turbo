@@ -160,7 +160,7 @@ start(struct oflops_context * ctx) {
   fl->dl_type = htons(ETHERTYPE_IP);          
   memcpy(fl->dl_src, data_mac, ETH_ALEN);
   memcpy(fl->dl_dst, "\x00\x15\x17\x7b\x92\x0a", ETH_ALEN);
-  fl->dl_vlan = htons(101);
+  fl->dl_vlan = 0xffff; //htons(101);
   fl->nw_proto = IPPROTO_UDP;
   fl->nw_src =  inet_addr("10.1.1.1");
   fl->nw_dst =  inet_addr("10.1.1.2");
@@ -187,7 +187,7 @@ start(struct oflops_context * ctx) {
 
   //end process 
   gettimeofday(&now, NULL);
-  add_time(&now, 10, 0);
+  add_time(&now, 20, 0);
   oflops_schedule_timer_event(ctx,&now, BYESTR);
   return 0;
 }
@@ -331,8 +331,9 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
       printf("Failed to parse measurement packet\n");
       return 0;
     }
-    //if((pktgen->seq_num)%100 == 0)
-    printf("data packet received %lu %x\n", pktgen->seq_num, fl.dl_vlan);
+    if(rand()%100 == 1)
+      printf("data packet received %lu %d %d\n", 
+    	     pktgen->seq_num, fl.tp_src, fl.tp_dst);
     
     struct entry *n1 = malloc(sizeof(struct entry));
     n1->snd.tv_sec = pktgen->tv_sec;
@@ -413,7 +414,7 @@ handle_traffic_generation (oflops_context *ctx) {
 	     (unsigned char)data_mac[2], (unsigned char)data_mac[3], 
 	     (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
   strcpy(det.mac_dst,"00:15:17:7b:92:0a");
-  det.vlan = 101;
+  det.vlan = 0xffff;
   det.vlan_p = 0;
   det.vlan_cfi = 0;
   det.udp_src_port = 8080;
@@ -578,6 +579,7 @@ append_action(int action, const char *action_param) {
   struct ofp_action_header *act;
   struct ofp_action_dl_addr *act_dl;
   struct ofp_action_nw_addr *act_nw;
+  struct ofp_action_nw_tos *act_tos;
   struct ofp_action_tp_port *act_port;
   switch(action) {
   case OFPAT_OUTPUT:
@@ -587,7 +589,7 @@ append_action(int action, const char *action_param) {
     command = realloc(command, command_len);
     act_out = (struct ofp_action_output *)
       (command + (command_len - sizeof(struct ofp_action_output)));
-    bzero((void *)act_out, command_len);
+    bzero((void *)act_out,sizeof(struct ofp_action_output));
     act_out->type = htons(action);
     act_out->len = htons(8);
     act_out->max_len = htons(2000);
@@ -603,7 +605,7 @@ append_action(int action, const char *action_param) {
     command = realloc(command, command_len);
     act_vid = (struct ofp_action_vlan_vid *)
       (((void *)command) + (command_len-sizeof(struct ofp_action_vlan_vid)));
-    bzero((void *)act_vid, command_len);
+    bzero((void *)act_vid, sizeof(struct ofp_action_vlan_vid));
     act_vid->type = htons(action);
     act_vid->len = htons(8);
     act_vid->vlan_vid = htons((uint16_t)strtol(action_param, NULL, 10));
@@ -618,6 +620,7 @@ append_action(int action, const char *action_param) {
     command = realloc(command, command_len);
     act_pcp = (struct ofp_action_vlan_pcp *)
       (command + (command_len - sizeof(struct ofp_action_vlan_pcp)));
+    bzero((void *)act_pcp, sizeof(struct ofp_action_vlan_pcp));
     act_pcp->type = htons(action);
     act_pcp->len = htons(8);
     act_pcp->vlan_pcp = (uint8_t)strtol(action_param, NULL, 16); 
@@ -628,20 +631,22 @@ append_action(int action, const char *action_param) {
     command = realloc(command, command_len);
     act = (struct ofp_action_header *)
       (command + (command_len - sizeof(struct ofp_action_header)));
+    bzero((void *)act, sizeof(struct ofp_action_header));
     act->type = htons(action);
     act->len = htons(8);
     break;
   case OFPAT_SET_DL_SRC:
   case OFPAT_SET_DL_DST:
-    printf("Change ethernet address to %s\n", action_param);
     if((strlen(action_param) != 12) || (is_hex(action_param, 12) == 0)) {
       printf("invalid mac address\n");
       return -1;
     }
+    printf("Change ethernet address to %s\n", action_param);
     command_len += sizeof(struct ofp_action_dl_addr);
     command = realloc(command, command_len);
     act_dl = (struct ofp_action_dl_addr *)
-      (command + (command_len - sizeof(struct ofp_action_dl_addr)));
+      (((void *)command) + (command_len - sizeof(struct ofp_action_dl_addr)));
+    bzero((void *)act_dl, sizeof(struct ofp_action_header));
     act_dl->type = htons(action);
     act_dl->len = htons(16);
     int i;
@@ -649,6 +654,10 @@ append_action(int action, const char *action_param) {
       act_dl->dl_addr[i] = read_hex(action_param);
       action_param += 2;
     }
+    printf("%02x:%02x:%02x:%02x:%02x:%02x\n", (unsigned char)act_dl->dl_addr[0], 
+	   (unsigned char)act_dl->dl_addr[1], (unsigned char)act_dl->dl_addr[2], 
+	   (unsigned char)act_dl->dl_addr[3], (unsigned char)act_dl->dl_addr[4], 
+	   (unsigned char)act_dl->dl_addr[5]);
     break;
   case OFPAT_SET_NW_SRC:
   case OFPAT_SET_NW_DST:
@@ -665,13 +674,25 @@ append_action(int action, const char *action_param) {
     act_nw->len = htons(8);
     act_nw->nw_addr = htonl(strtol(action_param, NULL, 16));
     break;
+
+  case OFPAT_SET_NW_TOS:
+    printf("change tos to %ld\n", strtol(action_param, NULL, 16));
+    command_len += sizeof(struct ofp_action_nw_tos);
+    command = realloc(command, command_len);
+    act_tos = (struct ofp_action_nw_tos *)
+      (((void *)command) + (command_len - sizeof(struct ofp_action_nw_tos)));
+    act_tos->type = htons(action);
+    act_tos->len = htons(8);
+    act_tos->nw_tos = (uint8_t)strtol(action_param, NULL, 16);
+    break;
+
   case OFPAT_SET_TP_SRC:
   case OFPAT_SET_TP_DST:
     printf("change port to %ld\n", strtol(action_param, NULL, 16));
     command_len += sizeof(struct ofp_action_tp_port);
     command = realloc(command, command_len);
     act_port = (struct ofp_action_tp_port *)
-      (command + (command_len - sizeof(struct ofp_action_tp_port)));
+      (((void *)command) + (command_len - sizeof(struct ofp_action_tp_port)));
     act_port->type = htons(action);
     act_port->len = htons(8);
     act_port->tp_port = htons((uint16_t)strtol(action_param, NULL, 16));
