@@ -119,8 +119,7 @@ start(struct oflops_context * ctx) {
   fl_probe = (struct flow*)xmalloc(sizeof(struct flow));
   void *b; //somewhere to store message data
   int res, len;
-  struct timeval now;
-  //init measurement queue
+  struct timeval now;  //init measurement queue
   TAILQ_INIT(&head); 
 
   //init logging service
@@ -160,7 +159,7 @@ start(struct oflops_context * ctx) {
   fl->dl_type = htons(ETHERTYPE_IP);          
   memcpy(fl->dl_src, data_mac, ETH_ALEN);
   memcpy(fl->dl_dst, "\x00\x15\x17\x7b\x92\x0a", ETH_ALEN);
-  fl->dl_vlan = 0xffff; //htons(101);
+  fl->dl_vlan = htons(101);
   fl->nw_proto = IPPROTO_UDP;
   fl->nw_src =  inet_addr("10.1.1.1");
   fl->nw_dst =  inet_addr("10.1.1.2");
@@ -332,8 +331,13 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
       return 0;
     }
     if(rand()%100 == 1)
-      printf("data packet received %lu %d %d\n", 
-    	     pktgen->seq_num, fl.tp_src, fl.tp_dst);
+      printf("data packet received %lu %x %02x:%02x:%02x:%02x:%02x:%02x "
+	     "%02x:%02x:%02x:%02x:%02x:%02x %x %x %d %d\n", 
+    	     pktgen->seq_num, fl.dl_vlan, (uint8_t)fl.dl_src[0], (uint8_t)fl.dl_src[1], 
+	     (uint8_t)fl.dl_src[2],(uint8_t)fl.dl_src[3],(uint8_t)fl.dl_src[4],
+	     (uint8_t)fl.dl_src[5],(uint8_t)fl.dl_dst[0],(uint8_t)fl.dl_dst[1],
+	     (uint8_t)fl.dl_dst[2],(uint8_t)fl.dl_dst[3],(uint8_t)fl.dl_dst[4],
+	     (uint8_t)fl.dl_dst[5], fl.nw_src, fl.nw_dst, fl.tp_src, fl.tp_dst);
     
     struct entry *n1 = malloc(sizeof(struct entry));
     n1->snd.tv_sec = pktgen->tv_sec;
@@ -414,7 +418,7 @@ handle_traffic_generation (oflops_context *ctx) {
 	     (unsigned char)data_mac[2], (unsigned char)data_mac[3], 
 	     (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
   strcpy(det.mac_dst,"00:15:17:7b:92:0a");
-  det.vlan = 0xffff;
+  det.vlan = 101;
   det.vlan_p = 0;
   det.vlan_cfi = 0;
   det.udp_src_port = 8080;
@@ -661,7 +665,7 @@ append_action(int action, const char *action_param) {
     break;
   case OFPAT_SET_NW_SRC:
   case OFPAT_SET_NW_DST:
-    printf("Change ip address to %s\n", action_param);
+    printf("Change ip address to %llx\n",  strtoll(action_param, NULL, 16));
     if((strlen(action_param) != 8) || (is_hex(action_param, 8) == 0)) {
       printf("invalid ip address\n");
       return -1;
@@ -672,11 +676,11 @@ append_action(int action, const char *action_param) {
       (command + (command_len - sizeof(struct ofp_action_nw_addr)));
     act_nw->type = htons(action);
     act_nw->len = htons(8);
-    act_nw->nw_addr = htonl(strtol(action_param, NULL, 16));
+    act_nw->nw_addr = htonl(strtoll(action_param, NULL, 16));
     break;
 
   case OFPAT_SET_NW_TOS:
-    printf("change tos to %ld\n", strtol(action_param, NULL, 16));
+    printf("change tos to %llx\n", strtol(action_param, NULL, 16));
     command_len += sizeof(struct ofp_action_nw_tos);
     command = realloc(command, command_len);
     act_tos = (struct ofp_action_nw_tos *)

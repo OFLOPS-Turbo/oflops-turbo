@@ -472,7 +472,6 @@ extract_pktgen_pkt( oflops_context *ctx, int port,
   uint8_t *data = b;
   
   if( (ntohs(ether->ether_type) == 0x8100) && (ntohs(ether_vlan->ether_type) == 0x0800)) {
-    printf("This is vlan traffic\n");
     b = b + sizeof(struct ether_vlan_header);
     len -= sizeof(struct ether_vlan_header);
   } else if(ntohs(ether->ether_type) == 0x0800) {
