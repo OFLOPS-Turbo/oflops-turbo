@@ -38,6 +38,8 @@ int main(int argc, char * argv[])
   struct run_module_param *param =  malloc_and_check(sizeof(struct run_module_param));
   char msg[1024];
   struct timeval now;
+  struct nf_cap_stats stat;
+  struct nf_gen_stats gen_stat;
 
   // create the default context
   oflops_context * ctx = oflops_default_context();
@@ -52,8 +54,7 @@ int main(int argc, char * argv[])
 
   fprintf(stderr, "Running %d Test%s\n", ctx->n_tests, ctx->n_tests>1?"s":"");
 
-  for(i=0;i<ctx->n_tests;i++)
-  {
+  for(i=0;i<ctx->n_tests;i++) {
     fprintf(stderr, "-----------------------------------------------\n");
     fprintf(stderr, "------------ TEST %s ----------\n", (*(ctx->tests[i]->name))());
     fprintf(stderr, "-----------------------------------------------\n");
@@ -67,7 +68,13 @@ int main(int argc, char * argv[])
     pthread_create(&event_thread, NULL, event_loop, (void *)param);
     pthread_join(*thread, NULL);
     pthread_join(event_thread, NULL);
-    pthread_cancel(traffic_gen); 
+
+    
+    if(ctx->trafficGen == PKTGEN)
+      pthread_cancel(traffic_gen); 
+    else 
+      pthread_join(traffic_gen, NULL); 
+      
     free(thread);
     gettimeofday(&now, NULL);
     for(j = 0 ; j < ctx->n_channels;j++) {
@@ -79,17 +86,15 @@ int main(int argc, char * argv[])
 	printf("%s\n", msg);
       } else if((ctx->channels[j].cap_type == NF2) &&
 		(ctx->channels[j].nf_cap != NULL)) {
-	struct nf_cap_stats stat;
-	struct nf_gen_stats gen_stat;
 	nf_cap_stat(j-1, &stat);
-	//pcap_stats(ctx->channels[j].pcap_handle, &ps);
-	snprintf(msg, 1024, "%s:%u:%u",ctx->channels[j].dev, 
-		 stat.pkt_cnt, 
+	snprintf(msg, 1024, "%s:rcv:%u:%u",ctx->channels[j].dev,  stat.pkt_cnt, 
 		 (stat.pkt_cnt - stat.capture_packet_cnt));
 	oflops_log(now, PCAP_MSG, msg);
 	printf("%s\n", msg);
-	nf_cap_stat(j-1, &gen_stat);
-	printf("%s: send packet %d\n", ctx->channels[j].dev,gen_stat.pkt_snd_cnt);
+	display_xmit_metrics(j-1, &gen_stat);
+	snprintf(msg, 1024, "%s:snd:%u",ctx->channels[j].dev,gen_stat.pkt_snd_cnt);
+	oflops_log(now, PCAP_MSG, msg);
+	printf("%s\n",msg);
       }
     }
 

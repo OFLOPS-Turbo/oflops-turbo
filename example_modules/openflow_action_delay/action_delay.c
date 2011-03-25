@@ -176,17 +176,17 @@ start(struct oflops_context * ctx) {
    */
   //send the flow modyfication command in 30 seconds. 
   gettimeofday(&now, NULL);
-  add_time(&now, 5, 0);
+  add_time(&now, 30, 0);
   oflops_schedule_timer_event(ctx,&now, SND_ACT);
 
   //get port and cpu status from switch 
   gettimeofday(&now, NULL);
-  add_time(&now, 10, 0);
+  add_time(&now, 1, 0);
   oflops_schedule_timer_event(ctx,&now, SNMPGET);
 
   //end process 
   gettimeofday(&now, NULL);
-  add_time(&now, 20, 0);
+  add_time(&now, 60, 0);
   oflops_schedule_timer_event(ctx,&now, BYESTR);
   return 0;
 }
@@ -218,7 +218,7 @@ destroy(struct oflops_context *ctx) {
     max_id[ch] = (np->id > max_id[ch])?np->id:max_id[ch];
     data[ch][ix[ch]++] = time_diff(&np->snd, &np->rcv);
     if(print)
-      if(fprintf(out, "%lu;%lu.%06lu;%lu.%06lu;%d\n", 
+      if(fprintf(out, "%lu %lu.%06lu %lu.%06lu %d\n", 
 		 (long unsigned int)np->id,  
 		 (long unsigned int)np->snd.tv_sec, 
 		 (long unsigned int)np->snd.tv_usec,
@@ -330,14 +330,14 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
       printf("Failed to parse measurement packet\n");
       return 0;
     }
-    if(rand()%100 == 1)
-      printf("data packet received %lu %x %02x:%02x:%02x:%02x:%02x:%02x "
-	     "%02x:%02x:%02x:%02x:%02x:%02x %x %x %d %d\n", 
-    	     pktgen->seq_num, fl.dl_vlan, (uint8_t)fl.dl_src[0], (uint8_t)fl.dl_src[1], 
-	     (uint8_t)fl.dl_src[2],(uint8_t)fl.dl_src[3],(uint8_t)fl.dl_src[4],
-	     (uint8_t)fl.dl_src[5],(uint8_t)fl.dl_dst[0],(uint8_t)fl.dl_dst[1],
-	     (uint8_t)fl.dl_dst[2],(uint8_t)fl.dl_dst[3],(uint8_t)fl.dl_dst[4],
-	     (uint8_t)fl.dl_dst[5], fl.nw_src, fl.nw_dst, fl.tp_src, fl.tp_dst);
+    //    if(rand()%100 == 1)
+/*       printf("data packet received %lu %x %02x:%02x:%02x:%02x:%02x:%02x " */
+/* 	     "%02x:%02x:%02x:%02x:%02x:%02x %x %x %d %d\n",  */
+/*     	     pktgen->seq_num, fl.dl_vlan, (uint8_t)fl.dl_src[0], (uint8_t)fl.dl_src[1],  */
+/* 	     (uint8_t)fl.dl_src[2],(uint8_t)fl.dl_src[3],(uint8_t)fl.dl_src[4], */
+/* 	     (uint8_t)fl.dl_src[5],(uint8_t)fl.dl_dst[0],(uint8_t)fl.dl_dst[1], */
+/* 	     (uint8_t)fl.dl_dst[2],(uint8_t)fl.dl_dst[3],(uint8_t)fl.dl_dst[4], */
+/* 	     (uint8_t)fl.dl_dst[5], fl.nw_src, fl.nw_dst, fl.tp_src, fl.tp_dst); */
     
     struct entry *n1 = malloc(sizeof(struct entry));
     n1->snd.tv_sec = pktgen->tv_sec;
@@ -374,7 +374,7 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
     for (i = 0; i < ctx->cpuOID_count; i++) {
       if((vars->name_length == ctx->cpuOID_len[i]) &&
 	 (memcmp(vars->name, ctx->cpuOID[i],  ctx->cpuOID_len[i] * sizeof(oid)) == 0) ) {
-	snprintf(out_buf, len, "cpu : %s %%", msg);
+	snprintf(out_buf, len, "cpu:%s", msg);
 	oflops_log(now, SNMP_MSG, out_buf);
       }
     } 
@@ -680,7 +680,7 @@ append_action(int action, const char *action_param) {
     break;
 
   case OFPAT_SET_NW_TOS:
-    printf("change tos to %llx\n", strtol(action_param, NULL, 16));
+    printf("change tos to %lx\n", strtol(action_param, NULL, 16));
     command_len += sizeof(struct ofp_action_nw_tos);
     command = realloc(command, command_len);
     act_tos = (struct ofp_action_nw_tos *)
