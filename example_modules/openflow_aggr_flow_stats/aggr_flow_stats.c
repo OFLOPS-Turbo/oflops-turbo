@@ -405,9 +405,7 @@ int start(struct oflops_context * ctx)
   memcpy(fl->dl_dst, "\x00\x1e\x68\x9a\xc5\x75", ETH_ALEN); 
   fl->mask = 0; 
   for(i=0; i< flows; i++) {
-    ip_addr.s_addr += 1;
-    fl->nw_dst =  htonl(ip_addr.s_addr);
-    
+    fl->nw_dst =  htonl(ntohl(ip_addr.s_addr) + i);
     len = make_ofp_flow_add(&b, fl, ctx->channels[OFLOPS_DATA2].of_port, 1, 1200);
     ret = write(ctx->control_fd, b, len);
     free(b);
