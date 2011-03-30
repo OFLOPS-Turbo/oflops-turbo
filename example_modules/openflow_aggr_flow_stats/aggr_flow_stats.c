@@ -398,7 +398,6 @@ int start(struct oflops_context * ctx)
 
   printf("Sending new flow rules...\n");
   ip_addr.s_addr = inet_addr(network);
-  ip_addr.s_addr =  ntohl(ip_addr.s_addr);
   fl->in_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
   fl->dl_vlan = 0xffff; 
   memcpy(fl->dl_src, data_mac, ETH_ALEN); 
