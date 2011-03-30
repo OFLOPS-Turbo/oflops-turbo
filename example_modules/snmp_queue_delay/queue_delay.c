@@ -49,7 +49,7 @@ struct entry {
 
 /** The rate at which data will be send between the data ports (In Mbits per sec.). 
  */
-uint64_t duration = 60;
+uint64_t duration = 30;
 
 TAILQ_HEAD(tailhead, entry) head;
 
@@ -57,6 +57,44 @@ FILE *measure_output;
 double *delay;
 uint32_t delay_count;
 uint64_t max_pkt_count;
+
+uint32_t
+get_snmp_packet_counter(struct oflops_context *ctx) {
+  struct snmp_pdu *pdu, *response;
+  struct snmp_session *ss;
+  netsnmp_variable_list *vars;
+  int status;
+  uint32_t ret = 0;
+
+  //initialize snmp seesion and variables
+  if(!(ss = snmp_open(&(ctx->snmp_channel_info->session)))) {
+    snmp_perror("snmp_open");
+    return 1;
+  }
+    
+  do {
+    pdu = snmp_pdu_create(SNMP_MSG_GET);
+    snmp_add_null_var(pdu, ctx->channels[OFLOPS_DATA1].outOID, 
+		      ctx->channels[OFLOPS_DATA1].outOID_len);
+    /*
+     * Send the Request out.
+     */  
+    status = snmp_synch_response(ss, pdu, &response);
+    if (status == STAT_SUCCESS && response->errstat == SNMP_ERR_NOERROR) {
+      for(vars = response->variables; vars; vars = vars->next_variable)  { 
+	ret = (uint32_t)*(vars->val.integer);
+      }
+    }
+  } while(status != STAT_SUCCESS || response->errstat != SNMP_ERR_NOERROR);
+  
+  if (response)
+    snmp_free_pdu(response);
+  response = NULL;
+  snmp_close(ss);
+
+  return ret;
+}
+
 
 int init(struct oflops_context *ctx, char * config_str) {
   char *pos = NULL;
@@ -104,7 +142,9 @@ int init(struct oflops_context *ctx, char * config_str) {
   } 
 
   //calculate maximum number of packet I may receive
-  uint64_t max_pkt_count = duration*1000000000 / 
+  printf("%llu %u %llu %llu %llu\n", duration, pkt_size, byte_to_bits, sec_to_usec, 
+	 mbits_to_bits);
+  max_pkt_count = duration*1000000000 / 
     ((pkt_size * byte_to_bits * sec_to_usec) / (mbits_to_bits));
   delay = (double *)xmalloc(max_pkt_count * sizeof(double));
     printf("delay_count : %llu\n", max_pkt_count);
@@ -131,19 +171,12 @@ int start(struct oflops_context * ctx) {
 
   make_ofp_hello(&b);
   ret = write(ctx->control_fd, b, sizeof(struct ofp_hello));
-  printf("sending %d bytes\n", ret);
   free(b);  
 
-  // send a delete all message to clean up flow table.
-  res = make_ofp_feat_req(&b);
-  write(ctx->control_fd, b, res);
-  free(b);
-
-  // send a features request, to stave off timeout (ignore response)
+  // clean up flow table
   printf("cleaning up flow table...\n");
   res = make_ofp_flow_del(&b);
   ret = write(ctx->control_fd, b, res);
-  printf("sending %d bytes\n", ret);
   free(b);
 
   //Send a singe ruke to route the traffic we will generate
@@ -187,18 +220,18 @@ int
 handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_channel_name ch) {
   struct pktgen_hdr *pktgen;
   struct timeval snd, rcv;
-
+  struct flow fl;
+  
   if(ch == OFLOPS_DATA1) {
-    if(delay_count == max_pkt_count) return 0;
-    struct flow fl;
+    if(delay_count >= max_pkt_count) {
+      printf("received packet is more than %llu\n", max_pkt_count);
+      return 0;
+    }
     pktgen = extract_pktgen_pkt(ctx, ch, pe->data, pe->pcaphdr.caplen, &fl);
     if(pktgen == NULL) {
       printf("Malformed packet\n");
       return 0;
     }
-    
-   /*  if(htonl(pktgen->seq_num) % 100000 == 0) */
-/*       printf("data packet received %d\n", htonl(pktgen->seq_num)); */
     
     snd.tv_sec = pktgen->tv_sec;
     snd.tv_usec = pktgen->tv_usec;
@@ -212,25 +245,33 @@ int
 handle_traffic_generation (oflops_context *ctx) {
   struct traf_gen_det det;
   char msg[1024], line[1024];
-  int datarate[]={10, 50, 100, 200, 300, 400, 
-		  500, 600, 700, 800, 900, 1000};
-  int i, datarate_count = 12, status;
+  int datarate[]={1, 10, 64, 128, 256, 512, 1000};
+  int i, datarate_count = 7;
   uint64_t data_snd_interval;
   uint32_t mean, std, median;
   float loss;
   FILE *input;
   struct timeval now;
-  struct snmp_pdu *pdu, *response;
-  struct snmp_session *ss;
-  netsnmp_variable_list *vars;
-
+  uint32_t start_count, end_count, pkt_count;
+  struct nf_gen_stats gen_stat;
+  struct nf_cap_stats stat;
+  
   init_traf_gen(ctx);
-
-  //background data
+  
+  //background dadatata
   strcpy(det.src_ip,"10.1.1.1");
   strcpy(det.dst_ip_min,"10.1.1.2");
   strcpy(det.dst_ip_max, "10.1.1.2");
-  strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
+  
+  if(ctx->trafficGen == PKTGEN)
+    strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
+  else 
+    snprintf(det.mac_src, 20, "%02x:%02x:%02x:%02x:%02x:%02x",
+	     (unsigned char)local_mac[0], (unsigned char)local_mac[1], 
+	     (unsigned char)local_mac[2], (unsigned char)local_mac[3], 
+	     (unsigned char)local_mac[4], (unsigned char)local_mac[5]);
+  
+  
   strcpy(det.mac_dst,"00:1e:68:9a:c5:75");
   det.vlan = 0xffff;
   det.vlan_p = 1;
@@ -242,32 +283,8 @@ handle_traffic_generation (oflops_context *ctx) {
   
   //calculating interpacket gap
   for (i = 0; i < datarate_count; i++) {
-
-    //initialize snmp seesion and variables
-    if(!(ss = snmp_open(&(ctx->snmp_channel_info->session)))) {
-      snmp_perror("snmp_open");
-      return 1;
-    }
     
-    pdu = snmp_pdu_create(SNMP_MSG_GET);
-    snmp_add_null_var(pdu, ctx->channels[OFLOPS_DATA1].outOID, 
-		      ctx->channels[OFLOPS_DATA1].outOID_len);
-    /*
-     * Send the Request out.
-     */    
-    status = snmp_synch_response(ss, pdu, &response);
-    if (status == STAT_SUCCESS && response->errstat == SNMP_ERR_NOERROR) {
-      for(vars = response->variables; vars; vars = vars->next_variable)  {    
-	snprint_value(msg, 1024, vars->name, vars->name_length, vars);
-	printf("result msg: %s\n", msg);
-      }
-    }
-
-    if (response)
-      snmp_free_pdu(response);
-    response = NULL;
-    snmp_close(ss);
-
+    start_count = get_snmp_packet_counter(ctx);
     //init packet counter 
     delay_count = 0;
     
@@ -287,30 +304,43 @@ handle_traffic_generation (oflops_context *ctx) {
     add_traffic_generator(ctx, OFLOPS_DATA1, &det);
     start_traffic_generator(ctx);
 
+    sleep(10);
     
+    end_count = get_snmp_packet_counter(ctx);
     gsl_sort (delay, 1, delay_count);
     mean = (uint32_t)gsl_stats_mean(delay, 1, delay_count);
     std = (uint32_t)sqrt(gsl_stats_variance(delay, 1, delay_count));
     median = (uint32_t)gsl_stats_median_from_sorted_data (delay, 1, delay_count);
-    loss = (float)delay_count/(float)det.pkt_count;
-    printf("delay:%d:%u:%u:%u:%.4f:%d\n", 
-	   datarate[i], mean, median, std, loss, delay_count);
-    snprintf(msg, 1024, "delay:%d:%u:%u:%u:%.4f:%d", 
-	     datarate[i], mean, median, std, loss, delay_count);
+    //    loss = (float)delay_count/(float)det.pkt_count;
+    loss =  (float)(det.pkt_count - (end_count - start_count))/(float)det.pkt_count;
+
+
+    printf("delay:%d:%u:%u:%u:%.4f:%d:%u\n", 
+	   datarate[i], mean, median, std, loss, delay_count, (end_count - start_count));
+    snprintf(msg, 1024, "delay:%d:%u:%u:%u:%.4f:%d:%u", 
+	     datarate[i], mean, median, std, loss, delay_count, (end_count - start_count));
     gettimeofday(&now, NULL);
     oflops_log(now, GENERIC_MSG, msg);
     // TODO: snprintf the name of of_data1 device instead
-    input = popen ("tail -2 /proc/net/pktgen/eth1", "r");
-    if(input != NULL) {
-      while(fgets(line, 1024, input) != NULL) {
-	snprintf(msg, 1024, "pktgen:%d:%s", datarate[i], line);
-	oflops_log(now, GENERIC_MSG, msg);
-	printf("%s\n", msg);
-      }
-      pclose(input);
+/*     if(ctx->trafficGen == PKTGEN) { */
+/*       input = popen ("tail -2 /proc/net/pktgen/eth1", "r"); */
+/*       if(input != NULL) { */
+/* 	while(fgets(line, 1024, input) != NULL) { */
+/* 	  snprintf(msg, 1024, "pktgen:%d:%s", datarate[i], line); */
+/* 	  oflops_log(now, GENERIC_MSG, msg); */
+/* 	  printf("%s\n", msg); */
+/* 	} */
+/* 	pclose(input); */
+/*       } else */
+    if(ctx->trafficGen == NF_PKTGEN) { 
+      display_xmit_metrics(0, &gen_stat);
+	nf_cap_stat(0, &stat);
+	snprintf(msg, 1024, "nf:%u:%u:%u", datarate[i], gen_stat.pkt_snd_cnt, stat.pkt_cnt);
+      oflops_log(now, GENERIC_MSG, msg);
+      printf("%s\n", msg);
     }
   }
-
+  
   oflops_end_test(ctx,1);
   return 1;
 }
@@ -326,3 +356,5 @@ of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph
   free(b);
   return 0;
 }
+
+  char msg[1024];

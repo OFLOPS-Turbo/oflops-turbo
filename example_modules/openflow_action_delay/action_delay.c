@@ -421,6 +421,7 @@ handle_traffic_generation (oflops_context *ctx) {
   det.vlan = 101;
   det.vlan_p = 0;
   det.vlan_cfi = 0;
+  det.pkt_count = 0;
   det.udp_src_port = 8080;
   det.udp_dst_port = 8080;
   det.pkt_size = pkt_size;

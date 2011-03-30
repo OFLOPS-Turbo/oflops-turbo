@@ -293,9 +293,19 @@ start_nf_traffic_generator(oflops_context *ctx) {
   uint32_t iteration[] = {0,0,0,0};
   ldiv_t res; 
 
+  for (ix = 0; ix < 4; ix++) 
+      nf_gen_reset_queue(ix);
+  
   for(ix = 1; ix < ctx->n_channels; ix++) {
     if(ctx->channels[ix].det != NULL) {
       det = ctx->channels[ix].det;
+
+      if(det->pkt_count) {
+	max_packets = det->pkt_count;
+      } else {
+	max_packets = 100000000;
+      }
+
       flow_num = ntohl(inet_addr(det->dst_ip_max))-ntohl(inet_addr(det->dst_ip_min))+1L;
       pkt_count = flow_num;
       if(strstr(det->flags, "IPDST_RND") != NULL) 
@@ -342,8 +352,9 @@ start_nf_traffic_generator(oflops_context *ctx) {
   while(!ctx->should_end) {
     pthread_yield();
     if(nf_gen_finished()) {
-      printf("Packet generation finished. Restarting...\n");
       nf_finish();
+      if(det->pkt_count) break;
+      printf("Packet generation finished. Restarting...\n");
       nf_start(0);
     }
   }
