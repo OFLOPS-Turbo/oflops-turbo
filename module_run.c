@@ -272,7 +272,7 @@ static void process_control_event(oflops_context *ctx, test_module * mod, struct
 	  mod->of_event_echo_request(ctx, (struct ofp_header *)neobuf);
 	  break;
 	default:
-	  if(ofph->type > OFPT_STATS_REPLY)   // FIXME: update for new openflow versions
+	  if(ofph->type > OFPT_BARRIER_REPLY)   // FIXME: update for new openflow versions
 	    {
 	      fprintf(stderr, "%s:%zd :: Data buffer probably trashed : unknown openflow type %d\n",
 		      __FILE__, __LINE__, ofph->type);

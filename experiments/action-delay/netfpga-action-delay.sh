@@ -15,7 +15,7 @@ if [ -e oflops.log ]; then
     rm oflops.log;
 fi
 
-if [-e action_generic.log]; then
+if [ -e action_generic.log ]; then
     rm action_generic.log
 fi
 
