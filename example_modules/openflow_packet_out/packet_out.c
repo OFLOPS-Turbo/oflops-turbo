@@ -15,7 +15,6 @@
 //include gsl to implement statistical functionalities
 #include <gsl/gsl_statistics.h>
 
-
 #include <test_module.h>
 
 #include "log.h"
@@ -90,6 +89,7 @@ struct pktgen_hdr *pktgen;
 static int pkt_counter;
 
 int generate_pkt_out(struct oflops_context * ctx, struct timeval *now);
+char data_mac[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
 /**@ingroup modules
  * Packet in module.
@@ -141,16 +141,14 @@ int start(struct oflops_context * ctx) {
   res = oflops_send_of_mesg(ctx, (void *)data);  
   free(data);
 
+  //get local mac address
+  get_mac_address(ctx->channels[OFLOPS_DATA1].dev, data_mac);
+
   //get port and cpu status from switch 
   gettimeofday(&now, NULL);
   add_time(&now, 1, 0);
   oflops_schedule_timer_event(ctx,&now, SNMPGET);
- 
-  //Schedule end
-  gettimeofday(&now, NULL);
-  add_time(&now, 1, 0);
-  oflops_schedule_timer_event(ctx,&now, SND_PKT);
- 
+
   //Schedule end
   gettimeofday(&now, NULL);
   add_time(&now, 61, 0);
@@ -185,11 +183,6 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
     oflops_schedule_timer_event(ctx,&now, SNMPGET);
   } else if(!strcmp(str,BYESTR)) {
     oflops_end_test(ctx,1);
-  } else if(!strcmp(str,SND_PKT)) {
-    generate_pkt_out(ctx, &te->sched_time);
-    write(ctx->control_fd, b, b_len);
-    add_time(&now, probe_snd_interval/sec_to_usec, probe_snd_interval%sec_to_usec);
-    oflops_schedule_timer_event(ctx,&now, SND_PKT);    
   } else
     fprintf(stderr, "Unknown timer event: %s", str);
   return 0;
@@ -350,73 +343,42 @@ int init(struct oflops_context *ctx, char * config_str) {
   return 0;
 }
 
+
 int
-generate_pkt_out(struct oflops_context * ctx,struct timeval *now) {
-  struct ofp_action_output *act_out;
-  if(b == NULL) {
-    b_len = sizeof(struct ofp_packet_out) + sizeof(struct ofp_action_output) + pkt_size;
-    b = (char *)xmalloc(b_len*sizeof(char));
-    
-    //setting up openflow packet out fields
-    pkt_out = (struct ofp_packet_out *)b;
-    pkt_out->header.version = OFP_VERSION;
-    pkt_out->header.type =  OFPT_PACKET_OUT;
-    pkt_out->header.length =  htons(b_len);
-    pkt_out->header.xid = 0;
-    
-    pkt_out->buffer_id = htonl(-1);
-    pkt_out->in_port = htons(OFPP_NONE);
-    pkt_out->actions_len = htons(sizeof(struct ofp_action_output));
-    
-    //pkt_out->actions = xmalloc(sizeof(struct ofp_action_output));
-    act_out = (struct ofp_action_output *) pkt_out->actions;
-    act_out->type = htons(OFPAT_OUTPUT);
-    act_out->len = htons(8);      
-    act_out->port = htons(ctx->channels[OFLOPS_DATA1].of_port);
-    act_out->max_len = htons(2000);
-    
-    //setting up the ethernet header
-    ether = (struct ether_header *)(b + sizeof(struct ofp_packet_out) + 
-				    sizeof(struct ofp_action_output));
-    memcpy(ether->ether_shost, "\x00\x1e\x68\x9a\xc5\x75", ETH_ALEN);
-    memcpy(ether->ether_dhost, local_mac, ETH_ALEN);
-    ether->ether_type = htons(ETHERTYPE_IP);
-    
-    //setting up the ip header
-    ip = (struct iphdr *)(b + sizeof(struct ofp_packet_out) + 
-			  sizeof(struct ofp_action_output) + sizeof(struct ether_header));
-    ip->protocol=1;
-    ip->ihl=5;
-    ip->version=4;
-    ip->ttl = 100;
-    ip->protocol = IPPROTO_UDP; //udp protocol
-    ip->saddr = inet_addr("10.1.1.1"); 
-    ip->daddr = inet_addr("192.168.3.0"); //test.nw_dst;
-    ip->tot_len = htons(pkt_size - sizeof(struct ether_header));
-    
-    //setting up the udp header
-    udp = (struct udphdr *)(b + sizeof(struct ofp_packet_out) + 
-			    sizeof(struct ofp_action_output) + sizeof(struct ether_header) +
-			    sizeof(struct iphdr));
-    udp->source = htons(8080);
-    udp->dest = htons(8080);
-    udp->len = htons(pkt_size - sizeof(struct ether_header) 
-		      - sizeof(struct iphdr));
+handle_traffic_generation (oflops_context *ctx) {
+  struct traf_gen_det det;
+  struct in_addr ip_addr;
 
-    //setting up pktgen header
-    pktgen = (struct pktgen_hdr *)(b + sizeof(struct ofp_packet_out) + 
-				   sizeof(struct ofp_action_output) + sizeof(struct ether_header) +
-				   sizeof(struct iphdr) + sizeof(struct udphdr));
-    pktgen->magic = 0xbe9be955;
-  }
+  init_traf_gen(ctx);
 
-  
-  ip->daddr = htonl(ntohl(inet_addr("192.168.3.0")) + (rand()%(flows)) ); //test.nw_dst;
-  ip->check=ip_sum_calc(20, (void *)ip);
-  pktgen->tv_sec = htonl(now->tv_sec);
-  pktgen->tv_usec = htonl(now->tv_usec);
-  pktgen->seq_num = htonl(++pkt_counter);
+  //background data
+  strcpy(det.src_ip,"10.1.1.1");
+  strcpy(det.dst_ip_min,"192.168.2.0");
 
+  ip_addr.s_addr = ntohl(inet_addr("192.168.2.0"));
+ ip_addr.s_addr += (flows-1);
+  ip_addr.s_addr = htonl(ip_addr.s_addr);
+ strcpy(det.dst_ip_max,  inet_ntoa(ip_addr));
+  if(ctx->trafficGen == PKTGEN)
+    strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
+  else 
+    snprintf(det.mac_src, 20, "%02x:%02x:%02x:%02x:%02x:%02x",
+	     (unsigned char)data_mac[0], (unsigned char)data_mac[1], 
+	     (unsigned char)data_mac[2], (unsigned char)data_mac[3], 
+	     (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
+    
+  strcpy(det.mac_dst,"00:15:17:7b:92:0a");
+  det.vlan = 0xffff;
+  det.vlan_p = 0;
+  det.vlan_cfi = 0;
+  det.udp_src_port = 8080;
+  det.udp_dst_port = 8080;
+  det.pkt_size = pkt_size;
+  det.delay = probe_snd_interval*1000;
+  strcpy(det.flags, "");
+  add_traffic_generator(ctx, OFLOPS_DATA1, &det);
+ 
+  start_traffic_generator(ctx);
   return 1;
 }
 
@@ -442,9 +404,10 @@ int get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc, char * 
  */
 int handle_pcap_event(struct oflops_context *ctx, struct pcap_event *pe,
 		      oflops_channel_name ch) {
-  struct flow fl;
-  if (ch == OFLOPS_DATA1) {
-    struct pktgen_hdr *pkt;
+ struct flow fl;
+ struct pktgen_hdr *pkt;
+ if (ch == OFLOPS_DATA1) {
+    printf("received packet at port 1\n");
     pkt = extract_pktgen_pkt(ctx, ch, (unsigned char *)pe->data, pe->pcaphdr.caplen, &fl);
     if(pktgen == NULL) //skip non IP packets
       return 0;
