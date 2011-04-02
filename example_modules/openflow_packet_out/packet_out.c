@@ -155,7 +155,7 @@ int start(struct oflops_context * ctx) {
  
   //Schedule end
   gettimeofday(&now, NULL);
-  add_time(&now, 61, 0);
+  add_time(&now, 20, 0);
   oflops_schedule_timer_event(ctx,&now, BYESTR);
 
   return 0;
@@ -188,10 +188,10 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
   } else if(!strcmp(str,BYESTR)) {
     oflops_end_test(ctx,1);
   } else if(!strcmp(str,SND_PKT)) {
-    generate_pkt_out(ctx, &te->sched_time);
+    generate_pkt_out(ctx, &now);
     write(ctx->control_fd, b, b_len);
     add_time(&now, probe_snd_interval/sec_to_usec, probe_snd_interval%sec_to_usec);
-    oflops_schedule_timer_event(ctx,&now, SND_PKT);    
+    oflops_schedule_timer_event(ctx, &now, SND_PKT);    
   } else
     fprintf(stderr, "Unknown timer event: %s", str);
   return 0;
@@ -233,7 +233,7 @@ destroy(oflops_context *ctx) {
 
     snprintf(msg, 1024, "statistics:%lu:%lu:%lu:%f:%d", (long unsigned)mean, (long unsigned)median, 
 	     (long unsigned)sqrt(variance), loss, i);
-    printf("statistics:%lu:%lu:%lu:%f:%d", (long unsigned)mean, (long unsigned)median, 
+    printf("statistics:%lu:%lu:%lu:%f:%d\n", (long unsigned)mean, (long unsigned)median, 
 	   (long unsigned)variance, loss, i);
     oflops_log(now, GENERIC_MSG, msg);
   }
@@ -355,6 +355,8 @@ int init(struct oflops_context *ctx, char * config_str) {
 int
 generate_pkt_out(struct oflops_context * ctx,struct timeval *now) {
   struct ofp_action_output *act_out;
+  uint64_t time_count;
+
   if(b == NULL) {
     b_len = sizeof(struct ofp_packet_out) + sizeof(struct ofp_action_output) + pkt_size;
     b = (char *)xmalloc(b_len*sizeof(char));
@@ -380,8 +382,8 @@ generate_pkt_out(struct oflops_context * ctx,struct timeval *now) {
     //setting up the ethernet header
     ether = (struct ether_header *)(b + sizeof(struct ofp_packet_out) + 
 				    sizeof(struct ofp_action_output));
-    memcpy(ether->ether_shost, "\x00\x1e\x68\x9a\xc5\x75", ETH_ALEN);
-    memcpy(ether->ether_dhost, local_mac, ETH_ALEN);
+    memcpy(ether->ether_dhost, "\x00\x1e\x68\x9a\xc5\x75", ETH_ALEN);
+    memcpy(ether->ether_shost, local_mac, ETH_ALEN);
     ether->ether_type = htons(ETHERTYPE_IP);
     
     //setting up the ip header
@@ -406,18 +408,31 @@ generate_pkt_out(struct oflops_context * ctx,struct timeval *now) {
 		      - sizeof(struct iphdr));
 
     //setting up pktgen header
-    pktgen = (struct pktgen_hdr *)(b + sizeof(struct ofp_packet_out) + 
-				   sizeof(struct ofp_action_output) + sizeof(struct ether_header) +
-				   sizeof(struct iphdr) + sizeof(struct udphdr));
-    pktgen->magic = 0xbe9be955;
+    if(ctx->trafficGen != NF_PKTGEN) 
+      pktgen = (struct pktgen_hdr *)(b + sizeof(struct ofp_packet_out) + 
+				     sizeof(struct ofp_action_output) + sizeof(struct ether_header) +
+				     sizeof(struct iphdr) + sizeof(struct udphdr));
+    else 
+      pktgen = (struct pktgen_hdr *)(b + sizeof(struct ofp_packet_out) + 
+				     sizeof(struct ofp_action_output) + 64);      
+    
+    pktgen->magic = htonl(0xbe9be955);
   }
 
   
   ip->daddr = htonl(ntohl(inet_addr("192.168.3.0")) + (rand()%(flows)) ); //test.nw_dst;
-  ip->check=ip_sum_calc(20, (void *)ip);
-  pktgen->tv_sec = htonl(now->tv_sec);
-  pktgen->tv_usec = htonl(now->tv_usec);
+  if(ctx->trafficGen == NF_PKTGEN) {
+    time_count = (uint64_t)(now->tv_sec)*powl(10,9) + (uint64_t)(now->tv_usec)*powl(10,3);
+    //printf("snd %d %lu %lu %llu %llx\n", pkt_counter+ 1, now->tv_sec, now->tv_usec, time_count, time_count);
+    pktgen->tv_sec = ntohl(time_count >> 32);
+    pktgen->tv_usec = ntohl(0xFFFFFFFF & time_count);
+  } else {
+    pktgen->tv_sec = htonl(now->tv_sec);
+    pktgen->tv_usec = htonl(now->tv_usec);
+  }
   pktgen->seq_num = htonl(++pkt_counter);
+  ip->check= htons(0x87c5);
+  //ip->check=htons(ip_sum_calc(20, (void *)ip));
 
   return 1;
 }
@@ -432,7 +447,6 @@ int get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc, char * 
 {
   if (ofc == OFLOPS_DATA1) {
     return snprintf(filter,buflen,"udp");
-    return 0;
   }
   return 0;
 }
@@ -446,13 +460,15 @@ int handle_pcap_event(struct oflops_context *ctx, struct pcap_event *pe,
 		      oflops_channel_name ch) {
   struct flow fl;
   struct pktgen_hdr *pkt;
-  printf("received packet at port %d\n", ch);
   if (ch == OFLOPS_DATA1) {
     pkt = extract_pktgen_pkt(ctx, ch, (unsigned char *)pe->data, 
 			     pe->pcaphdr.caplen, &fl);
-    if(pktgen == NULL) { //skip non IP packets
+    if(pkt == NULL) { //skip non IP packets
       return 0;
     }
+    
+    //if(pkt->seq_num%1000 == 0)
+      //printf("packet received on port %d\n", pkt->seq_num);
     
     struct entry *n1 = malloc(sizeof(struct entry));
     n1->snd.tv_sec = pkt->tv_sec;
@@ -463,5 +479,24 @@ int handle_pcap_event(struct oflops_context *ctx, struct pcap_event *pe,
     rcv_pkt_count++;
     TAILQ_INSERT_TAIL(&head, n1, entries);
   }
+  return 0;
+}
+
+int
+handle_traffic_generation (oflops_context *ctx) {
+ 
+  start_traffic_generator(ctx);
+  return 1;
+}
+
+int 
+of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph) {
+  void *buf;
+  int res;
+  make_ofp_hello(&buf);
+  ((struct ofp_header *)buf)->type = OFPT_ECHO_REPLY;
+  ((struct ofp_header *)buf)->xid = ofph->xid;
+  res = oflops_send_of_mesgs(ctx, buf, sizeof(struct ofp_hello));
+  free(b);
   return 0;
 }

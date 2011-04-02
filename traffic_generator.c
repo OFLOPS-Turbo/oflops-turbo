@@ -292,12 +292,15 @@ start_nf_traffic_generator(oflops_context *ctx) {
   uint32_t max_packets = 100000000;
   uint32_t iteration[] = {0,0,0,0};
   ldiv_t res; 
+  int data_to_send = 0; // in case we only want to capture data, we enable the capturing module,
+                        // but never load any data.
 
   for (ix = 0; ix < 4; ix++) 
       nf_gen_reset_queue(ix);
   
   for(ix = 1; ix < ctx->n_channels; ix++) {
     if(ctx->channels[ix].det != NULL) {
+      data_to_send = 1;
       det = ctx->channels[ix].det;
 
       if(det->pkt_count) {
@@ -351,7 +354,7 @@ start_nf_traffic_generator(oflops_context *ctx) {
   nf_start(0);
   while(!ctx->should_end) {
     pthread_yield();
-    if(nf_gen_finished()) {
+    if(nf_gen_finished() && (data_to_send)) {
       nf_finish();
       if(det->pkt_count) break;
       printf("Packet generation finished. Restarting...\n");
