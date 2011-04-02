@@ -49,7 +49,7 @@ struct entry {
 
 /** The rate at which data will be send between the data ports (In Mbits per sec.). 
  */
-uint64_t duration = 30;
+uint64_t duration = 10;
 
 TAILQ_HEAD(tailhead, entry) head;
 
@@ -245,8 +245,12 @@ int
 handle_traffic_generation (oflops_context *ctx) {
   struct traf_gen_det det;
   char msg[1024], line[1024];
+  //int datarate[]={1, 10, 64, 128, 256, 512, 1000};
+  //int datarate_count = 7;
   int datarate[]={1, 10, 64, 128, 256, 512, 1000};
-  int i, datarate_count = 7;
+  int datarate_count = 7;
+
+  int i;
   uint64_t data_snd_interval;
   uint32_t mean, std, median;
   float loss;
@@ -283,6 +287,11 @@ handle_traffic_generation (oflops_context *ctx) {
   
   //calculating interpacket gap
   for (i = 0; i < datarate_count; i++) {
+    char filename[100];
+    snprintf(filename, 100, "queue-%04d-delay.txt", datarate[i] );
+    test_output = fopen(filename, "w");
+    if(!test_output)
+      perror_and_exit("fopen", 1);
     
     start_count = get_snmp_packet_counter(ctx);
     //init packet counter 
@@ -306,6 +315,9 @@ handle_traffic_generation (oflops_context *ctx) {
 
     sleep(10);
     
+    fclose(test_output);
+
+
     end_count = get_snmp_packet_counter(ctx);
     gsl_sort (delay, 1, delay_count);
     mean = (uint32_t)gsl_stats_mean(delay, 1, delay_count);

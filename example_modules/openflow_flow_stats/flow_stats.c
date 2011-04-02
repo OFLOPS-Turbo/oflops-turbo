@@ -48,7 +48,6 @@ int flows = 128;
 int flows_exponent, query_exponent;
 int query = 64;
 int query_delay = 1000000; //1 sec
-
 /** The iniitial ip from which we start
  */
 char *network = "192.168.2.0";
@@ -75,6 +74,7 @@ int poll_started = 0;
 uint64_t data_snd_interval;
 uint64_t probe_snd_interval;
 
+struct timeval stats_start;
 int trans_id=0;
 
 char *logfile = LOG_FILE;
@@ -219,6 +219,7 @@ int init(struct oflops_context *ctx, char * config_str) {
   fprintf(stderr, "sending %d flows, quering %d flows every %u usec\n", 
 	  flows, query, query_delay);
 
+
   return 0;
 }
 
@@ -302,10 +303,10 @@ int destroy(struct oflops_context *ctx) {
     ix[0]++;
     snprintf(msg, 1024, "stats:%u:%d:%u.%06u:%u.%06u:%u",i,  
      	   stats_counter[i].pkt_count,  
-     	   (uint32_t)stats_counter[i].snd.tv_sec, 
-     	   (uint32_t)stats_counter[i].snd.tv_usec,
-     	   (uint32_t)stats_counter[i].rcv.tv_sec, 
-	     (uint32_t)stats_counter[i].rcv.tv_usec,
+     	   stats_counter[i].snd.tv_sec, 
+     	   stats_counter[i].snd.tv_usec,
+     	   stats_counter[i].rcv.tv_sec, 
+     	   stats_counter[i].rcv.tv_usec,
      	   time_diff(&stats_counter[i].snd,  
      		     &stats_counter[i].rcv));
     printf("%s\n", msg);
@@ -367,16 +368,19 @@ int start(struct oflops_context * ctx)
 
   make_ofp_hello(&b);
   ret = write(ctx->control_fd, b, sizeof(struct ofp_hello));
+  printf("sending %d bytes\n", ret);
   free(b);  
 
   // send a delete all message to clean up flow table.
   make_ofp_feat_req(&b);
+  printf("sending %d bytes\n", ret);
   free(b);
 
   // send a features request, to stave off timeout (ignore response)
   printf("cleaning up flow table...\n");
   res = make_ofp_flow_del(&b);
   ret = write(ctx->control_fd, b, res);
+  printf("sending %d bytes\n", ret);
   free(b);
 
   //Send a singe ruke to route the traffic we will generate
@@ -428,6 +432,10 @@ int start(struct oflops_context * ctx)
     fl->nw_dst =  htonl(ntohl(fl->nw_dst) + 1);
   }
 
+  make_ofp_hello(&b);
+  ((struct ofp_header *)b)->type = OFPT_ECHO_REQUEST;
+  free(b);  
+
   //Schedule end
   gettimeofday(&now, NULL);
   add_time(&now, TEST_DURATION, 0);
@@ -469,6 +477,7 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
     //log start of measurement
     if(trans_id == 0) {
       printf("flow stats request send with xid %s\n", msg);  
+      memcpy(&stats_start, &te->sched_time, sizeof(struct timeval));
       poll_started = 1;
     }
     memcpy(&stats_counter[trans_id].snd, &te->sched_time, sizeof(struct timeval));
@@ -500,7 +509,6 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
     gettimeofday(&now, NULL);
     add_time(&now, query_delay/SEC_TO_USEC, query_delay%SEC_TO_USEC);
     oflops_schedule_timer_event(ctx, &now, GETSTAT);
-
   } else if (strcmp(str, BYESTR) == 0) {
     //terminate programm execution
     printf("terminating test....\n");
@@ -673,6 +681,7 @@ of_event_other(struct oflops_context *ctx, const struct ofp_header * ofph) {
 
   if(ofph->type == OFPT_STATS_REPLY) {
     struct ofp_stats_reply *ofpr = (struct ofp_stats_reply *)ofph;
+    stats_counter[ntohl(ofph->xid)].pkt_count++;
     if(ntohs(ofpr->type) == OFPST_FLOW) {
       if(!(ntohs(ofpr->flags) & OFPSF_REPLY_MORE)) {
 	//sprintf(msg, "%d", ntohl(ofph->xid));
