@@ -46,5 +46,6 @@ char *report_traffic_generator(oflops_context *ctx);
 
 struct pktgen_hdr *extract_pktgen_pkt(oflops_context *ctx, int port,
 				      unsigned char *b, int len, struct flow *fl);
+void oflops_gettimeofday(struct oflops_context *ctx, struct timeval *ts);
 
 #endif

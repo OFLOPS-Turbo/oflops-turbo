@@ -504,7 +504,9 @@ extract_pktgen_pkt( oflops_context *ctx, int port,
   b = b + 4*ip_p->ihl;
   len -=  4*ip_p->ihl;
 
+  
   if(fl!= NULL) {
+    bzero(fl, sizeof(struct flow));
     //ethenet fields
     memcpy(fl->dl_src, ether->ether_shost, 6);
     memcpy(fl->dl_dst, ether->ether_dhost, 6);
@@ -520,6 +522,7 @@ extract_pktgen_pkt( oflops_context *ctx, int port,
     fl->nw_src = ip_p->saddr;
     fl->nw_dst = ip_p->daddr;
     
+    fl->nw_proto = IPPROTO_UDP;
     //tcp/udp fields
     struct udphdr *udp_p = (struct udphdr *)b;
     fl->tp_src = ntohs(udp_p->source);
@@ -539,6 +542,16 @@ extract_pktgen_pkt( oflops_context *ctx, int port,
   } else if (ctx->channels[port].cap_type == NF2) {
     return nf_gen_extract_header(ctx->channels[port].nf_cap, data, len);
   } else 
+    printf("Can't extract: Unkonwn port type %d\n",ctx->channels[port].cap_type);
       return NULL;
 }
 
+void
+oflops_gettimeofday(struct oflops_context *ctx, struct timeval *ts) {
+  if(ctx->trafficGen == NF_PKTGEN) {
+    nf_cap_timeofday(ts);
+  } else {
+    gettimeofday(ts, NULL);
+  }
+  
+}

@@ -118,7 +118,7 @@ int start(struct oflops_context * ctx) {
   free(b);  
 
   //send a message to clean up flow tables. 
-  printf("cleaning up flow table...\n");
+  printf("cleaning up flow table...\n");  
   res = make_ofp_flow_del(&b);
   res = oflops_send_of_mesg(ctx, b);  
   free(b);
@@ -183,12 +183,15 @@ destroy(oflops_context *ctx) {
   for (np = head.tqh_first; np != NULL; np = np->entries.tqe_next) {
     min_id = (np->id < min_id)?np->id:min_id;
     max_id = (np->id > max_id)?np->id:max_id;
-    data[i++] = (double)time_diff(&np->snd, &np->rcv);
+
+    if(time_diff(&np->snd, &np->rcv) >= 0) {
+      data[i++] = (double)time_diff(&np->snd, &np->rcv);
+    }
     if(print) {
-      snprintf(msg, 1024, "%lu.%06lu:%lu.%06lu:%d",
+      snprintf(msg, 1024, "%lu.%06lu:%lu.%06lu:%d:%d",
 	       np->snd.tv_sec, np->snd.tv_usec,
 	       np->rcv.tv_sec, np->rcv.tv_usec,
-	       np->id); 
+	       np->id, time_diff(&np->snd, &np->rcv)); 
       oflops_log(now, OFPT_PACKET_IN_MSG, msg);
     }
     free(np);
@@ -205,12 +208,27 @@ destroy(oflops_context *ctx) {
 
     snprintf(msg, 1024, "statistics:%lu:%lu:%lu:%f:%d", (long unsigned)mean, (long unsigned)median, 
 	     (long unsigned)sqrt(variance), loss, i);
-    printf("statistics:%lu:%lu:%lu:%f:%d", (long unsigned)mean, (long unsigned)median, 
+    printf("statistics:%lu:%lu:%lu:%f:%d\n", (long unsigned)mean, (long unsigned)median, 
 	   (long unsigned)variance, loss, i);
     oflops_log(now, GENERIC_MSG, msg);
   }
   return 0;
 }
+
+/** Register pcap filter.
+ * @param ctx pointer to opaque context
+ * @param ofc enumeration of channel that filter is being asked for
+ * @param filter filter string for pcap * @param buflen length of buffer
+ */
+int 
+get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc, 
+		char * filter, int buflen) {
+  // Aminor hack to make the extraction code work
+  if (ofc == OFLOPS_DATA1)
+    return snprintf(filter, buflen, "udp");
+  return 0;
+}
+
 
 int 
 of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * pktin) {
@@ -219,15 +237,21 @@ of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * pkti
   struct in_addr addr;
   struct pktgen_hdr *pktgen;
 
-  gettimeofday(&now,NULL);
+  //  gettimeofday(&now,NULL);
+  oflops_gettimeofday(ctx, &now);
 
-  pktgen = extract_pktgen_pkt(ctx, pktin->in_port, pktin->data, pktin->total_len, &fl);
+  pktgen = extract_pktgen_pkt(ctx, ntohs(pktin->in_port), pktin->data, 
+			      ntohs(pktin->total_len), &fl);
 
   addr.s_addr = fl.nw_src;
-  if(fl.tp_src != 8080) return 0;
-
-  if(pktgen == NULL) 
+  if(fl.tp_src != 8080) {
     return 0;
+  }
+
+  if(pktgen == NULL) {
+    //printf("Invalid packet received\n");
+    return 0;
+  }
   addr.s_addr = fl.nw_dst;
   
   struct entry *n1 = xmalloc(sizeof(struct entry));
@@ -237,20 +261,17 @@ of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * pkti
   n1->id = pktgen->seq_num;
   TAILQ_INSERT_TAIL(&head, n1, entries);
   pkt_in_count++;
-    
-/*   printf(msg, 1024, "%lu.%lu:%lu.%lu:%d:%s:%d:%d\n", */
-/* 	 now.tv_sec, now.tv_usec, */
-/* 	 (unsigned long)ntohl(pktgen->tv_sec), */
-/* 	 (unsigned long)ntohl(pktgen->tv_usec), */
-/* 	 ntohl(pktin->buffer_id), */
-/* 	 inet_ntoa(addr), */
-/* 	 ntohl(pktgen->seq_num), */
-/* 	 ntohs(pktin->header.length));  */
-  //printf("%s\n", msg);
+/*   char msg[1024]; */
+/*   snprintf(msg, 1024, "%lu.%lu:%lu.%lu:%d:%s:%d:%d", */
+/* 	   now.tv_sec, now.tv_usec, */
+/* 	   (unsigned long)pktgen->tv_sec, */
+/* 	   (unsigned long)pktgen->tv_usec, */
+/* 	   pktin->buffer_id, */
+/* 	   inet_ntoa(addr), */
+/* 	   pktgen->seq_num, */
+/* 	   ntohs(pktin->header.length)); */
+/*   printf("%s\n", msg); */
   //oflops_log(now, OFPT_PACKET_IN_MSG, msg);
-  return 0;
-  //fprintf(stderr, "%s\n", msg);
-  
   return 0;
 }
 
