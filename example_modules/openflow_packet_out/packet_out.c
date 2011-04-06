@@ -188,10 +188,11 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
   } else if(!strcmp(str,BYESTR)) {
     oflops_end_test(ctx,1);
   } else if(!strcmp(str,SND_PKT)) {
-    generate_pkt_out(ctx, &now);
+    generate_pkt_out(ctx, &te->sched_time);
     write(ctx->control_fd, b, b_len);
     add_time(&now, probe_snd_interval/sec_to_usec, probe_snd_interval%sec_to_usec);
-    oflops_schedule_timer_event(ctx, &now, SND_PKT);    
+    oflops_schedule_timer_event(ctx,&now, SND_PKT);    
+
   } else
     fprintf(stderr, "Unknown timer event: %s", str);
   return 0;
@@ -382,8 +383,8 @@ generate_pkt_out(struct oflops_context * ctx,struct timeval *now) {
     //setting up the ethernet header
     ether = (struct ether_header *)(b + sizeof(struct ofp_packet_out) + 
 				    sizeof(struct ofp_action_output));
-    memcpy(ether->ether_dhost, "\x00\x1e\x68\x9a\xc5\x75", ETH_ALEN);
-    memcpy(ether->ether_shost, local_mac, ETH_ALEN);
+    memcpy(ether->ether_shost, "\x00\x1e\x68\x9a\xc5\x75", ETH_ALEN);
+    memcpy(ether->ether_dhost, local_mac, ETH_ALEN);
     ether->ether_type = htons(ETHERTYPE_IP);
     
     //setting up the ip header
@@ -415,12 +416,10 @@ generate_pkt_out(struct oflops_context * ctx,struct timeval *now) {
     else 
       pktgen = (struct pktgen_hdr *)(b + sizeof(struct ofp_packet_out) + 
 				     sizeof(struct ofp_action_output) + 64);      
-    
+
     pktgen->magic = htonl(0xbe9be955);
   }
 
-  
-  ip->daddr = htonl(ntohl(inet_addr("192.168.3.0")) + (rand()%(flows)) ); //test.nw_dst;
   if(ctx->trafficGen == NF_PKTGEN) {
     time_count = (uint64_t)(now->tv_sec)*powl(10,9) + (uint64_t)(now->tv_usec)*powl(10,3);
     //printf("snd %d %lu %lu %llu %llx\n", pkt_counter+ 1, now->tv_sec, now->tv_usec, time_count, time_count);
