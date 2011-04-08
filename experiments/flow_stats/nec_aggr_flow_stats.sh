@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ulimit -c unlimited
+ulimit -c 0
 
 if [ -e oflops.log ]; then
     rm oflops.log;
@@ -16,7 +16,7 @@ table_str=exact;
  for flow_num in 1 8 64 256 1024; do
      for query_num in 1 8 64 256 1024; do
  	for query_delay in 4000000 1000000 500000 250000; do 
- 	    for try in `seq 1 3`; do 
+ 	    for try in `seq 11 20`; do 
 		if [ ! -d /testbed/data/nec/aggr_flow_stats/`printf "%05d" $query_delay`/ ]; then
 		    mkdir /testbed/data/nec/aggr_flow_stats/`printf "%05d" $query_delay`/
 	        fi
@@ -24,6 +24,7 @@ table_str=exact;
 			echo "skiping $query_num $flow_num $try $query_delay";
 			continue;
 		fi
+
 		if [ "$try" -eq 1 ]; then
 		    print=1;
 		else 
@@ -32,15 +33,15 @@ table_str=exact;
 		if [ ! -d /testbed/data/nec/aggr_flow_stats/`printf "%05d" $query_delay`/$table_str ]; then 
 		    mkdir /testbed/data/nec/aggr_flow_stats/`printf "%05d" $query_delay`/$table_str
 	        fi
-		
-		sed -e "s/%table%/$table/g"  -e "s/%flows%/$flow_num/g" \
-		    -e "s/%print%/$print/g" -e "s/%flows_query%/$query_num/g" \
-                    -e "s/%query_delay%/$query_delay/g" \
-		       /testbed/data/nec/aggr_flow_stats/config-nec-aggr-flow-stats.cfg \
-		    | tee /tmp/oflops.cfg
 		while [ ! -e oflops.log ] ||  [ "`wc -l oflops.log | cut -d \  -f 1 `" -lt "20" ]; do 
 		    dpctl del-flows ptcp:
 		    sleep 20;
+                    echo "params $query_num $flow_num $try $query_delay";
+		    sed -e "s/%table%/$table/g"  -e "s/%flows%/$flow_num/g" \
+		        -e "s/%print%/$print/g" -e "s/%flows_query%/$query_num/g" \
+                        -e "s/%query_delay%/$query_delay/g" \
+		       /testbed/data/nec/aggr_flow_stats/config-nec-aggr-flow-stats.cfg \
+		       > /tmp/oflops.cfg
 		    /testbed/oflops/oflops -i /tmp/oflops.cfg
 		done
 		echo /testbed/data/nec/aggr_flow_stats/`printf "%05d" $query_delay`/$table_str/`printf "%05d" $flow_num`-`printf "%05d" $query_num`-$try-oflops.log;
@@ -56,10 +57,10 @@ done
 
 table=1;
 table_str=wild;
- for flow_num in 1 8 64 256; do
-     for query_num in 1 8 64 256; do
+ for flow_num in 1 8 64 1024; do
+     for query_num in 1 8 64 1024; do
  	for query_delay in 4000000 2000000 1000000 500000 250000; do 
- 	    for try in `seq 1 5`; do 
+ 	    for try in `seq 11 20`; do 
 		if [ ! -d /testbed/data/nec/aggr_flow_stats/`printf "%05d" $query_delay`/ ]; then
 		    mkdir /testbed/data/nec/aggr_flow_stats/`printf "%05d" $query_delay`/
 	        fi

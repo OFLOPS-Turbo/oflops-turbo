@@ -247,8 +247,8 @@ handle_traffic_generation (oflops_context *ctx) {
   char msg[1024], line[1024];
   //int datarate[]={1, 10, 64, 128, 256, 512, 1000};
   //int datarate_count = 7;
-  int datarate[]={1, 10, 64, 128, 256, 512, 1000};
-  int datarate_count = 7;
+  int datarate[]={128, 256, 512, 1000};
+  int datarate_count = 4;
 
   int i;
   uint64_t data_snd_interval;
