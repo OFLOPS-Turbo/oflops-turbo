@@ -34,7 +34,9 @@
  */
 #define MIN_PKT_SIZE 64
 #define MAX_PKT_SIZE 1500
-#define TEST_DURATION 60
+
+#define TEST_DURATION 30
+
 #define MIN_QUERY_DELAY 1000
 
 #define SEC_TO_USEC 1000000
