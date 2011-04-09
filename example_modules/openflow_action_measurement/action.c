@@ -502,6 +502,13 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
 
 int 
 of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph) {
+  void *b;
+  int res;
+  make_ofp_hello(&b);
+  ((struct ofp_header *)b)->type = OFPT_ECHO_REPLY;
+  ((struct ofp_header *)b)->xid = ofph->xid;
+  res = oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
+  free(b);
   return 0;
 }
 
@@ -512,15 +519,6 @@ of_event_port_status(struct oflops_context *ctx, const struct ofp_port_status * 
 
 int 
 of_event_other(struct oflops_context *ctx, const struct ofp_header * ofph) {
-  void *b;
-  int res;
-  switch(ofph->type) {
-  case OFPT_ECHO_REQUEST:
-    make_ofp_hello(&b);
-    ((struct ofp_header *)b)->type = OFPT_ECHO_REPLY;
-    res = oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
-    free(b);
-  }
   return 0;
 }
 
