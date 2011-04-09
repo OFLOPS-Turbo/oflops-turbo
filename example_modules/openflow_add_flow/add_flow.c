@@ -145,7 +145,6 @@ start(struct oflops_context * ctx) {
   //Initialize pap-based  tcp flow reassembler for the communication 
   //channel
   msg_init();  
-  bzero(&flow_mod_timestamp, sizeof(struct timeval));
   snprintf(msg, 1024,  "Intializing module %s", name());
 
   get_mac_address(ctx->channels[OFLOPS_DATA1].dev, local_mac);
@@ -179,7 +178,7 @@ start(struct oflops_context * ctx) {
     fl->mask = 0; //if table is 0 the we generate an exact match */
   else 
     fl->mask = OFPFW_DL_DST | OFPFW_DL_SRC | (32 << OFPFW_NW_SRC_SHIFT) | 
-      (0 << OFPFW_NW_DST_SHIFT) | OFPFW_DL_VLAN | OFPFW_TP_DST | OFPFW_NW_PROTO | 
+      (8 << OFPFW_NW_DST_SHIFT) | OFPFW_DL_VLAN | OFPFW_TP_DST | OFPFW_NW_PROTO | 
       OFPFW_TP_SRC | OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS;
 
   fl->mask = OFPFW_ALL;
@@ -195,7 +194,6 @@ start(struct oflops_context * ctx) {
   fl->tp_src = htons(8080);
   fl->tp_dst = htons(8080);
   len = make_ofp_flow_add(&b, fl, ctx->channels[OFLOPS_DATA3].of_port, 1, 120);
-  ((struct ofp_flow_mod *)b)->priority = htons(10);
   res = oflops_send_of_mesg(ctx, b);
   free(b);
 
@@ -211,7 +209,7 @@ start(struct oflops_context * ctx) {
    */
   //send the flow modyfication command in 30 seconds. 
   gettimeofday(&now, NULL);
-  add_time(&now, 15, 0);
+  add_time(&now, 20, 0);
   oflops_schedule_timer_event(ctx,&now, SND_ACT);
 
   //get port and cpu status from switch 
@@ -221,9 +219,13 @@ start(struct oflops_context * ctx) {
 
   //end process 
   gettimeofday(&now, NULL);
-  add_time(&now, 30, 0);
+  add_time(&now, 60, 0);
   oflops_schedule_timer_event(ctx,&now, BYESTR);
 
+  //end process 
+  gettimeofday(&now, NULL);
+  add_time(&now, 1, 0);
+  oflops_schedule_timer_event(ctx,&now, SEND_ECHO_REQ);
   return 0;
 }
 
@@ -339,7 +341,7 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
       fl_probe->mask = 0; //if table is 0 the we generate an exact match */
     else 
       fl_probe->mask = OFPFW_DL_DST | OFPFW_DL_SRC | (32 << OFPFW_NW_SRC_SHIFT) | 
-	(0 << OFPFW_NW_DST_SHIFT) | OFPFW_DL_VLAN | OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS;
+	(32 << OFPFW_NW_DST_SHIFT) | OFPFW_DL_VLAN | OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS;
 
     memcpy(fl_probe->dl_src, data_mac, 6);
     memcpy(fl_probe->dl_dst, "\x00\x15\x17\x7b\x92\x0a", 6);
@@ -349,7 +351,6 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
     for(i=0; i< flows; i++) {
     fl_probe->nw_dst =  htonl(ip_addr.s_addr);
       len = make_ofp_flow_add(&b, fl_probe, OFPP_IN_PORT, 1, 1200);
-      ((struct ofp_flow_mod *)b)->priority = htons(11);
       oflops_send_of_mesgs(ctx, b, len);
       free(b);
       ip_addr.s_addr += inc;
@@ -358,14 +359,8 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
     fl_probe->in_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
     fl_probe->nw_dst =  inet_addr("10.1.1.2");
     len = make_ofp_flow_add(&b, fl_probe, OFPP_IN_PORT, 1, 1200);
-    ((struct ofp_flow_mod *)b)->priority = htons(11);
     oflops_send_of_mesg(ctx, b);
     free(b);
-
-    make_ofp_hello(&b);
-    ((struct ofp_header *)b)->type = OFPT_BARRIER_REQUEST;
-    write(ctx->control_fd, b, sizeof(struct ofp_hello));
-    free(b);  
     printf("sending flow modifications ....\n"); 
 
   } else if(strcmp(str, SNMPGET) == 0) {
@@ -379,7 +374,17 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
     gettimeofday(&now, NULL);
     add_time(&now, 1, 0);
     oflops_schedule_timer_event(ctx,&now, SNMPGET);
-  } 
+  } else if(strcmp(str, SEND_ECHO_REQ) == 0) {
+    struct ofp_header *p;
+    make_ofp_echo_req(&p);
+    p->xid = htonl(++echo_data_count);
+    oflops_send_of_mesg(ctx, p);
+    free(p);
+    gettimeofday(&now, NULL);
+    add_time(&now, 4, 0);
+    oflops_schedule_timer_event(ctx,&now, SEND_ECHO_REQ);
+    
+  }
   return 0;
 }
 
@@ -432,11 +437,18 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
 	snprintf(msg, 1024, "OFPT_ERROR(type: %d, code: %d)", ntohs(err_p->type), ntohs(err_p->code));
 	oflops_log(pe->pcaphdr.ts, OFPT_ERROR_MSG, msg);
 	fprintf(stderr, "%s\n", msg);
-	break;  
-      case OFPT_BARRIER_REPLY:
-	snprintf(msg, 1024, "BARRIER_DELAY:%d", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
-	oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
-	printf("BARRIER_DELAY:%d\n", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
+	break;   
+      case  OFPT_ECHO_REQUEST:
+	err_p = (struct ofp_error_msg *)ofp;
+	printf("%ld.%06ld: OFPT_ECHO_REQUEST %d\n", pe->pcaphdr.ts.tv_sec, pe->pcaphdr.ts.tv_usec, ntohl(ofp->xid));
+	if((ntohl(ofp->xid) < 100) && (ntohl(ofp->xid) > 0))
+	  memcpy(&echo_data[ntohl(ofp->xid)].snd, &pe->pcaphdr.ts, sizeof(struct timeval));
+	break;   
+      case  OFPT_ECHO_REPLY:
+	err_p = (struct ofp_error_msg *)ofp;
+	printf("%ld.%06ld: OFPT_ECHO_REPLY %d\n", pe->pcaphdr.ts.tv_sec, pe->pcaphdr.ts.tv_usec, ntohl(ofp->xid));
+	if( (ntohl(ofp->xid) < 100) && (ntohl(ofp->xid) > 0))
+	  memcpy(&echo_data[ntohl(ofp->xid)].rcv, &pe->pcaphdr.ts, sizeof(struct timeval));
 	break;  
       }
     }
@@ -445,24 +457,29 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
     struct timeval now;
     if((pktgen = extract_pktgen_pkt(ctx, ch, pe->data, pe->pcaphdr.caplen, &fl)) == NULL)
        return 0;
-    if((flow_mod_timestamp.tv_sec > 0) && (ch == OFLOPS_DATA1) && (!first_pkt)) {
+    if((ch == OFLOPS_DATA1) && (!first_pkt)) {
+      oflops_log(pe->pcaphdr.ts, GENERIC_MSG, "FIRST_PKT_RCV");
+      oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
       printf("INSERT_DELAY:%d\n", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
       snprintf(msg, 1024, "INSERT_DELAY:%d", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
       oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
       first_pkt = 1;
-    } else if ((flow_mod_timestamp.tv_sec > 0) &&  (ch == OFLOPS_DATA2)) {
+    } else if (ch == OFLOPS_DATA2) {
       int id = ntohl(fl.nw_dst) - ntohl(inet_addr(network));
       //printf("id %d %x %x\n", id, ntohl(fl.nw_dst),  ntohl(inet_addr(network)));
       if ((id >= 0) && (id < flows) && (!ip_received[id])) {
 	ip_received_count++;
 	ip_received[id] = 1;
-	if (ip_received_count >= flows) {
+	if (ip_received_count == flows) {
 	  gettimeofday(&now, NULL);
 	  add_time(&now, 1, 0);
 	  oflops_schedule_timer_event(ctx,&now, BYESTR);
 	  printf("Received all packets to channel 2\n");
+	  oflops_log(pe->pcaphdr.ts, GENERIC_MSG, "LAST_PKT_RCV");
+	  oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
+
 	  printf("COMPLETE_INSERT_DELAY:%u\n", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
-	  snprintf(msg, 1024, "COMPLETE_INSERT_DELAY:%u", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
+	  snprintf(msg, 1024, "INSERT_DELAY:%u", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
 	  oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
 	  gettimeofday(&now, NULL);
 	  add_time(&now, 1, 0);
@@ -507,7 +524,6 @@ of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph
 
   make_ofp_hello(&b);
   ((struct ofp_header *)b)->type = OFPT_ECHO_REPLY;
-  ((struct ofp_header *)b)->xid = ofph->xid;
   res = oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
   free(b);
   return 0;
@@ -581,10 +597,7 @@ handle_traffic_generation (oflops_context *ctx) {
   if(ctx->trafficGen == PKTGEN)
     strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
   else 
-    snprintf(det.mac_src, 20, "%02x:%02x:%02x:%02x:%02x:%02x",
-	     (unsigned char)data_mac[0], (unsigned char)data_mac[1], 
-	     (unsigned char)data_mac[2], (unsigned char)data_mac[3], 
-	     (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
+    strcpy(det.mac_src,data_mac);
     
   strcpy(det.mac_dst,"00:15:17:7b:92:0a");
   det.vlan = 0xffff;
@@ -603,10 +616,7 @@ handle_traffic_generation (oflops_context *ctx) {
   if(ctx->trafficGen == PKTGEN)
     strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
   else 
-    snprintf(det.mac_src, 20, "%02x:%02x:%02x:%02x:%02x:%02x",
-	     (unsigned char)local_mac[0], (unsigned char)local_mac[1], 
-	     (unsigned char)local_mac[2], (unsigned char)local_mac[3], 
-	     (unsigned char)local_mac[4], (unsigned char)local_mac[5]);
+    strcpy(det.mac_src,local_mac);
   strcpy(det.mac_dst,"00:15:17:7b:92:0a");
   det.vlan = 0xffff;
   det.vlan_p = 0;
