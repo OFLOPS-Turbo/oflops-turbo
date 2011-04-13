@@ -3,7 +3,7 @@
 table=1;
 type=openvswitch
 for flow_num in 1 10 25 50 75 `seq 50 50 450` `seq 500 100 1000`; do
-   for try in `seq 1 1 5`; do 
+   for try in `seq 6 20`; do 
 	sed -e "s/%table%/$table/g"  -e "s/%flows%/$flow_num/g" \
 	    /testbed/data/$type/add_flow/config-$type-add-flow.cfg \
 	    | tee /tmp/oflops.cfg
@@ -18,7 +18,7 @@ done
 
 table=0;
 for flow_num in 1 10 25 50 75 `seq 50 50 450` `seq 500 100 1000`; do
-    for try in `seq 1 1 5`; do
+    for try in `seq 6 20`; do
 	sed -e "s/%table%/$table/g"  -e "s/%flows%/$flow_num/g" \
  	    /testbed/data/$type/add_flow/config-$type-add-flow.cfg \
 	    | tee /tmp/oflops.cfg

@@ -44,7 +44,7 @@
 /**
  *  the rate to send packets 
  */
-uint64_t proberate = 100; 
+//uint64_t proberate = 100; 
 
 /**
  * calculated sending time interval (measured in usec). 
@@ -169,9 +169,9 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
 {
   struct timeval now;
   char * str;
-  int i;
-
-  gettimeofday(&now,NULL);
+  int i, snd, rc;
+  fd_set fds;
+  struct timeval timeout;
   str = (char *) te->arg;
  
   if(!strcmp(str,SNMPGET)) {
@@ -183,16 +183,35 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
       oflops_snmp_get(ctx, ctx->channels[i].outOID, ctx->channels[i].outOID_len);
     }  
     gettimeofday(&now, NULL);
-    add_time(&now, 1, 0);
+    add_time(&now, 10, 0);
     oflops_schedule_timer_event(ctx,&now, SNMPGET);
   } else if(!strcmp(str,BYESTR)) {
     oflops_end_test(ctx,1);
   } else if(!strcmp(str,SND_PKT)) {
-    generate_pkt_out(ctx, &te->sched_time);
-    write(ctx->control_fd, b, b_len);
+    oflops_gettimeofday(ctx, &now);
+    generate_pkt_out(ctx, &now);
+    snd = 0;
+    while( snd <  b_len) {
+      timeout.tv_sec = 1;
+      timeout.tv_usec = 0;
+      FD_ZERO(&fds);
+      FD_SET(ctx->control_fd, &fds);
+      while((rc = select(sizeof(fds)*8, NULL, &fds, NULL, &timeout)) <= 0) {
+	FD_ZERO(&fds);
+	FD_SET(ctx->control_fd, &fds);
+	timeout.tv_sec = 1;
+	timeout.tv_usec = 0;
+	if(rc < 0) 
+	  perror_and_exit("select failed", 1);
+      }
+      
+      if (FD_ISSET(ctx->control_fd, &fds)) {
+	snd += write(ctx->control_fd, b + snd, b_len - snd);
+      }
+    }
+    gettimeofday(&now, NULL);
     add_time(&now, probe_snd_interval/sec_to_usec, probe_snd_interval%sec_to_usec);
     oflops_schedule_timer_event(ctx,&now, SND_PKT);    
-
   } else
     fprintf(stderr, "Unknown timer event: %s", str);
   return 0;
@@ -214,9 +233,10 @@ destroy(oflops_context *ctx) {
   for (np = head.tqh_first; np != NULL; np = np->entries.tqe_next) {
     data[i++] = (double)time_diff(&np->snd, &np->rcv);
     if(print) {
-      snprintf(msg, 1024, "%lu.%06lu:%lu.%06lu:%d",
+      snprintf(msg, 1024, "%lu.%06lu:%lu.%06lu:%d:%d",
 	       np->snd.tv_sec, np->snd.tv_usec,
 	       np->rcv.tv_sec, np->rcv.tv_usec,
+	       time_diff(&np->snd, &np->rcv), 
 	       np->id); 
       oflops_log(now, OFPT_PACKET_IN_MSG, msg);
     }
@@ -327,29 +347,30 @@ int init(struct oflops_context *ctx, char * config_str) {
         pkt_size = strtol(value, NULL, 0);
         if((pkt_size < MIN_PKT_SIZE) && (pkt_size > MAX_PKT_SIZE))
           perror_and_exit("Invalid packet size value", 1);
-      }  else if(strcmp(param, "probe_rate") == 0) {
-        //parse int to get measurement probe rate
-        proberate = strtol(value, NULL, 0);
-        if((proberate <= 0) || (proberate >= 1010)) 
-          perror_and_exit("Invalid probe rate param(Value between 1 and 1010)", 1);
-      } else if(strcmp(param, "flows") == 0) {
-	//parse int to get pkt size
-        flows = strtol(value, NULL, 0);
-        if(flows <= 0)  
-          perror_and_exit("Invalid flow number", 1);
-      } else if(strcmp(param, "print") == 0) {
-	//parse int to get pkt size
-        print = strtol(value, NULL, 0);
-      } else 
-        fprintf(stderr, "Invalid parameter:%s\n", param);
+      }  else 
+	if(strcmp(param, "probe_snd_interval") == 0) {
+	  //parse int to get measurement probe rate
+	  probe_snd_interval = strtol(value, NULL, 0);
+	  if( probe_snd_interval  < 1000) 
+	    perror_and_exit("Invalid probe rate param(larger than 100 microsec", 1);
+	} else 
+	  if(strcmp(param, "flows") == 0) {
+	    //parse int to get pkt size
+	    flows = strtol(value, NULL, 0);
+	    if(flows <= 0)  
+	      perror_and_exit("Invalid flow number", 1);
+	  } else if(strcmp(param, "print") == 0) {
+	    //parse int to get pkt size
+	    print = strtol(value, NULL, 0);
+	  } else 
+	    fprintf(stderr, "Invalid parameter:%s\n", param);
       param = pos;
     }
   } 
-
+  
   //calculate sendind interval
-  probe_snd_interval = (pkt_size * byte_to_bits * sec_to_usec) / (proberate * mbits_to_bits);
-  fprintf(stderr, "Sending probe interval : %u usec (pkt_size: %u bytes, rate: %u Mbits/sec )\n", 
-	  (uint32_t)probe_snd_interval, (uint32_t)pkt_size, (uint32_t)proberate);
+  fprintf(stderr, "Sending probe interval : %u usec (pkt_size: %u bytes)\n", 
+	  (uint32_t)probe_snd_interval, (uint32_t)pkt_size);
   return 0;
 }
 
@@ -409,29 +430,16 @@ generate_pkt_out(struct oflops_context * ctx,struct timeval *now) {
 		      - sizeof(struct iphdr));
 
     //setting up pktgen header
-    if(ctx->trafficGen != NF_PKTGEN) 
-      pktgen = (struct pktgen_hdr *)(b + sizeof(struct ofp_packet_out) + 
-				     sizeof(struct ofp_action_output) + sizeof(struct ether_header) +
-				     sizeof(struct iphdr) + sizeof(struct udphdr));
-    else 
-      pktgen = (struct pktgen_hdr *)(b + sizeof(struct ofp_packet_out) + 
-				     sizeof(struct ofp_action_output) + 64);      
+    pktgen = (struct pktgen_hdr *)(b + sizeof(struct ofp_packet_out) + 
+				   sizeof(struct ofp_action_output) + sizeof(struct ether_header) +
+				   sizeof(struct iphdr) + sizeof(struct udphdr));
 
     pktgen->magic = htonl(0xbe9be955);
   }
-
-  if(ctx->trafficGen == NF_PKTGEN) {
-    time_count = (uint64_t)(now->tv_sec)*powl(10,9) + (uint64_t)(now->tv_usec)*powl(10,3);
-    //printf("snd %d %lu %lu %llu %llx\n", pkt_counter+ 1, now->tv_sec, now->tv_usec, time_count, time_count);
-    pktgen->tv_sec = ntohl(time_count >> 32);
-    pktgen->tv_usec = ntohl(0xFFFFFFFF & time_count);
-  } else {
-    pktgen->tv_sec = htonl(now->tv_sec);
-    pktgen->tv_usec = htonl(now->tv_usec);
-  }
+  pktgen->tv_sec = ntohl(now->tv_sec);
+  pktgen->tv_usec = ntohl(now->tv_usec);
   pktgen->seq_num = htonl(++pkt_counter);
   ip->check= htons(0x87c5);
-  //ip->check=htons(ip_sum_calc(20, (void *)ip));
 
   return 1;
 }
@@ -462,16 +470,17 @@ int handle_pcap_event(struct oflops_context *ctx, struct pcap_event *pe,
   if (ch == OFLOPS_DATA1) {
     pkt = extract_pktgen_pkt(ctx, ch, (unsigned char *)pe->data, 
 			     pe->pcaphdr.caplen, &fl);
-    if(pkt == NULL) { //skip non IP packets
+        
+    if( fl.dl_type != 0x0800) {
+      printf("Invalid eth type %x\n",fl.dl_type );
       return 0;
     }
-    
-    //if(pkt->seq_num%1000 == 0)
-      //printf("packet received on port %d\n", pkt->seq_num);
-    
+
+    pkt = (struct pktgen_hdr *)(pe->data + sizeof(struct ether_header) +
+				sizeof(struct iphdr) + sizeof(struct udphdr));    
     struct entry *n1 = malloc(sizeof(struct entry));
-    n1->snd.tv_sec = pkt->tv_sec;
-    n1->snd.tv_usec = pkt->tv_usec;
+    n1->snd.tv_sec = ntohl(pkt->tv_sec);
+    n1->snd.tv_usec = ntohl(pkt->tv_usec);
     memcpy(&n1->rcv, &pe->pcaphdr.ts, sizeof(struct timeval));
     n1->ip = fl.nw_src;
     n1->id = pkt->seq_num;
