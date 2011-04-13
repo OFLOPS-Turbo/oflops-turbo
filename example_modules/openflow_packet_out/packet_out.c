@@ -231,6 +231,8 @@ destroy(oflops_context *ctx) {
   data = xmalloc(rcv_pkt_count*sizeof(double));
   i=0;
   for (np = head.tqh_first; np != NULL; np = np->entries.tqe_next) {
+    if(((int)time_diff(&np->snd, &np->rcv) < 0) || 
+      ((int)time_diff(&np->snd, &np->rcv) > 10000000)) continue;
     data[i++] = (double)time_diff(&np->snd, &np->rcv);
     if(print) {
       snprintf(msg, 1024, "%lu.%06lu:%lu.%06lu:%d:%d",
@@ -351,7 +353,7 @@ int init(struct oflops_context *ctx, char * config_str) {
 	if(strcmp(param, "probe_snd_interval") == 0) {
 	  //parse int to get measurement probe rate
 	  probe_snd_interval = strtol(value, NULL, 0);
-	  if( probe_snd_interval  < 1000) 
+	  if( probe_snd_interval  < 500) 
 	    perror_and_exit("Invalid probe rate param(larger than 100 microsec", 1);
 	} else 
 	  if(strcmp(param, "flows") == 0) {
@@ -436,8 +438,8 @@ generate_pkt_out(struct oflops_context * ctx,struct timeval *now) {
 
     pktgen->magic = htonl(0xbe9be955);
   }
-  pktgen->tv_sec = ntohl(now->tv_sec);
-  pktgen->tv_usec = ntohl(now->tv_usec);
+  pktgen->tv_sec = htonl(now->tv_sec);
+  pktgen->tv_usec = htonl(now->tv_usec);
   pktgen->seq_num = htonl(++pkt_counter);
   ip->check= htons(0x87c5);
 
@@ -483,7 +485,7 @@ int handle_pcap_event(struct oflops_context *ctx, struct pcap_event *pe,
     n1->snd.tv_usec = ntohl(pkt->tv_usec);
     memcpy(&n1->rcv, &pe->pcaphdr.ts, sizeof(struct timeval));
     n1->ip = fl.nw_src;
-    n1->id = pkt->seq_num;
+    n1->id =  ntohl(pkt->seq_num);
     rcv_pkt_count++;
     TAILQ_INSERT_TAIL(&head, n1, entries);
   }

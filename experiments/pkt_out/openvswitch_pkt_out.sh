@@ -2,6 +2,9 @@
 
 ulimit -c 0
 
+eval `ssh-agent`
+ssh-add ~/.ssh/id_rsa_harisg
+
 if [ -e oflops.log ]; then
     rm oflops.log;
 fi
@@ -20,7 +23,7 @@ for try in `seq 1 20`; do
 	    #generate configuration file
 	    while [ ! -e oflops.log ] ||  [ "`wc -l oflops.log | cut -d \  -f 1 `" -lt "50" ]; do 
 		sed -e "s/%pkt_size%/$pkt_size/g"  -e "s/%flows_delay%/$flow_delay/g" \
-		    /testbed/data/openvswitch/flow_stats/config-openvswitch-flow-stats.cfg \
+		    /testbed/data/openvswitch/pkt_out/config-openvswitch-packet-out.cfg \
 		    > /tmp/oflops.cfg
 	    
                 #rerun the experiment until we get proper results
