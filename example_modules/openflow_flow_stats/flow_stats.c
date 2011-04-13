@@ -478,11 +478,11 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
 
     //log start of measurement
     if(trans_id == 0) {
-      printf("flow stats request send with xid %d\n", trans_id);  
+      printf("flow stats request send with xid %s\n", msg);  
       memcpy(&stats_start, &te->sched_time, sizeof(struct timeval));
       poll_started = 1;
     }
-    oflops_gettimeofday(ctx, &stats_counter[trans_id].snd);
+    memcpy(&stats_counter[trans_id].snd, &te->sched_time, sizeof(struct timeval));
     bzero(&stats_counter[trans_id].rcv, sizeof(struct timeval));
     //oflops_log(te->sched_time, OFPT_STATS_REQUEST_FLOW, msg);
     //create generic statrequest message
@@ -687,10 +687,9 @@ of_event_other(struct oflops_context *ctx, const struct ofp_header * ofph) {
     if(ntohs(ofpr->type) == OFPST_FLOW) {
       if(!(ntohs(ofpr->flags) & OFPSF_REPLY_MORE)) {
 	//sprintf(msg, "%d", ntohl(ofph->xid));
-	oflops_gettimeofday(ctx, &stats_counter[ntohl(ofph->xid)].rcv);
-	//gettimeofday(&now, NULL);
+	gettimeofday(&now, NULL);
 	//oflops_log(now, OFPT_STATS_REPLY_FLOW, msg);
-	//memcpy(&stats_counter[ntohl(ofph->xid)].rcv, &now, sizeof(struct timeval));
+	memcpy(&stats_counter[ntohl(ofph->xid)].rcv, &now, sizeof(struct timeval));
 	stats_count++;
       }
     }
