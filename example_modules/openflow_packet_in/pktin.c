@@ -41,7 +41,7 @@
 /**
  *
  */
-uint64_t proberate = 100; 
+//uint64_t proberate = 100; 
 /**
  * calculated sending time interval (measured in usec). 
  */
@@ -181,12 +181,13 @@ destroy(oflops_context *ctx) {
   data = xmalloc(pkt_in_count*sizeof(double));
   i=0;
   for (np = head.tqh_first; np != NULL; np = np->entries.tqe_next) {
+    if(((int)time_diff(&np->snd, &np->rcv) < 0) || 
+       (time_diff(&np->snd, &np->rcv) < 0))
+      continue;
     min_id = (np->id < min_id)?np->id:min_id;
     max_id = (np->id > max_id)?np->id:max_id;
-
-    if(time_diff(&np->snd, &np->rcv) >= 0) {
-      data[i++] = (double)time_diff(&np->snd, &np->rcv);
-    }
+    
+    data[i++] = (double)time_diff(&np->snd, &np->rcv);
     if(print) {
       snprintf(msg, 1024, "%lu.%06lu:%lu.%06lu:%d:%d",
 	       np->snd.tv_sec, np->snd.tv_usec,
@@ -261,17 +262,6 @@ of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * pkti
   n1->id = pktgen->seq_num;
   TAILQ_INSERT_TAIL(&head, n1, entries);
   pkt_in_count++;
-/*   char msg[1024]; */
-/*   snprintf(msg, 1024, "%lu.%lu:%lu.%lu:%d:%s:%d:%d", */
-/* 	   now.tv_sec, now.tv_usec, */
-/* 	   (unsigned long)pktgen->tv_sec, */
-/* 	   (unsigned long)pktgen->tv_usec, */
-/* 	   pktin->buffer_id, */
-/* 	   inet_ntoa(addr), */
-/* 	   pktgen->seq_num, */
-/* 	   ntohs(pktin->header.length)); */
-/*   printf("%s\n", msg); */
-  //oflops_log(now, OFPT_PACKET_IN_MSG, msg);
   return 0;
 }
 
@@ -388,28 +378,37 @@ int init(struct oflops_context *ctx, char * config_str) {
         pkt_size = strtol(value, NULL, 0);
         if((pkt_size < MIN_PKT_SIZE) && (pkt_size > MAX_PKT_SIZE))
           perror_and_exit("Invalid packet size value", 1);
-      }  else if(strcmp(param, "probe_rate") == 0) {
-        //parse int to get measurement probe rate
-        proberate = strtol(value, NULL, 0);
-        if((proberate <= 0) || (proberate >= 1010)) 
-          perror_and_exit("Invalid probe rate param(Value between 1 and 1010)", 1);
-      } else if(strcmp(param, "flows") == 0) {
-	//parse int to get pkt size
-        flows = strtol(value, NULL, 0);
-        if(flows <= 0)  
-          perror_and_exit("Invalid flow number", 1);
+      }  else 
+/* 	if(strcmp(param, "probe_rate") == 0) { */
+/*         //parse int to get measurement probe rate */
+/*         proberate = strtol(value, NULL, 0); */
+/*         if((proberate <= 0) || (proberate >= 1010))  */
+/*           perror_and_exit("Invalid probe rate param(Value between 1 and 1010)", 1); */
+/*       } else */ 
+	if(strcmp(param, "probe_snd_interval") == 0) {
+	  //parse int to get measurement probe rate
+	  probe_snd_interval = strtol(value, NULL, 0);
+	  if(( probe_snd_interval <= 0)) 
+          perror_and_exit("Invalid probe rate param(Value larger than 0)", 1);
+	} else 
+	  
+	  if(strcmp(param, "flows") == 0) {
+	    //parse int to get pkt size
+	    flows = strtol(value, NULL, 0);
+	    if(flows <= 0)  
+	      perror_and_exit("Invalid flow number", 1);
       } else if(strcmp(param, "print") == 0) {
-	//parse int to get pkt size
-        print = strtol(value, NULL, 0);
+	    //parse int to get pkt size
+	    print = strtol(value, NULL, 0);
       } else 
-        fprintf(stderr, "Invalid parameter:%s\n", param);
+	    fprintf(stderr, "Invalid parameter:%s\n", param);
       param = pos;
     }
   } 
 
   //calculate sendind interval
-  probe_snd_interval = (pkt_size * byte_to_bits * sec_to_usec) / (proberate * mbits_to_bits);
-  fprintf(stderr, "Sending probe interval : %u usec (pkt_size: %u bytes, rate: %u Mbits/sec )\n", 
-	  (uint32_t)probe_snd_interval, (uint32_t)pkt_size, (uint32_t)proberate);
+  //probe_snd_interval = (pkt_size * byte_to_bits * sec_to_usec) / (proberate * mbits_to_bits);
+  fprintf(stderr, "Sending probe interval : %u usec (pkt_size: %u bytes )\n", 
+	  (uint32_t)probe_snd_interval, (uint32_t)pkt_size);
   return 0;
 }

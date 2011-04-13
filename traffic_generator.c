@@ -291,7 +291,6 @@ start_nf_traffic_generator(oflops_context *ctx) {
   int pkt_count;
   uint32_t max_packets = 100000000;
   uint32_t iteration[] = {0,0,0,0};
-  ldiv_t res; 
   int data_to_send = 0; // in case we only want to capture data, we enable the capturing module,
                         // but never load any data.
 
@@ -484,6 +483,10 @@ extract_pktgen_pkt( oflops_context *ctx, int port,
   struct ether_vlan_header *ether_vlan = (struct ether_vlan_header *)b;
   struct pktgen_hdr *pktgen;
   uint8_t *data = b;
+
+
+  if((port < 0) || (port > ctx->n_channels))
+    return NULL;
   
   if( (ntohs(ether->ether_type) == 0x8100) && (ntohs(ether_vlan->ether_type) == 0x0800)) {
     b = b + sizeof(struct ether_vlan_header);

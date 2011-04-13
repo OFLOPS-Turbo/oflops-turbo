@@ -211,7 +211,7 @@ start(struct oflops_context * ctx) {
    */
   //send the flow modyfication command in 30 seconds. 
   gettimeofday(&now, NULL);
-  add_time(&now, 15, 0);
+  add_time(&now, 5, 0);
   oflops_schedule_timer_event(ctx,&now, SND_ACT);
 
   //get port and cpu status from switch 
@@ -365,7 +365,8 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
     make_ofp_hello(&b);
     ((struct ofp_header *)b)->type = OFPT_BARRIER_REQUEST;
     write(ctx->control_fd, b, sizeof(struct ofp_hello));
-    free(b);  
+    free(b);
+    oflops_gettimeofday(ctx, &flow_mod_timestamp);  
     printf("sending flow modifications ....\n"); 
 
   } else if(strcmp(str, SNMPGET) == 0) {
@@ -434,7 +435,10 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
 	fprintf(stderr, "%s\n", msg);
 	break;  
       case OFPT_BARRIER_REPLY:
-	snprintf(msg, 1024, "BARRIER_DELAY:%d", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
+	snprintf(msg, 1024, "BARRIER_DELAY:%d, %lu.%06lu  %lu.%06lu", 
+	time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts),
+	flow_mod_timestamp.tv_sec, flow_mod_timestamp.tv_usec, 
+	pe->pcaphdr.ts.tv_sec, pe->pcaphdr.ts.tv_usec);
 	oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
 	printf("BARRIER_DELAY:%d\n", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
 	break;  
