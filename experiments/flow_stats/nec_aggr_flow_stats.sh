@@ -10,19 +10,18 @@ if [ -e measure.log ]; then
     rm measure.log;
 fi
 
-
-table=0;
-table_str=exact;
- for flow_num in 1 8 64 256 1024; do
-     for query_num in 1 8 64 256 1024; do
- 	for query_delay in 4000000 1000000 500000 250000; do 
- 	    for try in `seq 1 3`; do 
+for try in `seq 1 20`; do 
+    table=0;
+    table_str=exact;
+    for flow_num in 1 8 64 256 512 1024; do
+	for query_num in 1 8 64 256 512 1024; do
+ 	    for query_delay in 4000000 1000000 250000; do 
 		if [ ! -d /testbed/data/nec/aggr_flow_stats/`printf "%05d" $query_delay`/ ]; then
 		    mkdir /testbed/data/nec/aggr_flow_stats/`printf "%05d" $query_delay`/
-	        fi
+		fi
 		if [ $query_num -gt $flow_num ]; then
-			echo "skiping $query_num $flow_num $try $query_delay";
-			continue;
+		    echo "skiping $query_num $flow_num $try $query_delay";
+		    continue;
 		fi
 		if [ "$try" -eq 1 ]; then
 		    print=1;
@@ -31,12 +30,12 @@ table_str=exact;
 		fi 
 		if [ ! -d /testbed/data/nec/aggr_flow_stats/`printf "%05d" $query_delay`/$table_str ]; then 
 		    mkdir /testbed/data/nec/aggr_flow_stats/`printf "%05d" $query_delay`/$table_str
-	        fi
+		fi
 		
 		sed -e "s/%table%/$table/g"  -e "s/%flows%/$flow_num/g" \
 		    -e "s/%print%/$print/g" -e "s/%flows_query%/$query_num/g" \
                     -e "s/%query_delay%/$query_delay/g" \
-		       /testbed/data/nec/aggr_flow_stats/config-nec-aggr-flow-stats.cfg \
+		    /testbed/data/nec/aggr_flow_stats/config-nec-aggr-flow-stats.cfg \
 		    | tee /tmp/oflops.cfg
 		while [ ! -e oflops.log ] ||  [ "`wc -l oflops.log | cut -d \  -f 1 `" -lt "20" ]; do 
 		    dpctl del-flows ptcp:
@@ -52,14 +51,13 @@ table_str=exact;
 	    done
 	done
     done
-done
 
-table=1;
-table_str=wild;
- for flow_num in 1 8 64 256; do
-     for query_num in 1 8 64 256; do
- 	for query_delay in 4000000 2000000 1000000 500000 250000; do 
- 	    for try in `seq 1 5`; do 
+
+    table=1;
+    table_str=wild;
+    for flow_num in 1 8 64 256; do
+	for query_num in 1 8 64 256; do
+ 	    for query_delay in 4000000 2000000 1000000 500000 250000; do 
 		if [ ! -d /testbed/data/nec/aggr_flow_stats/`printf "%05d" $query_delay`/ ]; then
 		    mkdir /testbed/data/nec/aggr_flow_stats/`printf "%05d" $query_delay`/
 	        fi
@@ -76,7 +74,7 @@ table_str=wild;
 		sed -e "s/%table%/$table/g"  -e "s/%flows%/$flow_num/g" \
 		    -e "s/%print%/$print/g" -e "s/%flows_query%/$query_num/g" \
                     -e "s/%query_delay%/$query_delay/g" \
-		       /testbed/data/nec/aggr_flow_stats/config-nec-aggr-flow-stats.cfg \
+		    /testbed/data/nec/aggr_flow_stats/config-nec-aggr-flow-stats.cfg \
 		    | tee /tmp/oflops.cfg
 		while [ ! -e oflops.log ] ||  [ "`wc -l oflops.log | cut -d \  -f 1 `" -lt "20" ]; do 
 		    dpctl del-flows ptcp:

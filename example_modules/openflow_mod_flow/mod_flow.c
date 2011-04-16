@@ -219,7 +219,7 @@ start(struct oflops_context * ctx) {
    */
   //send the flow modyfication command in 30 seconds. 
   gettimeofday(&now, NULL);
-  add_time(&now, 15, 0);
+  add_time(&now, 20, 0);
   oflops_schedule_timer_event(ctx,&now, SND_ACT);
 
   //get port and cpu status from switch 
@@ -229,7 +229,7 @@ start(struct oflops_context * ctx) {
 
   //end process 
   gettimeofday(&now, NULL);
-  add_time(&now, 60, 0);
+  add_time(&now, 180, 0);
   oflops_schedule_timer_event(ctx,&now, BYESTR);
 
 
@@ -360,7 +360,7 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
     ip_addr.s_addr =  ntohl(inet_addr(network));
     for(i=0; i< flows; i++) {
     fl_probe->nw_dst =  htonl(ip_addr.s_addr);
-      len = make_ofp_flow_modify_output_port(&b, fl_probe, OFPP_IN_PORT, 1, 1200);
+      len = make_ofp_flow_modify_output_port(&b, fl_probe, ctx->channels[OFLOPS_DATA2].of_port, 1, 1200);
       oflops_send_of_mesgs(ctx, b, len);
       free(b);
       ip_addr.s_addr++;
@@ -368,7 +368,7 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
     memcpy(fl_probe->dl_src, data_mac, 6);
     fl_probe->in_port = htons(ctx->channels[OFLOPS_DATA2].of_port);
     fl_probe->nw_dst =  inet_addr("10.1.1.2");
-    len = make_ofp_flow_modify_output_port(&b, fl_probe, OFPP_IN_PORT,
+    len = make_ofp_flow_modify_output_port(&b, fl_probe, ctx->channels[OFLOPS_DATA1].of_port,
 					   1, 1200);
     oflops_send_of_mesg(ctx, b);
     free(b);
@@ -377,10 +377,9 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
     ((struct ofp_header *)b)->type = OFPT_BARRIER_REQUEST;
     write(ctx->control_fd, b, sizeof(struct ofp_hello));
     free(b);  
-
     oflops_gettimeofday(ctx, &flow_mod_timestamp);
-    printf("sending flow modifications ....\n"); 
-
+    stored_flow_mod_time = 1; 
+    printf("pcap flow modification send %lu.%06lu\n",  flow_mod_timestamp.tv_sec, flow_mod_timestamp.tv_usec); 
   } else if(strcmp(str, SNMPGET) == 0) {
     for(i = 0; i < ctx->cpuOID_count; i++) {
       oflops_snmp_get(ctx, ctx->cpuOID[i], ctx->cpuOID_len[i]);
@@ -390,18 +389,8 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
       oflops_snmp_get(ctx, ctx->channels[i].outOID, ctx->channels[i].outOID_len);
     }      
     gettimeofday(&now, NULL);
-    add_time(&now, 1, 0);
+    add_time(&now, 10, 0);
     oflops_schedule_timer_event(ctx,&now, SNMPGET);
-  } else if(strcmp(str, SEND_ECHO_REQ) == 0) {
-    struct ofp_header *p;
-    make_ofp_echo_req(&p);
-    p->xid = htonl(++echo_data_count);
-    oflops_send_of_mesg(ctx, p);
-    free(p);
-    gettimeofday(&now, NULL);
-    add_time(&now, 4, 0);
-    oflops_schedule_timer_event(ctx,&now, SEND_ECHO_REQ);
-    
   }
   return 0;
 }
@@ -417,7 +406,7 @@ get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc,
   if (ofc == OFLOPS_CONTROL) {
     //return 0;
     return snprintf(filter, buflen, "port %d",  ctx->listen_port);
-  } else if ((ofc == OFLOPS_DATA1) ||  (ofc == OFLOPS_DATA2) || (ofc == OFLOPS_DATA3)) {
+  } else if ((ofc == OFLOPS_DATA1) ||  (ofc == OFLOPS_DATA2)) {
     return snprintf(filter, buflen, "udp");
   }
   return 0;
@@ -431,46 +420,13 @@ get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc,
 int 
 handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_channel_name ch) {
   struct pktgen_hdr *pktgen;
-  int dir, len;
-  struct ofp_header *ofp;
-  struct pcap_event *ofp_msg;
-  struct ofp_error_msg *err_p = NULL;
   char msg[1024];
   struct timeval now;
 
-  if (ch == OFLOPS_CONTROL) {
-    dir = append_data_to_flow(pe->data,pe->pcaphdr);
-    while(contains_next_msg(dir) > 0) {
-      len = get_next_msg(dir, &ofp_msg);
-      ofp = (struct ofp_header *)ofp_msg->data;
-      switch(ofp->type) {
-      case OFPT_FLOW_MOD:
-	if((send_flow_mod) && (!stored_flow_mod_time)) {
-	  //memcpy(&flow_mod_timestamp, &pe->pcaphdr.ts, sizeof(struct timeval));
-	  stored_flow_mod_time = 1;
-	  printf("pcap flow modification send %lu.%06lu\n",  pe->pcaphdr.ts.tv_sec, pe->pcaphdr.ts.tv_usec);
-	}
-	oflops_log(pe->pcaphdr.ts,OFPT_FLOW_MOD_ADD, "flow modification send");
-	break;  
-      case OFPT_ERROR:
-	err_p = (struct ofp_error_msg *)ofp;
-	snprintf(msg, 1024, "OFPT_ERROR(type: %d, code: %d)", ntohs(err_p->type), ntohs(err_p->code));
-	oflops_log(pe->pcaphdr.ts, OFPT_ERROR_MSG, msg);
-	fprintf(stderr, "%s\n", msg);
-	break;      
-      case OFPT_BARRIER_REPLY:
-	oflops_gettimeofday(ctx, &now);
-	snprintf(msg, 1024, "BARRIER_DELAY:%d", time_diff(&flow_mod_timestamp, &now));
-	oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
-	printf("BARRIER_DELAY:%d\n",  time_diff(&flow_mod_timestamp, &now));
-	break;  
-      }
-    }
-  } else if ((flow_mod_timestamp.tv_sec > 0) && ((ch == OFLOPS_DATA1) || (ch == OFLOPS_DATA2) || (ch == OFLOPS_DATA3))) {
+  if ((flow_mod_timestamp.tv_sec > 0) && ((ch == OFLOPS_DATA1) || (ch == OFLOPS_DATA2))) {
     struct flow fl;
-    struct timeval now;
     pktgen = extract_pktgen_pkt(ctx, ch, pe->data, pe->pcaphdr.caplen, &fl);
-    if((flow_mod_timestamp.tv_sec > 0) && (ch == OFLOPS_DATA2) && (!first_pkt)) {
+    if((flow_mod_timestamp.tv_sec > 0) && (ch == OFLOPS_DATA1) && (!first_pkt)) {
       printf("INSERT_DELAY:%d\n", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
       snprintf(msg, 1024, "INSERT_DELAY:%d", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
       oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
@@ -478,13 +434,21 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
       gettimeofday(&now, NULL);
       add_time(&now, 1, 0);
       //oflops_schedule_timer_event(ctx,&now, BYESTR);
-    } else if ((flow_mod_timestamp.tv_sec > 0) &&  (ch == OFLOPS_DATA1)) {
+    } else if ((flow_mod_timestamp.tv_sec > 0) &&  (ch == OFLOPS_DATA2)) {
       int id = ntohl(fl.nw_dst) - ntohl(inet_addr(network));
+      //struct in_addr addr;
+      //addr.s_addr = fl.nw_dst;
+      //printf("id %d %s\n", ip_received_count, inet_ntoa(addr));
       //printf("id %d %x %x\n", id, ntohl(fl.nw_dst),  ntohl(inet_addr(network)));
       if ((id >= 0) && (id < flows) && (!ip_received[id])) {
 	ip_received_count++;
 	ip_received[id] = 1;
 	if (ip_received_count >= flows) {
+	  if(ip_received_count % 100) {
+	    struct in_addr addr;
+	    addr.s_addr = fl.nw_dst;
+	    printf("id %d %s\n", ip_received_count, inet_ntoa(addr));
+	  }
 	  gettimeofday(&now, NULL);
 	  add_time(&now, 1, 0);
 	  oflops_schedule_timer_event(ctx,&now, BYESTR);
@@ -506,6 +470,28 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
     n1->ch = ch;
     count[ch - 1]++;
     TAILQ_INSERT_TAIL(&head, n1, entries);
+  }
+  return 0;
+}
+
+int
+of_event_other(oflops_context *ctx, struct ofp_header *ofph) {  
+  struct ofp_error_msg *err_p = NULL;
+  struct timeval now;
+  char msg[1024];
+  oflops_gettimeofday(ctx, &now);
+  switch(ofph->type) {
+  case OFPT_ERROR:
+    err_p = (struct ofp_error_msg *)ofph;
+    snprintf(msg, 1024, "OFPT_ERROR(type: %d, code: %d)", ntohs(err_p->type), ntohs(err_p->code));
+    oflops_log(now, OFPT_ERROR_MSG, msg);
+    fprintf(stderr, "%s\n", msg);
+    break;
+  case OFPT_BARRIER_REPLY:
+    snprintf(msg, 1024, "BARRIER_DELAY:%d", time_diff(&flow_mod_timestamp, &now));
+    oflops_log(now, GENERIC_MSG, msg);
+    printf("BARRIER_DELAY:%d\n",  time_diff(&flow_mod_timestamp, &now));
+    break;
   }
   return 0;
 }

@@ -17,9 +17,7 @@ for i in `seq 1 20`; do
         sed -e "s/%table%/$table/g"  -e "s/%flows%/$flow_num/g" \
             /testbed/data/$type/timer/config-$type-timer.cfg \
             | tee /tmp/oflops.cfg
-        while [ ! -e oflops.log ] ||  [ "`wc -l oflops.log | cut -d \  -f 1 `" -lt "50" ]; do
             /testbed/oflops/oflops -i /tmp/oflops.cfg
-        done
         mv oflops.log /testbed/data/$type/timer/exact/`printf "%05d" $flow_num`-$try-oflops.log;
         dpctl del-flows ptcp:;
         sleep 20;
