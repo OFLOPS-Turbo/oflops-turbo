@@ -343,8 +343,8 @@ start_nf_traffic_generator(oflops_context *ctx) {
 	  pkt_state.ip->daddr = htonl(ntohl(inet_addr(det->dst_ip_min)) + rand()%(flow_num));
 	else 
 	  pkt_state.ip->daddr = htonl(ntohl(inet_addr(det->dst_ip_min)) + i);
-	  
-	pkt_state.ip->check=ip_sum_calc(20, (void *)pkt_state.ip); 
+	pkt_state.ip->check=0x0;
+	pkt_state.ip->check=htons(ip_sum_calc(20, (uint16_t *)pkt_state.ip)); 
 	nf_gen_load_packet(&h, pkt_state.data, ix - 1, det->delay); 
       }
     }

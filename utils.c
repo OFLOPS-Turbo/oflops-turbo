@@ -119,26 +119,26 @@ ntohll(uint64_t val) {
 }
 */
 
-uint16_t ip_sum_calc(uint16_t len_ip_header, uint16_t buff[]) {
-  uint16_t word16;
-  uint32_t sum=0;
-  uint16_t i;
+uint16_t ip_sum_calc(uint16_t len , uint16_t ip[]) {
+
+  uint32_t sum = 0;  /* assume 32 bit long, 16 bit short */
   
-  // make 16 bit words out of every two adjacent 8 bit words in the packet
-  // and add them up
-  for (i=0;i<len_ip_header;i=i+2){
-    word16 =((buff[i]<<8)&0xFF00)+(buff[i+1]&0xFF);
-    sum = sum + (uint32_t) word16;	
+
+  while(len > 1){
+    sum += htons(*((uint16_t *) ip));
+    ip++;
+    if(sum & 0x80000000)   /* if high order bit set, fold */
+      sum = (sum & 0xFFFF) + (sum >> 16);
+    len -= 2;
   }
   
-  // take only 16 bits out of the 32 bit sum and add up the carries
-  while (sum>>16)
-    sum = (sum & 0xFFFF)+(sum >> 16);
+  if(len)       /* take care of left over byte */
+    sum += (unsigned short) *(unsigned char *)ip;
   
-  // one's complement the result
-  sum = ~sum;
+  while(sum>>16)
+    sum = (sum & 0xFFFF) + (sum >> 16);
   
-  return ((uint16_t) sum);
+  return ~sum;
 }
 
 int
