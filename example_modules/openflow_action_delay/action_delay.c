@@ -154,12 +154,14 @@ start(struct oflops_context * ctx) {
   if(table == 0) 
     fl->mask = 0; //if table is 0 the we generate an exact match */
   else  
-    fl->mask = OFPFW_IN_PORT | OFPFW_DL_VLAN | OFPFW_TP_DST;
+    fl->mask = OFPFW_DL_DST | OFPFW_DL_SRC | (32 << OFPFW_NW_SRC_SHIFT) | 
+      (0 << OFPFW_NW_DST_SHIFT) | OFPFW_DL_VLAN  | OFPFW_TP_DST | OFPFW_NW_PROTO | 
+      OFPFW_TP_SRC | OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS;
   fl->in_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
   fl->dl_type = htons(ETHERTYPE_IP);          
   memcpy(fl->dl_src, data_mac, ETH_ALEN);
   memcpy(fl->dl_dst, "\x00\x15\x17\x7b\x92\x0a", ETH_ALEN);
-  fl->dl_vlan = htons(101);
+  fl->dl_vlan = 0xffff;
   fl->nw_proto = IPPROTO_UDP;
   fl->nw_src =  inet_addr("10.1.1.1");
   fl->nw_dst =  inet_addr("10.1.1.2");
@@ -168,8 +170,10 @@ start(struct oflops_context * ctx) {
   len = make_ofp_flow_add(&b, fl, ctx->channels[OFLOPS_DATA2].of_port, 1, 1200);
   res = oflops_send_of_mesgs(ctx, b, len);
   free(b);
-  //storelocally the applied rule of the data stream
+  //store locally the applied rule of the data stream
   memcpy(fl_probe, fl, sizeof(struct flow));
+
+  sleep(1);
 
   /**
    * Shceduling events
@@ -418,7 +422,7 @@ handle_traffic_generation (oflops_context *ctx) {
 	     (unsigned char)data_mac[2], (unsigned char)data_mac[3], 
 	     (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
   strcpy(det.mac_dst,"00:15:17:7b:92:0a");
-  det.vlan = 101;
+  det.vlan = 0xffff;
   det.vlan_p = 0;
   det.vlan_cfi = 0;
   det.pkt_count = 0;

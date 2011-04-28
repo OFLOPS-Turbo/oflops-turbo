@@ -237,8 +237,8 @@ innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det
   state->ip->protocol = IPPROTO_UDP; //udp protocol
   state->ip->saddr = inet_addr(det->src_ip); 
   state->ip->daddr = inet_addr(det->dst_ip_min); //test.nw_dst;
-  
-  state->ip->check=ip_sum_calc(20, (void *)state->ip);
+  state->ip->check=0;
+  state->ip->check=htons(ip_sum_calc(20, (void *)state->ip));
 
   state->udp->source = htons(det->udp_src_port);
   state->udp->dest = htons(det->udp_dst_port);
