@@ -217,10 +217,6 @@ destroy(struct oflops_context *ctx) {
     data[ch] = xmalloc(count[ch]*sizeof(double));
 
   for (np = head.tqh_first; np != NULL; np = np->entries.tqe_next) {
-    ch = np->ch - 1;
-    min_id[ch] = (np->id < min_id[ch])?np->id:min_id[ch];
-    max_id[ch] = (np->id > max_id[ch])?np->id:max_id[ch];
-    data[ch][ix[ch]++] = time_diff(&np->snd, &np->rcv);
     if(print)
       if(fprintf(out, "%lu %lu.%06lu %lu.%06lu %d\n", 
 		 (long unsigned int)np->id,  
@@ -229,6 +225,14 @@ destroy(struct oflops_context *ctx) {
 		 (long unsigned int)np->rcv.tv_sec, 
 		 (long unsigned int)np->rcv.tv_usec,  np->ch) < 0)  
 	perror_and_exit("fprintf fail", 1); 
+
+    if((time_diff(&np->snd, &np->rcv) < 0) || (time_diff(&np->snd, &np->rcv) > 10000000) )
+      continue;
+
+    ch = np->ch - 1;
+    min_id[ch] = (np->id < min_id[ch])?np->id:min_id[ch];
+    max_id[ch] = (np->id > max_id[ch])?np->id:max_id[ch];
+    data[ch][ix[ch]++] = time_diff(&np->snd, &np->rcv);
     //release memory
     free(np);
   }

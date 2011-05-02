@@ -373,10 +373,10 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
     oflops_send_of_mesg(ctx, b);
     free(b);
 
-    make_ofp_hello(&b);
-    ((struct ofp_header *)b)->type = OFPT_BARRIER_REQUEST;
+    make_ofp_hello(&b); 
+    ((struct ofp_header *)b)->type = OFPT_BARRIER_REQUEST; 
     write(ctx->control_fd, b, sizeof(struct ofp_hello));
-    free(b);  
+    free(b);
     oflops_gettimeofday(ctx, &flow_mod_timestamp);
     stored_flow_mod_time = 1; 
     printf("pcap flow modification send %lu.%06lu\n",  flow_mod_timestamp.tv_sec, flow_mod_timestamp.tv_usec); 

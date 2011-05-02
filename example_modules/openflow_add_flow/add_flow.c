@@ -400,7 +400,7 @@ get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc,
   if (ofc == OFLOPS_CONTROL) {
     //return 0;
     return snprintf(filter, buflen, "port %d",  ctx->listen_port);
-  } else if ((ofc == OFLOPS_DATA1) ||(ofc == OFLOPS_DATA2)) {
+  } else if ((ofc == OFLOPS_DATA1) ||(ofc == OFLOPS_DATA2) ||(ofc == OFLOPS_DATA3)) {
     return snprintf(filter, buflen, "udp");
   }
   return 0;

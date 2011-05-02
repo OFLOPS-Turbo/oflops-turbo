@@ -145,7 +145,7 @@ static void test_module_loop(oflops_context *ctx, test_module *mod)
 	timer_run_next_event(ctx);
 	next_event = timer_get_next_event(ctx);
 	}*/
-      ret = poll(poll_set, n_fds, -1); //next_event);
+      ret = poll(poll_set, n_fds, 1000); //next_event);
 
       if(( ret == -1 ) && ( errno != EINTR))
 	perror_and_exit("poll",1);
