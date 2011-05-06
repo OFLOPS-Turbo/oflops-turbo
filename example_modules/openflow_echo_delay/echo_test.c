@@ -129,7 +129,7 @@ start(struct oflops_context * ctx) {
 
   //end process 
   gettimeofday(&now, NULL);
-  add_time(&now, 30, 0);
+  add_time(&now, 60, 0);
   oflops_schedule_timer_event(ctx,&now, BYESTR);
 
   return 0;
@@ -405,15 +405,11 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
       if((ntohl(ofph->xid) > 0) && (ntohl(ofph->xid) <= trans_id)) {
 	echo_data_count++;
 	memcpy( &echo_data[ntohl(ofph->xid)].snd, &pe->pcaphdr.ts, sizeof(struct timeval));
-	printf("%ld.%06ld: reply send %d\n", echo_data[ntohl(ofph->xid)].snd.tv_sec,
-	       echo_data[ntohl(ofph->xid)].snd.tv_usec, ntohl(ofph->xid));
       }
       break;
     case OFPT_ECHO_REPLY:
       if((ntohl(ofph->xid) > 0) && (ntohl(ofph->xid) <= trans_id)) {
 	memcpy( &echo_data[ntohl(ofph->xid)].rcv, &pe->pcaphdr.ts, sizeof(struct timeval));
-	printf("%ld.%06ld: request received %d\n",echo_data[ntohl(ofph->xid)].rcv.tv_sec,
-	       echo_data[ntohl(ofph->xid)].rcv.tv_usec, ntohl(ofph->xid));
       }
       break;      
     }
