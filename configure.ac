@@ -131,6 +131,7 @@ AC_CONFIG_FILES([Makefile \
                 example_modules/snmp_tuple_test/Makefile \
                 example_modules/openflow_interaction_test/Makefile \
                 example_modules/nf_pktgen_test/Makefile \
+                example_modules/openflow_echo_delay/Makefile \
                 example_modules/snmp_cpu/Makefile
 
 
