@@ -109,11 +109,6 @@ start(struct oflops_context * ctx) {
   snprintf(msg, 1024,  "Intializing module %s", name());
 
   get_mac_address(ctx->channels[OFLOPS_DATA1].dev, data_mac);
-
-    printf("%02x:%02x:%02x:%02x:%02x:%02x",
-	     (unsigned char)data_mac[0], (unsigned char)data_mac[1],
-	     (unsigned char)data_mac[2], (unsigned char)data_mac[3],
-	     (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
   first = (struct timeval *)xmalloc(flows*sizeof(struct timeval));
   memset(first, '\0', flows*sizeof(struct timeval));
   last = (struct timeval *)xmalloc(flows*sizeof(struct timeval));
@@ -131,14 +126,6 @@ start(struct oflops_context * ctx) {
   make_ofp_hello(&b);
   res = oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
   free(b);  
-  
-  //send a message to clean up flow tables. 
-  printf("cleaning up flow table...\n");
-  res = make_ofp_flow_del(&b);
-  res = oflops_send_of_mesg(ctx, b);  
-  free(b);
-
-
   
   //send a message to clean up flow tables. 
   printf("cleaning up flow table...\n");
@@ -187,13 +174,6 @@ destroy(struct oflops_context *ctx) {
   int i;
   char data[1024];
   struct in_addr addr;
-  double *measured_delay;
-  uint32_t mean, median, variance;
-  struct timeval now;
-
-  gettimeofday(&now, NULL);
-
-  measured_delay = xmalloc(flows*sizeof(double));
 
   for(i = 0; i< flows; i++) {
     addr.s_addr =  ntohl(htonl(inet_addr(network)) + i);
@@ -202,21 +182,11 @@ destroy(struct oflops_context *ctx) {
 	       first[i].tv_sec, first[i].tv_usec, last[i].tv_sec, last[i].tv_usec,
 	       time_diff(&first[i], &last[i]), delay[i]);
       printf("%s\n", data);
-      measured_delay[i] = (double)time_diff(&first[i], &last[i]);
       oflops_log(last[i],GENERIC_MSG , data);
+      
     }
   }
-    
-  //calculating statistical measures
-  mean = (uint32_t)gsl_stats_mean(measured_delay, 1, flows);
-  variance = (uint32_t)gsl_stats_variance(measured_delay, 1, flows);
-  median = (uint32_t)gsl_stats_median_from_sorted_data (measured_delay, 1, flows);
 
-  snprintf(data, 1024, "statistics_delay:%lu:%lu:%lu", (long unsigned)mean, (long unsigned)median, 
-	   (long unsigned)sqrt(variance));
-  printf("statistics_delay:%lu:%lu:%lu\n", (long unsigned)mean, (long unsigned)median, 
-	 (long unsigned)variance);
-  oflops_log(now, GENERIC_MSG, data);
   return 0;
 }
 
@@ -238,19 +208,19 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
     oflops_end_test(ctx,1);
     return 0;    
   } else if (strcmp(str, SND_FLOW) == 0) {
-    bzero(fl, sizeof(struct flow));
     if(table == 0)
       fl->mask = 0; //if table is 0 the we generate an exact match */
     else 
-      fl->mask =  OFPFW_DL_DST | OFPFW_DL_SRC | (32 << OFPFW_NW_SRC_SHIFT) | 
-	(0 << OFPFW_NW_DST_SHIFT)  | OFPFW_DL_VLAN | OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS;
+      fl->mask =  OFPFW_IN_PORT | OFPFW_DL_DST | OFPFW_DL_SRC | 
+	(0 << OFPFW_NW_SRC_SHIFT) | (0 << OFPFW_NW_DST_SHIFT) | 
+	OFPFW_DL_VLAN | OFPFW_TP_DST | OFPFW_NW_PROTO | 
+	OFPFW_TP_SRC | OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS;
     
+    fl->dl_type = htons(ETHERTYPE_IP);
+    fl->in_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
     memcpy(fl->dl_src, data_mac, 6);
     memcpy(fl->dl_dst, "\x00\x15\x17\x7b\x92\x0a", 6);
-    fl->in_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
-    fl->dl_type = htons(ETHERTYPE_IP);
-    //fl->dl_vlan = htons(0xffff);
-    fl->dl_vlan = htons(101);
+    fl->dl_vlan = htons(0xffff);
     fl->nw_proto = IPPROTO_UDP;
     fl->nw_src =  inet_addr("10.1.1.1");
     fl->nw_dst =  inet_addr(network);
@@ -334,7 +304,7 @@ handle_traffic_generation (oflops_context *ctx) {
 	     (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
     
   strcpy(det.mac_dst,"00:15:17:7b:92:0a");
-  det.vlan = 101;
+  det.vlan = 100;
   det.vlan_p = 0;
   det.vlan_cfi = 0;
   det.udp_src_port = 8080;

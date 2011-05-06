@@ -12,11 +12,11 @@ fi
 
 
 table=0;
-table_str=exact; 
-for try in `seq 1 10`; do 
- for flow_num in 1 8 64 256 512 1024; do
-     for query_num in 1 8 64 256 512 1024; do
- 	for query_delay in 4000000 1000000 250000; do 
+table_str=exact;
+ for flow_num in 1 8 64 256 1024; do
+     for query_num in 1 8 64 256 1024; do
+ 	for query_delay in 4000000 1000000 500000 250000; do 
+ 	    for try in `seq 1 3`; do 
 		if [ ! -d /testbed/data/nec/flow_stats/`printf "%05d" $query_delay`/ ]; then
 		    mkdir /testbed/data/nec/flow_stats/`printf "%05d" $query_delay`/
 	        fi
@@ -39,14 +39,13 @@ for try in `seq 1 10`; do
 		if [ ! -d /testbed/data/nec/flow_stats/`printf "%05d" $query_delay`/$table_str ]; then 
 		    mkdir /testbed/data/nec/flow_stats/`printf "%05d" $query_delay`/$table_str
 	        fi
-		while [ ! -e oflops.log ] ||  [ "`wc -l oflops.log | cut -d \  -f 1 `" -lt "20" ]; do 
-		    
 		
 		sed -e "s/%table%/$table/g"  -e "s/%flows%/$flow_num/g" \
 		    -e "s/%print%/$print/g" -e "s/%flows_query%/$query_num/g" \
                     -e "s/%query_delay%/$query_delay/g" \
 		       /testbed/data/nec/flow_stats/config-nec-flow-stats.cfg \
 		    | tee /tmp/oflops.cfg
+		while [ ! -e oflops.log ] ||  [ "`wc -l oflops.log | cut -d \  -f 1 `" -lt "20" ]; do 
 		    dpctl del-flows ptcp:
 		    sleep 20;
 		    /testbed/oflops/oflops -i /tmp/oflops.cfg
@@ -64,10 +63,10 @@ done
 
 table=1;
 table_str=wild;
-for try in `seq 1 10`; do 
-    for flow_num in 1 8 64 256 512 1024; do
-	for query_num in 1 8 64 256 512 1024; do
- 	    for query_delay in 4000000 2000000 1000000 250000; do 
+ for flow_num in 1 8 64 256; do
+     for query_num in 1 8 64 256; do
+ 	for query_delay in 4000000 2000000 1000000 500000 250000; do 
+ 	    for try in `seq 1 5`; do 
 		if [ ! -d /testbed/data/nec/flow_stats/`printf "%05d" $query_delay`/ ]; then
 		    mkdir /testbed/data/nec/flow_stats/`printf "%05d" $query_delay`/
 	        fi
@@ -87,13 +86,12 @@ for try in `seq 1 10`; do
 		    mkdir /testbed/data/nec/flow_stats/`printf "%05d" $query_delay`/$table_str
 	        fi
 		
+		sed -e "s/%table%/$table/g"  -e "s/%flows%/$flow_num/g" \
+		    -e "s/%print%/$print/g" -e "s/%flows_query%/$query_num/g" \
+                    -e "s/%query_delay%/$query_delay/g" \
+		       /testbed/data/nec/flow_stats/config-nec-flow-stats.cfg \
+		    | tee /tmp/oflops.cfg
 		while [ ! -e oflops.log ] ||  [ "`wc -l oflops.log | cut -d \  -f 1 `" -lt "20" ]; do 
-		    
-		    sed -e "s/%table%/$table/g"  -e "s/%flows%/$flow_num/g" \
-			-e "s/%print%/$print/g" -e "s/%flows_query%/$query_num/g" \
-			-e "s/%query_delay%/$query_delay/g" \
-			/testbed/data/nec/flow_stats/config-nec-flow-stats.cfg \
-			| tee /tmp/oflops.cfg
 		    dpctl del-flows ptcp:
 		    sleep 20;
 		    /testbed/oflops/oflops -i /tmp/oflops.cfg

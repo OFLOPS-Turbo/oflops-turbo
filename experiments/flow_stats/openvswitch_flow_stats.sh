@@ -10,17 +10,12 @@ if [ -e measure.log ]; then
     rm measure.log;
 fi
 
-<<<<<<< Updated upstream
 for try in `seq 1 5`; do 
     for flow_num in 1 8 64 256 512 1024; do
 	for query_num in 1 8 64 256 512 1024; do
 	    for query_delay in 4000000 1000000 250000; do 
-=======
-for flow_num in 1 8 64 256 1024; do
-    for query_num in 1 8 64 256 1024; do
- 	for query_delay in 4000000 1000000 500000 250000; do 
->>>>>>> Stashed changes
 		for table in 0 1; do 
+
 		    #check if the output directory is there
 		    ssh cr409@stix.cl.cam.ac.uk mkdir /auto/homes/cr409/anfs/oflops_data/openvswitch/flow_stats/`printf "%05d" $query_delay`/
 
