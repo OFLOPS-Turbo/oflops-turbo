@@ -19,9 +19,7 @@ if [ -e action_generic.log ]; then
     rm action_generic.log
 fi
 
-
-for try in `seq 1 20`; do 
-
+for try in `seq 1 10`; do 
     for action in 1/100 2/1 3/1 4/000000aabbcc 5/000000aabbcc 6/10101010 7/10101010 8/1 9/1000 a/1000; do 
 	action_num=${action%/*};
 	echo $action $action_num ${action_str[$action_num]};

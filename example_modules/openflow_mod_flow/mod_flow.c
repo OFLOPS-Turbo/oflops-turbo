@@ -116,6 +116,7 @@ char data_mac[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 struct entry {
   struct timeval snd,rcv;
   int ch, id;
+  uint32_t dst_ip;
   TAILQ_ENTRY(entry) entries;         /* Tail queue. */
 }; 
 TAILQ_HEAD(tailhead, entry) head;
@@ -251,6 +252,7 @@ int destroy(struct oflops_context *ctx) {
   double **data;
   uint32_t mean, std, median;
   float loss;
+  struct in_addr in;
 
   //get what time we start printin output
   gettimeofday(&now, NULL);
@@ -276,14 +278,17 @@ int destroy(struct oflops_context *ctx) {
     max_id[ch] = (np->id > max_id[ch])?np->id:max_id[ch];
     data[ch][ix[ch]++] = time_diff(&np->snd, &np->rcv);
     //print also packet details on otuput if required
-    if(print)
-      if(fprintf(out, "%lu;%lu.%06lu;%lu.%06lu;%d\n", 
+    if(print) {
+      in.s_addr = np->dst_ip; //.nw_dst;
+      if(fprintf(out, "%lu %lu.%06lu %lu.%06lu %d %s\n", 
 		 (long unsigned int)np->id,  
 		 (long unsigned int)np->snd.tv_sec, 
 		 (long unsigned int)np->snd.tv_usec,
 		 (long unsigned int)np->rcv.tv_sec, 
-		 (long unsigned int)np->rcv.tv_usec,  np->ch) < 0)  
+		 (long unsigned int)np->rcv.tv_usec,  np->ch,
+		 inet_ntoa(in)) < 0)  
 	perror_and_exit("fprintf fail", 1); 
+    }
 
     free(np);
   }
@@ -409,7 +414,7 @@ get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc,
   if (ofc == OFLOPS_CONTROL) {
     //return 0;
     return snprintf(filter, buflen, "port %d",  ctx->listen_port);
-  } else if ((ofc == OFLOPS_DATA1) ||  (ofc == OFLOPS_DATA2)) {
+  } else if ((ofc == OFLOPS_DATA1) ||  (ofc == OFLOPS_DATA2) ||  (ofc == OFLOPS_DATA3)) {
     return snprintf(filter, buflen, "udp");
   }
   return 0;
@@ -427,7 +432,7 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
   struct in_addr in;
   struct timeval now;
 
-  if ((flow_mod_timestamp.tv_sec > 0) && ((ch == OFLOPS_DATA1) || (ch == OFLOPS_DATA2))) {
+  if (((ch == OFLOPS_DATA1) || (ch == OFLOPS_DATA2) || (ch == OFLOPS_DATA3))) {
     struct flow fl;
     pktgen = extract_pktgen_pkt(ctx, ch, pe->data, pe->pcaphdr.caplen, &fl);
     if((flow_mod_timestamp.tv_sec > 0) && (ch == OFLOPS_DATA1) && (!first_pkt)) {
@@ -472,6 +477,7 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
     memcpy(&n1->rcv, &pe->pcaphdr.ts, sizeof(struct timeval));
     n1->id = pktgen->seq_num;
     n1->ch = ch;
+    n1->dst_ip = fl.nw_dst;
     count[ch - 1]++;
     TAILQ_INSERT_TAIL(&head, n1, entries);
   }
