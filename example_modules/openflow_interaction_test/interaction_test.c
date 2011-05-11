@@ -432,11 +432,12 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
     bzero(&stats_counter[trans_id].rcv, sizeof(struct timeval));
     //oflops_log(te->sched_time, OFPT_STATS_REQUEST_FLOW, msg);
     //create generic statrequest message
-    len = make_ofp_flow_get_stat(&b, trans_id++);
-    reqp = (struct ofp_flow_stats_request *)(b + sizeof(struct ofp_stats_request));
+    //len = make_ofp_flow_get_stat(&b, trans_id++);
+    len = make_ofp_aggr_flow_stats(&b, trans_id++);
+    //reqp = (struct ofp_flow_stats_request *)(b + sizeof(struct ofp_stats_request));
     
     //set the query mask
-    reqp->match.wildcards = 0xFFFFFFFF;
+    //reqp->match.wildcards = 0xFFFFFFFF;
     
     //send stats request
     res = oflops_send_of_mesg(ctx, b);

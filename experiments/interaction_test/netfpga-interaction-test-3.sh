@@ -11,12 +11,12 @@ for try in `seq 1 1`; do
 	    dpctl del-flows tcp:10.1.1.2;
 	    sleep 20;
 	    sed -e "s/%flows%/$flows/g" \
-		/testbed/data/$type/interaction_test_3/config-$type-interaction-test.cfg \
+		/testbed/data/$type/interaction_delay_3/config-$type-interaction-test.cfg \
 		> /tmp/oflops.cfg;
 	    /testbed/oflops/oflops -i /tmp/oflops.cfg;
 	done
-	echo /testbed/data/$type/interaction_test_3/$flows-$try-oflops.log;
-	mv oflops.log /testbed/data/$type/interaction_test_3/$flows-$try-oflops.log;
+	echo /testbed/data/$type/interaction_delay_3/$flows-$try-oflops.log;
+	mv oflops.log /testbed/data/$type/interaction_delay_3/$flows-$try-oflops.log;
     done
 done
 # query_delay=120000000;
