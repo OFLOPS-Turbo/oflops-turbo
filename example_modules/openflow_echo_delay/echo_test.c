@@ -194,12 +194,13 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
     make_ofp_hello(&b);
     ((struct ofp_header *)b)->type = OFPT_ECHO_REQUEST;
     ((struct ofp_header *)b)->xid = htonl(trans_id++);
-    oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
+    write(ctx->control_fd, b,sizeof(struct ofp_hello));
+    //    oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
     
     //arrange next echo 
     oflops_gettimeofday(ctx, &now);
-/*     printf("send echo %d %d.%d\n", trans_id-1, echo_data[trans_id-1].snd.tv_sec,  */
-/* 	   echo_data[trans_id-1].snd.tv_usec); */
+    //printf("send echo %d %d.%d\n", trans_id-1, now.tv_sec,  
+    //	  now.tv_usec); 
     add_time(&now, delay/1000000, delay%1000000);
     oflops_schedule_timer_event(ctx, &now, ECHO_REQUEST);
     

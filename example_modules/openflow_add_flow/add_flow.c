@@ -213,7 +213,7 @@ start(struct oflops_context * ctx) {
    */
   //send the flow modyfication command in 30 seconds. 
   gettimeofday(&now, NULL);
-  add_time(&now, 20, 0);
+  add_time(&now, 60, 0);
   oflops_schedule_timer_event(ctx,&now, SND_ACT);
 
   //get port and cpu status from switch 
@@ -409,7 +409,8 @@ get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc,
   if (ofc == OFLOPS_CONTROL) {
     //return 0;
     return snprintf(filter, buflen, "port %d",  ctx->listen_port);
-  } else if ((ofc == OFLOPS_DATA1) ||(ofc == OFLOPS_DATA2)||  (ofc == OFLOPS_DATA3)) {
+
+  } else if ((ofc == OFLOPS_DATA1) ||(ofc == OFLOPS_DATA2)||(ofc == OFLOPS_DATA3)) {
     return snprintf(filter, buflen, "udp");
   }
   return 0;
@@ -435,7 +436,6 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
       printf("Failed to parse packet\n");
       return 0;
     }
-    //printf("%x %x \n", pe->data, pktgen)
 
     if((flow_mod_timestamp.tv_sec > 0) && (ch == OFLOPS_DATA2) && (!first_pkt)) {
       snprintf(msg, 1024, "INSERT_DELAY:%d", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
@@ -443,7 +443,7 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
       oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
       oflops_log(pe->pcaphdr.ts, GENERIC_MSG, "FIRST_PKT_RCV");
       first_pkt = 1;
-    } 
+    }  
     if ((flow_mod_timestamp.tv_sec > 0) &&  (ch == OFLOPS_DATA1)) {
       int id = ntohl(fl.nw_dst) - ntohl(inet_addr(network));
       if ((id >= 0) && (id < flows) && (!ip_received[id])) {
@@ -460,7 +460,7 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
 	  oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
 	  oflops_log(pe->pcaphdr.ts, GENERIC_MSG, "LAST_PKT_RCV");
 	  gettimeofday(&now, NULL);
-	  add_time(&now, 0, 10);
+          add_time(&now, 0, 10);
 	  oflops_schedule_timer_event(ctx,&now, SNMPGET);
 	  add_time(&now, 10, 0);
 	  oflops_schedule_timer_event(ctx,&now, BYESTR);
@@ -558,9 +558,9 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
       if((vars->name_length == ctx->channels[i].inOID_len) &&
 	 (memcmp(vars->name, ctx->channels[i].inOID,  
 		 ctx->channels[i].inOID_len * sizeof(oid)) == 0) ) {
-	snprintf(log, len, "port:rx:%ld:%d:%s",  
+	snprintf(log, len, "port:rx:%ld:%d:%d",  
 		 se->pdu->reqid, 
-		 (int)(int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], msg);
+		 (int)(int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], (uint32_t)*(vars->val.integer));
 	oflops_log(now, SNMP_MSG, log);
 	break;
       }

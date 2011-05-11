@@ -140,7 +140,7 @@ int start(struct oflops_context * ctx) {
   //send a message to clean up flow tables. 
   printf("cleaning up flow table...\n");
   res = make_ofp_flow_del((void *)&data);
-  //res = oflops_send_of_mesg(ctx, (void *)data);  
+  res = oflops_send_of_mesg(ctx, (void *)data);  
   free(data);
 
   //get port and cpu status from switch 
@@ -155,7 +155,7 @@ int start(struct oflops_context * ctx) {
  
   //Schedule end
   gettimeofday(&now, NULL);
-  add_time(&now, 60, 0);
+  add_time(&now, 20, 0);
   oflops_schedule_timer_event(ctx,&now, BYESTR);
 
   return 0;
@@ -441,8 +441,7 @@ generate_pkt_out(struct oflops_context * ctx,struct timeval *now) {
   pktgen->tv_sec = htonl(now->tv_sec);
   pktgen->tv_usec = htonl(now->tv_usec);
   pktgen->seq_num = htonl(++pkt_counter);
-  ip->check=0;
-  ip->check= htons(ip_sum_calc(20, (void *)ip)); //htons();
+  ip->check= htons(0x87c5);
 
   return 1;
 }

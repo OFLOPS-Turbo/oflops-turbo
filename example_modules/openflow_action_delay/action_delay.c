@@ -154,14 +154,12 @@ start(struct oflops_context * ctx) {
   if(table == 0) 
     fl->mask = 0; //if table is 0 the we generate an exact match */
   else  
-    fl->mask = OFPFW_DL_DST | OFPFW_DL_SRC | (32 << OFPFW_NW_SRC_SHIFT) | 
-      (0 << OFPFW_NW_DST_SHIFT) | OFPFW_DL_VLAN  | OFPFW_TP_DST | OFPFW_NW_PROTO | 
-      OFPFW_TP_SRC | OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS;
+    fl->mask = OFPFW_IN_PORT | OFPFW_DL_VLAN | OFPFW_TP_DST;
   fl->in_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
   fl->dl_type = htons(ETHERTYPE_IP);          
   memcpy(fl->dl_src, data_mac, ETH_ALEN);
   memcpy(fl->dl_dst, "\x00\x15\x17\x7b\x92\x0a", ETH_ALEN);
-  fl->dl_vlan = 0xffff;
+  fl->dl_vlan = htons(101);
   fl->nw_proto = IPPROTO_UDP;
   fl->nw_src =  inet_addr("10.1.1.1");
   fl->nw_dst =  inet_addr("10.1.1.2");
@@ -170,10 +168,8 @@ start(struct oflops_context * ctx) {
   len = make_ofp_flow_add(&b, fl, ctx->channels[OFLOPS_DATA2].of_port, 1, 1200);
   res = oflops_send_of_mesgs(ctx, b, len);
   free(b);
-  //store locally the applied rule of the data stream
+  //storelocally the applied rule of the data stream
   memcpy(fl_probe, fl, sizeof(struct flow));
-
-  sleep(1);
 
   /**
    * Shceduling events
@@ -217,6 +213,10 @@ destroy(struct oflops_context *ctx) {
     data[ch] = xmalloc(count[ch]*sizeof(double));
 
   for (np = head.tqh_first; np != NULL; np = np->entries.tqe_next) {
+    ch = np->ch - 1;
+    min_id[ch] = (np->id < min_id[ch])?np->id:min_id[ch];
+    max_id[ch] = (np->id > max_id[ch])?np->id:max_id[ch];
+    data[ch][ix[ch]++] = time_diff(&np->snd, &np->rcv);
     if(print)
       if(fprintf(out, "%lu %lu.%06lu %lu.%06lu %d\n", 
 		 (long unsigned int)np->id,  
@@ -225,14 +225,6 @@ destroy(struct oflops_context *ctx) {
 		 (long unsigned int)np->rcv.tv_sec, 
 		 (long unsigned int)np->rcv.tv_usec,  np->ch) < 0)  
 	perror_and_exit("fprintf fail", 1); 
-
-    if((time_diff(&np->snd, &np->rcv) < 0) || (time_diff(&np->snd, &np->rcv) > 10000000) )
-      continue;
-
-    ch = np->ch - 1;
-    min_id[ch] = (np->id < min_id[ch])?np->id:min_id[ch];
-    max_id[ch] = (np->id > max_id[ch])?np->id:max_id[ch];
-    data[ch][ix[ch]++] = time_diff(&np->snd, &np->rcv);
     //release memory
     free(np);
   }
@@ -426,7 +418,7 @@ handle_traffic_generation (oflops_context *ctx) {
 	     (unsigned char)data_mac[2], (unsigned char)data_mac[3], 
 	     (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
   strcpy(det.mac_dst,"00:15:17:7b:92:0a");
-  det.vlan = 0xffff;
+  det.vlan = 101;
   det.vlan_p = 0;
   det.vlan_cfi = 0;
   det.pkt_count = 0;
