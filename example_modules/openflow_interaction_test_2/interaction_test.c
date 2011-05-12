@@ -536,7 +536,11 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
  */
 int get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc, char * filter, int buflen)
 {
-  if (ofc == OFLOPS_DATA2) {
+  
+  if (ofc == OFLOPS_CONTROL) {
+    return snprintf(filter,buflen,"src port 6633");
+    return 0;
+  } else if (ofc == OFLOPS_DATA2) {
     return snprintf(filter,buflen,"udp");
     return 0;
   }
@@ -556,6 +560,12 @@ int handle_pcap_event(struct oflops_context *ctx, struct pcap_event *pe,
   char msg[1024];
   struct timeval now;
 
+  if (ch == OFLOPS_CONTROL) {
+    oflops_gettimeofday(ctx, &now);  
+    oflops_log(now, GENERIC_MSG, "packet send");
+    return 0;
+  } 
+
   pktgen = extract_pktgen_pkt(ctx, ch, (unsigned char *)pe->data, pe->pcaphdr.caplen, &fl);
   
   if ((pktgen != NULL) && (ch == OFLOPS_DATA2) ) {
@@ -569,7 +579,7 @@ int handle_pcap_event(struct oflops_context *ctx, struct pcap_event *pe,
     
     int id = ntohl(fl.nw_dst) - ntohl(inet_addr(network));
     if ((id >= 0) && (id < flows) && (!ip_received[id])) {
-      ip_received_count++;
+      ip_received_count++;  
       ip_received[id] = 1;
       if (ip_received_count >= flows) {
 	if(ip_received_count % 100) {

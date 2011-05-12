@@ -542,7 +542,10 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
  */
 int get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc, char * filter, int buflen)
 {
-  if (ofc == OFLOPS_DATA2) {
+  if (ofc == OFLOPS_CONTROL) {
+    return snprintf(filter,buflen,"src port 6633");
+    return 0;
+  } else if (ofc == OFLOPS_DATA2) {
     return snprintf(filter,buflen,"udp");
     return 0;
   }
@@ -561,6 +564,12 @@ int handle_pcap_event(struct oflops_context *ctx, struct pcap_event *pe,
   struct in_addr addr;
   char msg[1024];
   struct timeval now;
+
+  if (ch == OFLOPS_CONTROL) {
+    oflops_gettimeofday(ctx, &now);  
+    oflops_log(now, GENERIC_MSG, "packet send"); 
+    return 0;
+  } 
 
   pktgen = extract_pktgen_pkt(ctx, ch, (unsigned char *)pe->data, pe->pcaphdr.caplen, &fl);
   

@@ -6,5 +6,5 @@ SUBDIRS =  openflow_action_delay oflops_debug \
 	openflow_packet_in openflow_packet_out \
         openflow_port_status snmp_cpu openflow_action_scalability \
 	snmp_cpu snmp_queue_delay openflow_reactive nf_pktgen_test \
-	openflow_timer snmp_tuple_test openflow_interaction_test \
+	openflow_timer openflow_interaction_test \
 	openflow_echo_delay openflow_interaction_test_2 openflow_interaction_test_3
