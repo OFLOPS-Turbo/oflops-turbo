@@ -7,6 +7,9 @@
 
 #define DEFAULT_LOG_FILE "oflops.log"
 
+/**
+ * types of logging messages
+ */
 enum log_types {
   OFPT_FLOW_MOD_ADD,
   OFPT_STATS_REQUEST_FLOW,
@@ -25,7 +28,7 @@ enum log_types {
 };
 
 void oflops_log_init(const char *filename);
-int oflops_log(struct timeval, int type, char *details);
+void oflops_log(struct timeval, int type, char *details);
 void oflops_log_close();
 
 #endif

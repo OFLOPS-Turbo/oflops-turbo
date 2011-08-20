@@ -19,32 +19,45 @@ const char *msg_type[] = {
 
 FILE* logger;
 
-/*
+/**
  * Initializes the logging system of oflops.
- * @param filename The file where the logging messages are stored. 
+ * \param filename The file where the logging messages are stored. 
  */
 void
 oflops_log_init(const char *filename) {
+
+  //openning the logging file
   logger = fopen(filename, "w");
   if(logger == NULL) {
     perror_and_exit("failed to open log file", 1);
   }
 }
 
-int 
+/**
+ * log message on the logging file 
+ * \param ts a timestamp of the logging event
+ * \param type the type of the logging event
+ * \param details the string to be appented on the logging file 
+ */
+void 
 oflops_log(struct timeval ts, int type, char *details) {
+  if (!logger)
+    return;
+
+  //print the log message
   fprintf(logger, "%lu.%06lu:%s:%s\n",(long unsigned int)ts.tv_sec,
-	  (long unsigned int)ts.tv_usec, msg_type[type], details);
+      (long unsigned int)ts.tv_usec, msg_type[type], details);
+
+  //force system to print the line on the file
   fflush(logger);
-  return 1;
 }
 
 
-/*
- * Initializes the logging system of oflops.
- * @param filename The file where the logging messages are stored. 
+/**
+ * Close the logging system of oflops.
  */
 void
 oflops_log_close() {
-  fclose(logger);
+  if(logger)
+    fclose(logger);
 }
