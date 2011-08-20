@@ -155,8 +155,7 @@ int init(struct oflops_context *ctx, char * config_str) {
         if((pkt_size < MIN_PKT_SIZE) && (pkt_size > MAX_PKT_SIZE))  {
           perror_and_exit("Invalid packet size value", 1);
         }
-      } else if(strcmp(param, "data_rate") == 0) {
-        //multituple data rate
+      } else if(strcmp(param, "data_rate") == 0) {        //multituple data rate
         datarate = strtol(value, NULL, 0);
         if((datarate <= 0) || (datarate > 1010))  {
           perror_and_exit("Invalid data rate param(Values between 1 and 1010)", 1);
@@ -390,7 +389,7 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
   void *b = NULL;
   char *str = te->arg;
   struct timeval now;
-  char msg[100];
+  char msg[1024];
   uint32_t flow_netmask;
   struct ofp_flow_stats_request *reqp;
   struct flow fl;

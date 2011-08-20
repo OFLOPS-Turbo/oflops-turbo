@@ -533,7 +533,7 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
   return 0;
 }
 
-/** Register pcap filter.
+/** Register pcap filter. 
  * @param ctx pointer to opaque context
  * @param ofc e
       printf("%s\n", msg);numeration of channel that filter is being asked for
@@ -567,7 +567,7 @@ int handle_pcap_event(struct oflops_context *ctx, struct pcap_event *pe,
 
   if (ch == OFLOPS_CONTROL) {
     oflops_gettimeofday(ctx, &now);  
-    oflops_log(now, GENERIC_MSG, "packet send"); 
+    oflops_log(now, GENERIC_MSG, "packet send");
     return 0;
   } 
 
@@ -661,7 +661,7 @@ handle_traffic_generation (oflops_context *ctx) {
 int
 of_event_other(struct oflops_context *ctx, const struct ofp_header * ofph) {
   struct timeval now;
-  char msg[100];
+  char msg[1024];
   struct ofp_error_msg *err_p;
 
   if(ofph->type == OFPT_STATS_REPLY) {
