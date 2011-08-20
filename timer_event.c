@@ -3,7 +3,6 @@
 
 #include "timer_event.h"
 
-
 int timer_get_next_event(struct oflops_context *ctx)
 {
 	struct timeval tv;

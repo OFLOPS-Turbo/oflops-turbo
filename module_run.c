@@ -54,6 +54,9 @@ int run_test_module(oflops_context *ctx, int ix_mod)
 {
 
   struct test_module *mod = ctx->tests[ix_mod];
+
+  // moved the initialization code in the setup function  as this should 
+  // happen before thmodule start method
   /* int i; */
   /* //Setup */
   /* setup_snmp_channel(ctx); */
@@ -116,6 +119,9 @@ static void test_module_loop(oflops_context *ctx, test_module *mod)
 	poll_set[n_fds].events = 0;
 	if(( ctx->channels[ch].pcap_handle) || (ctx->channels[ch].nf_cap))
 	  poll_set[n_fds].events = POLLIN;
+
+  // it was more efficient to write data on the control channel.
+  // 
 	//if ( msgbuf_count_buffered(ctx->channels[ch].outgoing) > 0)
 	//    poll_set[n_fds].events |= POLLOUT;
 	if( poll_set[n_fds].events != 0)
@@ -135,9 +141,14 @@ static void test_module_loop(oflops_context *ctx, test_module *mod)
       fds = select(fds, &fdset, NULL,NULL, &timeout);
       if (fds)
 	snmp_read(&fdset);
+      
+      //  this code was giving me segmentation errors for some reason and I decided 
+      // to remove it. worst case we just have some memory allocated by the snmp library, 
+      // but there is plenty of memory. 
       //else
       //snmp_timeout();
       
+      // timer events now run on their own thread
       //Timer poll
       /*next_event = timer_get_next_event(ctx);
 	while(next_event <= 0 )
@@ -349,7 +360,7 @@ static void process_pcap_event(oflops_context *ctx, test_module * mod, struct po
       memcpy(pe->data, data, pe->pcaphdr.caplen);
       mod->handle_pcap_event(ctx,pe, ch);
     } else {
-      printf("errorous packet received\n");
+      fprintf(stderr, "errorous packet received\n");
       return;
     }
   }

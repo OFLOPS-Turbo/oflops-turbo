@@ -1,6 +1,9 @@
 #ifndef MSGBUF_H
 #define MSGBUF_H
 
+// this code is not currently used by the system as it statically allocated buffers and 
+// forgot to check if new data would fit the buffer remaining size.
+
 struct msgbuf
 {
         char * buf;

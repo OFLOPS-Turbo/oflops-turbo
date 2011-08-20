@@ -150,6 +150,9 @@ int oflops_send_raw_mesg(struct oflops_context *ctx, oflops_channel_name ch, voi
 	//*/
 	
 	/*queue the packet*/
+
+  // FIXME: not dure if this correnct, as I am not sending anymore data
+  // to the data channels from user space
 	ret = write( ctx->channels[ch].raw_sock, msg, len);
 	//msgbuf_push(ctx->channels[ch].outgoing, msg, len);
 	//send_result = sendto(sock, msg, len, 0,  ***** old code

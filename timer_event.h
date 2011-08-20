@@ -10,7 +10,7 @@ struct timer_event;
 
 typedef struct timer_event
 {
-	int timer_id;
+	int timer_id;               /**< the id of the  */
 	void * arg;
 	struct timeval sched_time;
 } timer_event;

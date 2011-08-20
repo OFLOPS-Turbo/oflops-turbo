@@ -43,9 +43,11 @@
 #include "context.h"
 #include "test_module.h"
 
+
+// a struct to store per module context information.
 struct run_module_param {
-  struct oflops_context *ctx;
-  int ix_mod;  
+  struct oflops_context *ctx;     /**< the default context of the module */
+  int ix_mod;                     /**< an autoincrement id for each module */
 };
 
 #endif

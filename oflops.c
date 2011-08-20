@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -34,7 +35,7 @@ int main(int argc, char * argv[])
 {
   int i, j;
   struct pcap_stat ps;
-  pthread_t *thread, event_thread, traffic_gen;
+  pthread_t thread, event_thread, traffic_gen;
   struct run_module_param *param =  malloc_and_check(sizeof(struct run_module_param));
   char msg[1024];
   struct timeval now;
@@ -55,6 +56,7 @@ int main(int argc, char * argv[])
   fprintf(stderr, "Running %d Test%s\n", ctx->n_tests, ctx->n_tests>1?"s":"");
 
   for(i=0;i<ctx->n_tests;i++) {
+    // init contaxt and setup module
     fprintf(stderr, "-----------------------------------------------\n");
     fprintf(stderr, "------------ TEST %s ----------\n", (*(ctx->tests[i]->name))());
     fprintf(stderr, "-----------------------------------------------\n");
@@ -62,46 +64,55 @@ int main(int argc, char * argv[])
     ctx->curr_test = ctx->tests[i];
     param->ix_mod = i;
     setup_test_module(ctx,i);
-    thread =  malloc_and_check(sizeof(pthread_t));
-    pthread_create(thread, NULL, run_module, (void *)param);
+
+    //start all the required threads of the program 
+
+    // the data receiving thread
+    pthread_create(&thread, NULL, run_module, (void *)param);
+    // the data generating thread
     pthread_create(&traffic_gen, NULL, start_traffic_thread, (void *)param);
+    // the timer thread.
     pthread_create(&event_thread, NULL, event_loop, (void *)param);
-    pthread_join(*thread, NULL);
+    pthread_join(thread, NULL);
     pthread_join(event_thread, NULL);
 
-    
+
+    // for the case of pktgen traffic generation the thread remain unresponsive to other 
+    // termination method, and for that reason we use explicit signal termination.
     if(ctx->trafficGen == PKTGEN)
       pthread_cancel(traffic_gen); 
     else 
       pthread_join(traffic_gen, NULL); 
-      
-    free(thread);
+
+    //reading details for the data generation and capture process and output them to the log file.
     gettimeofday(&now, NULL);
     for(j = 0 ; j < ctx->n_channels;j++) {
       if((ctx->channels[j].cap_type == PCAP) && 
-	 (ctx->channels[j].pcap_handle != NULL)) {
-	pcap_stats(ctx->channels[j].pcap_handle, &ps);
-	snprintf(msg, 1024, "%s:%u:%u",ctx->channels[j].dev, ps.ps_recv, ps.ps_drop);
-	oflops_log(now, PCAP_MSG, msg);
-	printf("%s\n", msg);
-      } else if((ctx->channels[j].cap_type == NF2) &&
-		(ctx->channels[j].nf_cap != NULL)) {
-	nf_cap_stat(j-1, &stat);
-	snprintf(msg, 1024, "%s:rcv:%u:%u",ctx->channels[j].dev,  stat.pkt_cnt, 
-		 (stat.pkt_cnt - stat.capture_packet_cnt));
-	oflops_log(now, PCAP_MSG, msg);
-	printf("%s\n", msg);
-	display_xmit_metrics(j-1, &gen_stat);
-	snprintf(msg, 1024, "%s:snd:%u",ctx->channels[j].dev,gen_stat.pkt_snd_cnt);
-	oflops_log(now, PCAP_MSG, msg);
-	printf("%s\n",msg);
-      }
-    }
+          (ctx->channels[j].pcap_handle != NULL)) {
+        pcap_stats(ctx->channels[j].pcap_handle, &ps);
+        snprintf(msg, 1024, "%s:%u:%u",ctx->channels[j].dev, ps.ps_recv, ps.ps_drop);
+        oflops_log(now, PCAP_MSG, msg);
+        printf("%s\n", msg);
 
-    char *ret = report_traffic_generator(ctx);
-    if(ret) {
-      oflops_log(now, PKTGEN_MSG, report_traffic_generator(ctx));
-      printf("%s\n", ret);
+        // FIXME: this requires a parsing code to extract only required information and not the whole string. 
+        char *ret = report_traffic_generator(ctx);
+        if(ret) {
+          oflops_log(now, PKTGEN_MSG, report_traffic_generator(ctx));
+          printf("%s\n", ret);
+        }
+
+      } else if((ctx->channels[j].cap_type == NF2) &&
+          (ctx->channels[j].nf_cap != NULL)) {
+        nf_cap_stat(j-1, &stat);
+        snprintf(msg, 1024, "%s:rcv:%u:%u",ctx->channels[j].dev,  stat.pkt_cnt, 
+            (stat.pkt_cnt - stat.capture_packet_cnt));
+        oflops_log(now, PCAP_MSG, msg);
+        printf("%s\n", msg);
+        display_xmit_metrics(j-1, &gen_stat);
+        snprintf(msg, 1024, "%s:snd:%u",ctx->channels[j].dev,gen_stat.pkt_snd_cnt);
+        oflops_log(now, PCAP_MSG, msg);
+        printf("%s\n",msg);
+      }
     }
   }
 
