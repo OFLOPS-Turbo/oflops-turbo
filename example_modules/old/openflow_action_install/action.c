@@ -60,38 +60,25 @@ const uint64_t byte_to_bits = 8, mbits_to_bits = 1024*1024;
 /**
  * Probe packet size
  */
-uint32_t pkt_size = 1500;
+uint32_t pkt_size = 1500;     // the packet size of the measurment probe
+uint64_t proberate = 100;     // what is the rate of the probe
+uint64_t probe_snd_interval;  //internal to send measurement packets 
+char *network = "192.168.3.0";//ip range of the measurement probe
+int table = 0;                //is the inserted flows wildcard or exact match. 
+int flows = 100;
 
-/** 
- * A variable to inform when the module is over.
- */
-int finished, first_pkt = 0;
+int finished;                 //is the module finished yet?
+int first_pkt = 0;            //hae we receive the first packet on the channel yet?
+int send_flow_mod = 0, stored_flow_mod_time = 0;
+struct timeval flow_mod_timestamp, pkt_timestamp;
 
-/**
- * The file where we write the output of the measurement process.
- */
-FILE *measure_output;
-
-uint64_t proberate = 100; 
-
-/**
- * calculated sending time interval (measured in usec). 
- */
-uint64_t probe_snd_interval;
-
-int table = 0;
-char *network = "192.168.3.0";
+FILE *measure_output;         //probe measurement store file
 
 /**
  * Number of flows to send. 
  */
-int flows = 100;
 char *cli_param;
-int trans_id = 0;
 struct flow *fl_probe; 
-int send_flow_mod = 0, stored_flow_mod_time = 0;
-
-struct timeval flow_mod_timestamp, pkt_timestamp;
 
 struct entry {
   struct timeval snd,rcv;
@@ -143,7 +130,6 @@ start(struct oflops_context * ctx) {
    */
   printf("Sending measurement probe flow...\n");
   bzero(fl, sizeof(struct flow));
-  printf("table value:%d\n", table);
   if(table == 0)
     fl->mask = 0; //if table is 0 the we generate an exact match */
   else 
@@ -208,7 +194,7 @@ int destroy(struct oflops_context *ctx) {
   struct timeval now;
   gettimeofday(&now, NULL);
 
-  //init storage
+  //init stats structures
   for(ch = 0; ch < ctx->n_channels-1; ch++) {
     count[ch] = 0;
     min_id[ch] =  INT_MAX;
@@ -217,6 +203,7 @@ int destroy(struct oflops_context *ctx) {
     t_sq[ch] = 0;    
   }
 
+  // store detailed informartion
   for (np = head.tqh_first; np != NULL; np = np->entries.tqe_next) {
     if(fprintf(out, "%lu;%lu.%06lu;%lu.%06lu;%d\n", 
 	       (long unsigned int)np->id,  
@@ -234,13 +221,13 @@ int destroy(struct oflops_context *ctx) {
     t_sq[ch] += delay*delay;
     free(np);
   }
-  
+ 
+  // calculate measurement probe statistics
   for(ch = 0; ch < ctx->n_channels-1; ch++) {
     if(count[ch] == 0) continue;
     mean = t[ch]/count[ch];
     std = (t_sq[ch]/count[ch]) - mean*mean;
     std = (std >= 0)?sqrt(std):LONG_MAX;
-    //if(std >= 0) std = sqrt(std); else std = LLONG_MAX;
     loss = (float)count[ch]/(float)(max_id[ch] - min_id[ch]);
     snprintf(msg, 1024, "statistics:port:%d:%lld:%lld:%.4f:%d", 
 	     ctx->channels[ch + 1].of_port, mean, std, loss, count[ch]);

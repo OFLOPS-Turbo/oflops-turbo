@@ -38,10 +38,7 @@ char * name() {
 /** String for scheduling events
  */
 #define BYESTR "bye bye"
-#define GETPORTSTAT "port stat"
 #define SND_ACT "send action"
-#define SND_FALSE_ACT "send false action"
-#define SND_PKT "send pkt"
 #define SNMPGET "snmp get"
 #define OFP_PING "of ping"
 
@@ -330,14 +327,6 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
       printf("Failed to parse measurement packet\n");
       return 0;
     }
-    //    if(rand()%100 == 1)
-/*       printf("data packet received %lu %x %02x:%02x:%02x:%02x:%02x:%02x " */
-/* 	     "%02x:%02x:%02x:%02x:%02x:%02x %x %x %d %d\n",  */
-/*     	     pktgen->seq_num, fl.dl_vlan, (uint8_t)fl.dl_src[0], (uint8_t)fl.dl_src[1],  */
-/* 	     (uint8_t)fl.dl_src[2],(uint8_t)fl.dl_src[3],(uint8_t)fl.dl_src[4], */
-/* 	     (uint8_t)fl.dl_src[5],(uint8_t)fl.dl_dst[0],(uint8_t)fl.dl_dst[1], */
-/* 	     (uint8_t)fl.dl_dst[2],(uint8_t)fl.dl_dst[3],(uint8_t)fl.dl_dst[4], */
-/* 	     (uint8_t)fl.dl_dst[5], fl.nw_src, fl.nw_dst, fl.tp_src, fl.tp_dst); */
     
     struct entry *n1 = malloc(sizeof(struct entry));
     n1->snd.tv_sec = pktgen->tv_sec;

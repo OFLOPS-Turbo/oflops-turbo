@@ -6,17 +6,13 @@
 
 #include <math.h>
 #include <limits.h>
-
-//include gsl to implement statistical functionalities
-#include <gsl/gsl_statistics.h>
-
-
 #include <arpa/inet.h>
-
 #include <fcntl.h>
 #include <pthread.h>
 #include <poll.h>
 #include <limits.h>
+
+#include <gsl/gsl_statistics.h>
 
 #include "log.h"
 #include "traffic_generator.h"
@@ -50,17 +46,10 @@ char * name() {
 #define BYESTR "bye bye"
 #define SND_ACT "send action"
 #define SNMPGET "snmp get"
-#define SEND_ECHO_REQ "send echo request"
 
 //logging filename
 #define LOG_FILE "action_aggregate.log"
 char *logfile = LOG_FILE;
-
-/** 
- * Some constants to help me with conversions
- */
-const uint64_t sec_to_usec = 1000000;
-const uint64_t byte_to_bits = 8, mbits_to_bits = 1024*1024;
 
 /**
  * packet size limits
@@ -68,46 +57,40 @@ const uint64_t byte_to_bits = 8, mbits_to_bits = 1024*1024;
 #define MIN_PKT_SIZE 64
 #define MAX_PKT_SIZE 1500
 
-/**
- * Probe packet size
+/** 
+ * Some constants to help me with conversions
  */
+const uint64_t sec_to_usec = 1000000;
+const uint64_t byte_to_bits = 8, mbits_to_bits = 1024*1024;
+uint64_t proberate = 100; 
+uint64_t datarate = 100; 
 uint32_t pkt_size = 1500;
+uint64_t probe_snd_interval;
+uint64_t data_snd_interval;
+int table = 0;
+char *network = "192.168.2.0";
+int flows = 100;
 
 /** 
  * A variable to inform when the module is over.
  */
 int finished, first_pkt = 0;
+//control if a per packet measurement trace is stored
+int print = 0;
+struct timeval flow_mod_timestamp, pkt_timestamp;
+int send_flow_mod = 0, stored_flow_mod_time = 0;
+int count[] = {0,0,0};
 
 /**
  * The file where we write the output of the measurement process.
  */
 FILE *measure_output;
 
-uint64_t proberate = 100; 
-uint64_t datarate = 100; 
-
-/**
- * calculated sending time interval (measured in usec). 
- */
-uint64_t probe_snd_interval;
-uint64_t data_snd_interval;
-
-int table = 0;
-char *network = "192.168.2.0";
-
-//control if a per packet measurement trace is stored
-int print = 0;
-
 /**
  * Number of flows to send. 
  */
-int flows = 100;
 char *cli_param;
-int trans_id = 0;
 struct flow *fl_probe; 
-int send_flow_mod = 0, stored_flow_mod_time = 0;
-int count[] = {0,0,0};
-struct timeval flow_mod_timestamp, pkt_timestamp;
 
 //char local_mac[] = {0x00, 0x04, 0x23, 0xb4, 0x74, 0x95};
 char local_mac[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
@@ -122,8 +105,6 @@ struct entry {
 TAILQ_HEAD(tailhead, entry) head;
 			    
 			    
-struct entry echo_data[100];
-int echo_data_count = 0;
 int *ip_received;
 int ip_received_count;
 
@@ -172,7 +153,7 @@ start(struct oflops_context * ctx) {
   free(b);
   
   /**
-   * Send flow records to start routing packets.
+   * Send flow records to start switching packets.
    */
   printf("Sending measurement probe flow...\n");
   bzero(fl, sizeof(struct flow));
@@ -296,24 +277,6 @@ int destroy(struct oflops_context *ctx) {
 	     ctx->channels[ch + 1].of_port, mean, median, std, loss, count[ch]);
       oflops_log(now, GENERIC_MSG, msg);
     }
-  }
-  
-  free(data[0]);
-  data[0] = xmalloc(echo_data_count * sizeof(double));
-  for(i = 1; i <= echo_data_count; i++) {
-    snprintf(msg, 1024, "OFP_ECHO:%d:%ld.%06ld:%ld.%06ld", i, echo_data[i].snd.tv_sec, echo_data[i].snd.tv_usec, 
-	     echo_data[i].rcv.tv_sec, echo_data[i].rcv.tv_usec);
-    oflops_log(now, GENERIC_MSG, msg);
-    data[0][i-1] = time_diff(& echo_data[i].snd, &echo_data[i].rcv);
-  }
-  if(echo_data_count > 0) {
-    gsl_sort (data[0], 1, echo_data_count);
-    mean = (uint32_t)gsl_stats_mean(data[0], 1, echo_data_count);
-    std = (uint32_t)sqrt(gsl_stats_variance(data[0], 1, echo_data_count));
-    median = (uint32_t)gsl_stats_median_from_sorted_data (data[0], 1, echo_data_count);
-    printf("statistics:echo:%u:%u:%u:%d\n", mean, median, std, echo_data_count);
-    snprintf(msg, 1024, "statistics:echo:%u:%u:%u:%d", mean, median, std, echo_data_count);
-    oflops_log(now, GENERIC_MSG, msg);
   }
   return 0;
 }
