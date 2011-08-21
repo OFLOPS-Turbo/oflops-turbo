@@ -1,20 +1,27 @@
 #include <sys/queue.h>
- 
+
 #include "context.h"
 #include "utils.h"
 #include "log.h"
 
-/** @ingroup modules
- * Dummy module.
- * This module implements all the functions of the oflops modules.
+/**
+ * \defgroup openflow_dummy dummy 
+ * @ingroup modules
+ * This module provide an empty implementation for all the functions of an oflops module.
  *
  * Copyright (C) t-labs, 2010
  * @author crotsos
  * @date June, 2010
  * 
- * @return name of module */
+ */
+
+/**
+ * get the name of the module. 
+ * \ingroup openflow_dummy
+ * @return name of module 
+ */
 char * name() {
-	return "openflow_dummy";
+  return "openflow_dummy";
 }
 
 /** Some constants to help me with conversions
@@ -32,8 +39,9 @@ const uint64_t byte_to_bits = 8, mbits_to_bits = 1024*1024;
 uint32_t sendno;
 
 /**
- * Initialization code with parameters
- * @param ctx 
+* \ingroup openflow_dummy
+ * Initialization code of the module
+ * @param ctx data context of the module
  */
 int init(struct oflops_context *ctx, char * config_str) {
   char *pos = NULL;
@@ -73,14 +81,18 @@ int init(struct oflops_context *ctx, char * config_str) {
   return 0;
 }
 
-/** Initialization
+/** 
+ * \ingroup openflow_dummy
+ * Initializatize controll channel and schedule events 
  * @param ctx pointer to opaque context
  */
 int start(struct oflops_context * ctx) {
   return 0;
 }
 
-/** Handle timer event
+/**
+ * \ingroup openflow_dummy
+ * Handle timer event
  * @param ctx pointer to opaque context
  * @param te pointer to timer event
  */
@@ -88,7 +100,8 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
   return 0;
 }
 
-/** Register pcap filter.
+/** \ingroup openflow_dummy
+ * Register pcap filter.
  * @param ctx pointer to opaque context
  * @param ofc enumeration of channel that filter is being asked for
  * @param filter filter string for pcap
@@ -99,7 +112,9 @@ int get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc, char * 
 }
 
 
-/** Handle pcap event.
+/**
+ * \ingroup openflow_dummy
+ * Handle pcap event.
  * @param ctx pointer to opaque context
  * @param pe pcap event
  * @param ch enumeration of channel that pcap event is triggered
@@ -107,24 +122,53 @@ int get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc, char * 
 int handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_channel_name ch) {
   return 0;
 }
+/**
+ * \ingroup openflow_dummy
+ * Handle pkt_in of messages.
+ * @param ctx pointer to opaque context
+ * @param ofph a pointer to the data of the pkt_in packet
+ */
 
 int of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * ofph) {
   return 0;
 }
+/**
+ * \ingroup openflow_dummy
+ * Handle of echo requests.
+ * @param ctx pointer to opaque context
+ * @param ofph a pointer to the data of the echo request
+ */
 
 int of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph) {
   return 0;
 }
+/**
+ * \ingroup openflow_dummy
+ * Handle of port status replies
+ * \param ctx pointer to opaque context
+ * \param ofph a pointer to the data of the packet
+ */
 
 int of_event_port_status(struct oflops_context *ctx, const struct ofp_port_status * ofph) {
   return 0;
 }
 
+/**
+* \ingroup openflow_dummy
+* handle any of message received, not captured by the other event methods
+* \param ctx data of the context of the module
+*/
 int of_event_other(struct oflops_context *ctx, const struct ofp_header * ofph) {
   return 0;
 }
 
+/**
+ * \ingroup openflow_dummy
+ * handle asyncronous snmp replies
+ * \param ctx pointer to opaque context
+ * \param se snmp reply
+ */
 int handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
   return 0;
 }
-                        
+

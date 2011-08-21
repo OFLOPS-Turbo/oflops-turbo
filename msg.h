@@ -26,6 +26,9 @@
 //packet header size including ethernet/ip/udp
 #define MEASUREMENT_PACKET_HEADER 46 
 
+// this file contains code that generates openflow packet. the code is pretty 
+// messed and need some extensive refactoring. hopefully this will happen in a later version. 
+
 struct flow {
   uint32_t mask;              /* The mask used to define 
 				 which fields will be matched */
@@ -60,8 +63,6 @@ struct net_header{
   struct udphdr *udp; 
 };
 
-void* xmalloc(size_t len);
-
 int make_ofp_hello(void **b);
 int make_ofp_feat_req(void **b);
 int make_ofp_flow_stat(void **b);
@@ -81,15 +82,8 @@ int make_ofp_flow_get_stat(void **buferp, int xid);
 int make_ofp_port_get_stat(void **buferp);
 int make_ofp_aggr_flow_stats(void **buferp, int trans_id);
 int make_ofp_echo_req(void **buferp);
-
-int append_data_to_flow(const  void *b, struct pcap_pkthdr hdr);
-int contains_next_msg(int dir);
-int get_next_msg(int dir, struct pcap_event **opf);
-
 //void print_ofp_msg(const void *b, size_t len);
 
-void msg_init();
-int ofp_msg_log(const void *b,  struct pcap_pkthdr hdr);
 char *generate_packet(struct flow fl, size_t len);
 uint32_t extract_pkt_id(const char *b, int len);
 

@@ -24,26 +24,27 @@
 #include "utils.h"
 #include "context.h"
 
-/** @ingroup modules
- * Openflow action install.
- * A module to measure delay and swiutching perfomance of the openflow actions.
- * The rate, count and delay then determined.
+/**
+ * \defgroup openflow_echo_delay openflow echo
+ * \ingroup modules
+ * Measure the delay of the control channel using openflow echo messages.
+ *
+ * paramaters:
+ * - delay: define the inter-request delay in microseconds.  
  *
  * Copyright (C) t-labs, 2010
  * @author crotsos
  * @date June, 2010
  * 
+ */
+
+/**
+ * \ingroup openflow_echo_delay
  * @return name of module
  */
 char * name() {
-	return "openflow_echo_test";
+  return "openflow_echo_test";
 }
-
-/*
- * TODO:
- * - install singlw default route and at the event start sending the individual flows.
- * 
- */
 
 /** 
  * String for scheduling events
@@ -79,13 +80,14 @@ struct entry {
   int ch, id;
   TAILQ_ENTRY(entry) entries;         /* Tail queue. */
 }; 
-			    
-			    
+
+// static storage, since we have the tansaction id to define the index 
+// of the measurement
 struct entry echo_data[1000000];
 int echo_data_count = 0;
 
 /**
- * Initialization
+ * empty flow table and schedule events
  * @param ctx pointer to opaque context
  */
 int 
@@ -107,13 +109,13 @@ start(struct oflops_context * ctx) {
   make_ofp_hello(&b);
   res = oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
   free(b);  
-  
+
   //send a message to clean up flow tables. 
   printf("cleaning up flow table...\n");
   res = make_ofp_flow_del(&b);
   res = oflops_send_of_mesg(ctx, b);  
   free(b);
-  
+
   /**
    * Shceduling events
    */
@@ -135,6 +137,11 @@ start(struct oflops_context * ctx) {
   return 0;
 }
 
+/**
+ * \ingroup openflow_echo_delay
+ * calculate statistics for the echo probes. 
+ * \param ctx data contaxt of the module
+ */
 int destroy(struct oflops_context *ctx) {
   int  i;
   char msg[1024];
@@ -147,11 +154,11 @@ int destroy(struct oflops_context *ctx) {
 
   //get what time we start printin output
   gettimeofday(&now, NULL);
-  
+
   data = xmalloc(echo_data_count * sizeof(double));
   for(i = 1; i <= echo_data_count; i++) {
     snprintf(msg, 1024, "OFP_ECHO:%d:%ld.%06ld:%ld.%06ld:%d", i, echo_data[i].snd.tv_sec, echo_data[i].snd.tv_usec, 
-	     echo_data[i].rcv.tv_sec, echo_data[i].rcv.tv_usec, time_diff(& echo_data[i].snd, &echo_data[i].rcv));
+        echo_data[i].rcv.tv_sec, echo_data[i].rcv.tv_usec, time_diff(& echo_data[i].snd, &echo_data[i].rcv));
     oflops_log(now, GENERIC_MSG, msg);
     if ((echo_data[i].snd.tv_sec > 0) && (echo_data[i].rcv.tv_sec > 0)) {
       data[count++] = time_diff(& echo_data[i].snd, &echo_data[i].rcv);
@@ -171,7 +178,9 @@ int destroy(struct oflops_context *ctx) {
   return 0;
 }
 
-/** Handle timer event
+/** 
+ * \ingroup mplayer openflow_echo_delay
+ * Handle timer event
  * @param ctx pointer to opaque context
  * @param te pointer to timer event
  */
@@ -194,16 +203,14 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
     make_ofp_hello(&b);
     ((struct ofp_header *)b)->type = OFPT_ECHO_REQUEST;
     ((struct ofp_header *)b)->xid = htonl(trans_id++);
-    write(ctx->control_fd, b,sizeof(struct ofp_hello));
-    //    oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
-    
+    oflops_send_of_mesg(ctx, b);
+    free(b);
+
     //arrange next echo 
     oflops_gettimeofday(ctx, &now);
-    //printf("send echo %d %d.%d\n", trans_id-1, now.tv_sec,  
-    //	  now.tv_usec); 
     add_time(&now, delay/1000000, delay%1000000);
     oflops_schedule_timer_event(ctx, &now, ECHO_REQUEST);
-    
+
   } else if(strcmp(str, SNMPGET) == 0) {
     for(i = 0; i < ctx->cpuOID_count; i++) {
       oflops_snmp_get(ctx, ctx->cpuOID[i], ctx->cpuOID_len[i]);
@@ -219,6 +226,12 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
   return 0;
 }
 
+/**
+ * \ingroup openflow_echo_delay
+ * handle of error messages
+ * \param ctx data context of module
+ * \param ofph a pointer to the data of the packet
+ */
 int
 of_event_other(oflops_context *ctx, struct ofp_header *ofph) {  
   struct ofp_error_msg *err_p = NULL;
@@ -226,23 +239,22 @@ of_event_other(oflops_context *ctx, struct ofp_header *ofph) {
   char msg[1024];
   oflops_gettimeofday(ctx, &now);
   switch(ofph->type) {
-  case OFPT_ERROR:
-    err_p = (struct ofp_error_msg *)ofph;
-    snprintf(msg, 1024, "OFPT_ERROR(type: %d, code: %d)", ntohs(err_p->type), ntohs(err_p->code));
-    oflops_log(now, OFPT_ERROR_MSG, msg);
-    fprintf(stderr, "%s\n", msg);
-    break;
-    //  case OFPT_ECHO_REPLY:
-/*     if((ntohl(ofph->xid) > 0) && (ntohl(ofph->xid) <= trans_id)) { */
-/*       oflops_gettimeofday(ctx, &echo_data[ntohl(ofph->xid)].rcv); */
-/*       echo_data_count++; */
-/*       printf("received echo reply %d %d.%d\n", ntohl(ofph->xid), echo_data[ntohl(ofph->xid)].rcv.tv_sec,  */
-/* 	     echo_data[ntohl(ofph->xid)].rcv.tv_usec); */
-/*     } */
+    case OFPT_ERROR:
+      err_p = (struct ofp_error_msg *)ofph;
+      snprintf(msg, 1024, "OFPT_ERROR(type: %d, code: %d)", ntohs(err_p->type), ntohs(err_p->code));
+      oflops_log(now, OFPT_ERROR_MSG, msg);
+      fprintf(stderr, "%s\n", msg);
+      break;
   }
   return 0;
 }
 
+/**
+ * \ingroup openflow_echo_delay
+ * handle echo requests and generates replies
+ * \param ctx data context of the module 
+ * \param ofph  pointer to the data of the of packet 
+ */
 int 
 of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph) {
   void *b;
@@ -256,6 +268,12 @@ of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph
   return 0;
 }
 
+/**
+ * \ingroup openflow_echo_delay
+ * handle asynchronous snmp replies and log data
+ * \param ctx data context of the module
+ * \param se data of the SNMP reply
+ */
 int 
 handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
   netsnmp_variable_list *vars;
@@ -268,53 +286,54 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
 
     for (i = 0; i < ctx->cpuOID_count; i++) {
       if((vars->name_length == ctx->cpuOID_len[i]) &&
-	 (memcmp(vars->name, ctx->cpuOID[i],  ctx->cpuOID_len[i] * sizeof(oid)) == 0) ) {
-	snprintf(log, len, "cpu:%ld:%d:%s",
-		 se->pdu->reqid, 
-		 (int)vars->name[ vars->name_length - 1], msg);
-	oflops_log(now, SNMP_MSG, log);
+          (memcmp(vars->name, ctx->cpuOID[i],  ctx->cpuOID_len[i] * sizeof(oid)) == 0) ) {
+        snprintf(log, len, "cpu:%ld:%d:%s",
+            se->pdu->reqid, 
+            (int)vars->name[ vars->name_length - 1], msg);
+        oflops_log(now, SNMP_MSG, log);
       }
     }
 
     for(i=0;i<ctx->n_channels;i++) {
       if((vars->name_length == ctx->channels[i].inOID_len) &&
-	 (memcmp(vars->name, ctx->channels[i].inOID,  
-		 ctx->channels[i].inOID_len * sizeof(oid)) == 0) ) {
-	snprintf(log, len, "port:rx:%ld:%d:%s",  
-		 se->pdu->reqid, 
-		 (int)(int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], msg);
-	oflops_log(now, SNMP_MSG, log);
-	break;
+          (memcmp(vars->name, ctx->channels[i].inOID,  
+                  ctx->channels[i].inOID_len * sizeof(oid)) == 0) ) {
+        snprintf(log, len, "port:rx:%ld:%d:%s",  
+            se->pdu->reqid, 
+            (int)(int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], msg);
+        oflops_log(now, SNMP_MSG, log);
+        break;
       }
-	
+
       if((vars->name_length == ctx->channels[i].outOID_len) &&
-	 (memcmp(vars->name, ctx->channels[i].outOID,  
-		 ctx->channels[i].outOID_len * sizeof(oid))==0) ) {
-	snprintf(log, len, "port:tx:%ld:%d:%s",  
-		 se->pdu->reqid, 
-		 (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], msg);
-	//	printf("port %d : tx %s pkts\n",  (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], msg);
-	oflops_log(now, SNMP_MSG, log);
-	break;
+          (memcmp(vars->name, ctx->channels[i].outOID,  
+                  ctx->channels[i].outOID_len * sizeof(oid))==0) ) {
+        snprintf(log, len, "port:tx:%ld:%d:%s",  
+            se->pdu->reqid, 
+            (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], msg);
+        oflops_log(now, SNMP_MSG, log);
+        break;
       }
     } //for
   }// if cpu
   return 0;
 }
 
+/**
+ * dummy traffic generation implementation 
+ * \param ctx data context of the module
+ */
 int
 handle_traffic_generation (oflops_context *ctx) {
-  //  struct traf_gen_det det;
-  //  struct in_addr ip_addr;
-
   init_traf_gen(ctx);  
   start_traffic_generator(ctx);
   return 1;
 }
 
 /**
- * Initialization code with parameters
- * @param ctx 
+ * initialization of the state of the module. 
+ * \param ctx data context of the module
+ * \param config_str a space seprate initialization string 
  */
 int init(struct oflops_context *ctx, char * config_str) {
   char *pos = NULL;
@@ -345,7 +364,6 @@ int init(struct oflops_context *ctx, char * config_str) {
     value = index(param,'=');
     *value = '\0';
     value++;
-    //fprintf(stderr, "param = %s, value = %s\n", param, value);
     if(value != NULL) {
       if(strcmp(param, "delay") == 0) {
         //parse int to get measurement probe rate
@@ -360,23 +378,30 @@ int init(struct oflops_context *ctx, char * config_str) {
   return 0;
 }
 
+/**
+ * \ingroup openflow_echo_delay
+ * setup a filter on the control channel to capture echo data.
+ * \param ctx data context of the module 
+ * \param ofc the id of the channel 
+ */
 int 
 get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc, 
-		char * filter, int buflen) {
+    char * filter, int buflen) {
   if (ofc == OFLOPS_CONTROL) {
     return snprintf(filter, buflen, "port %d",  ctx->listen_port);
   }
   return 0;
 }
 
-/** Handle pcap event.
+/**
+ * \ingroup openflow_echo_delay
+ * Handle pcap event.
  * @param ctx pointer to opaque context
  * @param pe pcap event
  * @param ch enumeration of channel that pcap event is triggered
  */
 int 
 handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_channel_name ch) {
-  //  char msg[1024];
   struct iphdr *ip_p;
   struct tcphdr *tcp_p;
   struct ofp_header *ofph;
@@ -398,23 +423,23 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
       return 0;
     }
 
-    
+    //as echo msg are, small  expect that the replies will not be spread in multiple packets
     ofph = (struct ofp_header *)(pe->data + sizeof(struct ether_header) +  
-				 4*ip_p->ihl + 4*tcp_p->doff);
+        4*ip_p->ihl + 4*tcp_p->doff);
     switch(ofph->type) {
-    case OFPT_ECHO_REQUEST:
-      if((ntohl(ofph->xid) > 0) && (ntohl(ofph->xid) <= trans_id)) {
-	echo_data_count++;
-	memcpy( &echo_data[ntohl(ofph->xid)].snd, &pe->pcaphdr.ts, sizeof(struct timeval));
-      }
-      break;
-    case OFPT_ECHO_REPLY:
-      if((ntohl(ofph->xid) > 0) && (ntohl(ofph->xid) <= trans_id)) {
-	memcpy( &echo_data[ntohl(ofph->xid)].rcv, &pe->pcaphdr.ts, sizeof(struct timeval));
-      }
-      break;      
+      case OFPT_ECHO_REQUEST:
+        if((ntohl(ofph->xid) > 0) && (ntohl(ofph->xid) <= trans_id)) {
+          echo_data_count++;
+          memcpy( &echo_data[ntohl(ofph->xid)].snd, &pe->pcaphdr.ts, sizeof(struct timeval));
+        }
+        break;
+      case OFPT_ECHO_REPLY:
+        if((ntohl(ofph->xid) > 0) && (ntohl(ofph->xid) <= trans_id)) {
+          memcpy( &echo_data[ntohl(ofph->xid)].rcv, &pe->pcaphdr.ts, sizeof(struct timeval));
+        }
+        break;      
     }
-      
+
 
   }
   return 0;
