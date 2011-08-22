@@ -23,26 +23,22 @@
 #include "utils.h"
 #include "context.h"
 
-/** @ingroup modules
+/**
+* \defgroup openflow_reactive
+* \ingroup modules
  * Openflow reactive.
  * A module to measure delay and swiutching perfomance of the openflow actions.
  * The rate, count and delay then determined.
  *
  * Copyright (C) University of Cambridge, 2011
- * @author crotsos
- * @date March, 2011
+ * \author crotsos
+ * \date March, 2011
  * 
- * @return name of module
+ * \return name of module
  */
 char * name() {
 	return "openflow_reactive";
 }
-
-/*
- * TODO:
- * - install singlw default route and at the event start sending the individual flows.
- * 
- */
 
 /** 
  * String for scheduling events
@@ -107,7 +103,7 @@ struct timeval *flow_send, *flow_controller,
 
 /**
  * Initialization
- * @param ctx pointer to opaque context
+ * \param ctx pointer to opaque context
  */
 int 
 start(struct oflops_context * ctx) {
@@ -177,8 +173,8 @@ int destroy(struct oflops_context *ctx) {
 }
 
 /** Handle timer event
- * @param ctx pointer to opaque context
- * @param te pointer to timer event
+ * \param ctx pointer to opaque context
+ * \param te pointer to timer event
  */
 int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {  
   char *str = te->arg; 
@@ -206,9 +202,9 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
 }
 
 /** Register pcap filter.
- * @param ctx pointer to opaque context
- * @param ofc enumeration of channel that filter is being asked for
- * @param filter filter string for pcap * @param buflen length of buffer
+ * \param ctx pointer to opaque context
+ * \param ofc enumeration of channel that filter is being asked for
+ * \param filter filter string for pcap * \param buflen length of buffer
  */
 int 
 get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc, 
@@ -220,9 +216,9 @@ get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc,
 }
 
 /** Handle pcap event.
- * @param ctx pointer to opaque context
- * @param pe pcap event
- * @param ch enumeration of channel that pcap event is triggered
+ * \param ctx pointer to opaque context
+ * \param pe pcap event
+ * \param ch enumeration of channel that pcap event is triggered
  */
 int 
 handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_channel_name ch) {
@@ -402,7 +398,7 @@ handle_traffic_generation (oflops_context *ctx) {
 
 /**
  * Initialization code with parameters
- * @param ctx 
+ * \param ctx 
  */
 int init(struct oflops_context *ctx, char * config_str) {
   char *pos = NULL;

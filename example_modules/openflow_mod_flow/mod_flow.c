@@ -24,19 +24,36 @@
 #include "context.h"
 
 /**
- * \defgroup openflow_mod_flow flow midificatoin
+ * \defgroup openflow_mod_flow flow modification
  * @ingroup modules
  * This module can be used to becnhmark the performance of the flow table 
  * modification implementation
+ * 
+ * Parameters:
+ * - pkt_size: This parameter can be used to control the length of the
+ * packets of the measurement probe. It allows indirectly to adjust the packet
+ * throughput of the experiment. The parameter uses bytes as measurement unit.
+ * The parameter applies for both measurement probes. 
+ * - probe_rate: The rate of the sequential probe, measured in Mbps. 
+ * - data_rate: The rate of the constant probe, measured in Mbps. 
+ * - flows:  The number of unique flows that the module will
+ * update/insert.
+ * - table:  This parameter controls whether the inserted flow will be
+ *  a wildcard(value of 1) or exact match(value of 0). For the wildcard flows, the
+ *  module wildcards all of the fields except the destination IP address. 
+ * - print: This parameter enables the measurement module to print
+ *  extended per packet measurement information. The information is printed in a
+ *  separate CSV file, named "action\_aggregate.log".
+*
  *
  * Copyright (C) t-labs, 2010
  * @author crotsos
  * @date June, 2010
  * 
-
+ */ 
 /**
-* \ingroup openflow_mod_flow
-* @return name of module
+ * \ingroup openflow_mod_flow
+ * @return name of module
  */
 char * name() {
   return "openflow_add_flow";
@@ -126,7 +143,7 @@ int *ip_received;
 int ip_received_count;
 
 /**
-* \ingroup openflow_mod_flow
+ * \ingroup openflow_mod_flow
  * Initialization
  * @param ctx pointer to opaque context
  */
@@ -350,14 +367,9 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
   } else if (strcmp(str, SND_ACT) == 0) {
     //first create new rules
     send_flow_mod = 1;
-    //if(table == 1)
-    //  inc = inc << 8;
     if(table == 0)
       fl_probe->mask = 0; //if table is 0 the we generate an exact match */
     else 
-      /* fl_probe->mask = OFPFW_DL_DST | OFPFW_DL_SRC | (32 << OFPFW_NW_SRC_SHIFT) |  */
-      /* 	(0 << OFPFW_NW_DST_SHIFT) | OFPFW_DL_VLAN | OFPFW_TP_DST | OFPFW_NW_PROTO |  */
-      /* 	OFPFW_TP_SRC | OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS; */
       fl_probe->mask = OFPFW_IN_PORT | OFPFW_DL_VLAN | OFPFW_TP_DST;
 
     oflops_gettimeofday(ctx, &flow_mod_timestamp);
@@ -368,7 +380,8 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
     ip_addr.s_addr =  ntohl(inet_addr(network));
     for(i=0; i< flows; i++) {
       fl_probe->nw_dst =  htonl(ip_addr.s_addr);
-      len = make_ofp_flow_modify_output_port(&b, fl_probe, ctx->channels[OFLOPS_DATA2].of_port, 1, 1200);
+      len = make_ofp_flow_modify_output_port(&b, fl_probe, ctx->channels[OFLOPS_DATA2].of_port, 
+          1, 1200);
       oflops_send_of_mesgs(ctx, b, len);
       free(b);
       ip_addr.s_addr++;
@@ -383,7 +396,7 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
 
     make_ofp_hello(&b); 
     ((struct ofp_header *)b)->type = OFPT_BARRIER_REQUEST; 
-    write(ctx->control_fd, b, sizeof(struct ofp_hello));
+    oflops_send_of_mesg(ctx, b);
     free(b);
     oflops_gettimeofday(ctx, &flow_mod_timestamp);
     oflops_log(flow_mod_timestamp, GENERIC_MSG, "END_FLOW_MOD");
@@ -413,7 +426,6 @@ int
 get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc, 
     char * filter, int buflen) {
   if (ofc == OFLOPS_CONTROL) {
-    //return 0;
     return snprintf(filter, buflen, "port %d",  ctx->listen_port);
   } else if ((ofc == OFLOPS_DATA1) ||  (ofc == OFLOPS_DATA2) ||  (ofc == OFLOPS_DATA3)) {
     return snprintf(filter, buflen, "udp");
@@ -451,14 +463,12 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
       //oflops_schedule_timer_event(ctx,&now, BYESTR);
     } else if ((flow_mod_timestamp.tv_sec > 0) &&  (ch == OFLOPS_DATA2)) {
       int id = ntohl(fl.nw_dst) - ntohl(inet_addr(network));
-      //printf("id %d %s\n", ip_received_count, inet_ntoa(addr));
       if ((id >= 0) && (id < flows) && (ip_received[id] == 0)) {
         ip_received_count++;
         ip_received[id] = 1; 
         in.s_addr = fl.nw_dst;
         snprintf(msg, 1024, "FLOW_INSERTED:%s", inet_ntoa(in));
         oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
-        //printf("%s\n", msg);
         if (ip_received_count >= flows) {
           printf("Received all packets to channel 2\n");
           snprintf(msg, 1024, "COMPLETE_INSERT_DELAY:%u", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
@@ -577,7 +587,6 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
         snprintf(log, len, "port:tx:%ld:%d:%s",  
             se->pdu->reqid, 
             (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], msg);
-        //	printf("port %d : tx %s pkts\n",  (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], msg);
         oflops_log(now, SNMP_MSG, log);
         break;
       }
@@ -596,12 +605,8 @@ handle_traffic_generation (oflops_context *ctx) {
   strcpy(det.dst_ip_min,"192.168.2.0");
 
   ip_addr.s_addr = ntohl(inet_addr("192.168.2.0"));
-  //if(table == 1)
-  //  ip_addr.s_addr += ((flows-1) << 8);
-  //else 
   ip_addr.s_addr += (flows-1);
   ip_addr.s_addr = htonl(ip_addr.s_addr);
-  //str_ip = inet_ntoa(ip_addr);
   strcpy(det.dst_ip_max,  inet_ntoa(ip_addr));
   if(ctx->trafficGen == PKTGEN)
     strcpy(det.mac_src,"00:00:00:00:00:00");
@@ -684,7 +689,6 @@ int init(struct oflops_context *ctx, char * config_str) {
     value = index(param,'=');
     *value = '\0';
     value++;
-    //fprintf(stderr, "param = %s, value = %s\n", param, value);
     if(value != NULL) {
       if(strcmp(param, "pkt_size") == 0) {
         //parse int to get pkt size

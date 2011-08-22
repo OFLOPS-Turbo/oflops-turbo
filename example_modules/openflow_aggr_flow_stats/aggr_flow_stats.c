@@ -391,7 +391,6 @@ int start(struct oflops_context * ctx)
   oflops_log(now,GENERIC_MSG , "Intializing module openflow_flow_dump_test");
 
   make_ofp_hello(&b);
-  //ret = write(ctx->control_fd, b, sizeof(struct ofp_hello));
   res = oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
   free(b);  
 

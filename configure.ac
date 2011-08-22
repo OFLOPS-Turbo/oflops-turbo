@@ -128,17 +128,14 @@ AC_CONFIG_FILES([Makefile \
                  example_modules/openflow_action_delay/Makefile \
                  example_modules/openflow_add_flow/Makefile \
                  example_modules/openflow_mod_flow/Makefile \
-                 example_modules/openflow_path_delay/Makefile \
                  example_modules/openflow_flow_stats/Makefile \
                  example_modules/openflow_aggr_flow_stats/Makefile \
                  example_modules/openflow_packet_in/Makefile \
                  example_modules/openflow_packet_out/Makefile \
-                 example_modules/openflow_port_status/Makefile \
                  example_modules/openflow_reactive/Makefile \
                  example_modules/openflow_timer/Makefile \
                  example_modules/snmp_queue_delay/Makefile \
                  example_modules/openflow_echo_delay/Makefile \
-                 example_modules/snmp_cpu/Makefile\
                  ])
 
 AC_OUTPUT

@@ -39,7 +39,7 @@
  * - table:  This parameter controls whether the inserted flow will be
  *  a wildcard(value of 1) or exact match(value of 0). For the wildcard flows, the
  *  module wildcards all of the fields except the destination IP address. 
- *  - print: This parameter enables the measurement module to print
+ * - print: This parameter enables the measurement module to print
  *  extended per packet measurement information. The information is printed in a
  *  separate CSV file, named "action\_aggregate.log".
  * 
@@ -361,7 +361,7 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
 
     make_ofp_hello(&b);
     ((struct ofp_header *)b)->type = OFPT_BARRIER_REQUEST;
-    write(ctx->control_fd, b, sizeof(struct ofp_hello));
+    oflops_send_of_mesg(ctx, b);
     free(b);
     oflops_gettimeofday(ctx, &flow_mod_timestamp);  
     oflops_log(flow_mod_timestamp, GENERIC_MSG, "END_FLOW_MOD");

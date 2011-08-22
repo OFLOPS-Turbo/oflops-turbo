@@ -410,7 +410,7 @@ int start(struct oflops_context * ctx)
  */
 int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
 {
-  int res = -1, len, i;
+  int res = -1, len, i, ret;
   void *b = NULL;
   char *str = te->arg;
   struct timeval now;
@@ -440,7 +440,8 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
     //reqp->match.wildcards = 0xFFFFFFFF;
     
     //send stats request
-    res = oflops_send_of_mesg(ctx, b);
+    ret = write(ctx->control_fd, b, len);
+    //res = oflops_send_of_mesg(ctx, b);
     free(b);
 
     //schedule next query
@@ -479,7 +480,8 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
       //intf("changing output port for ip %08x\n",  ntohl(fl.nw_dst));
       len = make_ofp_flow_modify_output_port(&b, &fl, ctx->channels[OFLOPS_DATA2].of_port, 1, 120);
       ((struct ofp_flow_mod *)b)->flags = 0;
-      oflops_send_of_mesgs(ctx, b, len);
+      ret = write(ctx->control_fd, b, len);
+      //oflops_send_of_mesgs(ctx, b, len);
       free(b);
     }
     oflops_gettimeofday(ctx, &flow_mod_timestamp);

@@ -23,13 +23,6 @@
 /** String for scheduling events
  */
 #define BYESTR "bye bye"
-#define WRITEPACKET "write packet"
-#define PRINTCOUNT "print"
-
-/** 
- * String for scheduling events
- */
-#define BYESTR "bye bye"
 #define SNMPGET "snmp get"
 
 /**
@@ -38,18 +31,10 @@
 #define MIN_PKT_SIZE 64
 #define MAX_PKT_SIZE 1500
 
-/**
- *
- */
-//uint64_t proberate = 100; 
-/**
- * calculated sending time interval (measured in usec). 
- */
+// calculated sending time interval (measured in usec). 
 uint64_t probe_snd_interval;
 
-/**
- * Number of flows to send. 
- */
+// Number of flows to send. 
 int flows = 100;
 char *cli_param;
 char *network = "192.168.3.0";
@@ -57,9 +42,8 @@ int pkt_size = 1500;
 int finished = 0;
 uint32_t pkt_in_count = 0;
 int print = 0;
-/**
- * Some constants to help me with conversions
- */
+
+// Some constants to help me with conversions
 const uint64_t sec_to_usec = 1000000;
 const uint64_t byte_to_bits = 8, mbits_to_bits = 1024*1024;
 
@@ -73,24 +57,44 @@ struct entry {
 }; 
 TAILQ_HEAD(tailhead, entry) head;
 
-/**@ingroup modules
- * Packet in module.
- * The module sends packet into a port to generate packet-in events.
- * The rate, count and delay then determined.
+/**
+ * \defgroup openflow_packet_in openflow packet in
+ * \ingroup modules
+ * A module to benchmark the packet_in functionality of an openflow implementation.
+ * the module generates traffic at user specified rates and measures the delay to receive
+ * packets on the control channel. 
  *
- * Copyright (C) University of Cambridge, Computer Lab, 2011
- * @author crotsos
- * @date September, 2009
+ * Parameters:
+ *
+ *    - pkt_size:  This parameter can be used to control the length of the
+ *   packets of the packet_out message in bytes. It allows indirectly to adjust the packet
+ * throughput of the experiment. (default 1500 bytes)
+ *    - probe_snd_interval: This parameter controls the data rate of the 
+ * measurement probe, in Mbps. (default 10Mbps)
+ *    - print: This parameter enables the measurement module to print
+ *   extended per packet measurement information. The information is printed in log
+ * file. (default 0)
  * 
- * @return name of module
+ * Copyright (C) University of Cambridge, Computer Lab, 2011
+ * \author crotsos
+ * \date March, 2011
+ * 
+ */
+
+/**
+ * \ingroup openflow_packet_in
+ * get the name of the module
+ * \return name of module
  */
 char * name()
 {
-	return "Pkt_in_module";
+  return "Pkt_in_module";
 }
 
-/** Initialization
- * @param ctx pointer to opaque context
+/**
+ * \ingroup openflow_packet_in
+ * empty flow tables and shcedule events.
+ * \param ctx pointer to opaque context
  */
 int start(struct oflops_context * ctx) {
   struct timeval now;
@@ -127,7 +131,7 @@ int start(struct oflops_context * ctx) {
   gettimeofday(&now, NULL);
   add_time(&now, 1, 0);
   oflops_schedule_timer_event(ctx,&now, SNMPGET);
- 
+
   //Schedule end
   gettimeofday(&now, NULL);
   add_time(&now, 60, 0);
@@ -136,8 +140,13 @@ int start(struct oflops_context * ctx) {
   return 0;
 }
 
-/** Handle timer  * @param ctx pointer to opaque context
- * @param te pointer to timer event
+/** 
+ * \ingroup openflow_packet_in
+ * Handle timer events
+ * - BYESTR: terminate module execution
+ * - SNMPGET: request SNMP counters
+ * \param ctx pointer to opaque context
+ * \param te pointer to timer event
  */
 int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
 {
@@ -147,7 +156,7 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
 
   gettimeofday(&now,NULL);
   str = (char *) te->arg;
- 
+
   if(!strcmp(str,SNMPGET)) {
     for(i=0;i<ctx->cpuOID_count;i++) {
       oflops_snmp_get(ctx, ctx->cpuOID[i], ctx->cpuOID_len[i]);
@@ -166,6 +175,11 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
   return 0;
 }
 
+/**
+ * \ingroup openflow_packet_in
+ * Calcute and log stats of packet_in packets
+ * \param ctx data context of the module 
+ */
 int 
 destroy(oflops_context *ctx) {
   struct entry *np;
@@ -182,25 +196,25 @@ destroy(oflops_context *ctx) {
   i=0;
   for (np = head.tqh_first; np != NULL; np = np->entries.tqe_next) {
     if(((int)time_diff(&np->snd, &np->rcv) < 0) || 
-       (time_diff(&np->snd, &np->rcv) < 0))
+        (time_diff(&np->snd, &np->rcv) < 0))
       continue;
     min_id = (np->id < min_id)?np->id:min_id;
     max_id = (np->id > max_id)?np->id:max_id;
-    
+
     data[i++] = (double)time_diff(&np->snd, &np->rcv);
     if(print) {
       snprintf(msg, 1024, "%lu.%06lu:%lu.%06lu:%d:%d",
-	       np->snd.tv_sec, np->snd.tv_usec,
-	       np->rcv.tv_sec, np->rcv.tv_usec,
-	       np->id, time_diff(&np->snd, &np->rcv)); 
+          np->snd.tv_sec, np->snd.tv_usec,
+          np->rcv.tv_sec, np->rcv.tv_usec,
+          np->id, time_diff(&np->snd, &np->rcv)); 
       oflops_log(now, OFPT_PACKET_IN_MSG, msg);
     }
     free(np);
   }
-  
+
   if(i > 0) {
     gsl_sort (data, 1, i);
-    
+
     //calculating statistical measures
     mean = (uint32_t)gsl_stats_mean(data, 1, i);
     variance = (uint32_t)gsl_stats_variance(data, 1, i);
@@ -208,29 +222,37 @@ destroy(oflops_context *ctx) {
     loss = (float)i/(float)(max_id - min_id);
 
     snprintf(msg, 1024, "statistics:%lu:%lu:%lu:%f:%d", (long unsigned)mean, (long unsigned)median, 
-	     (long unsigned)sqrt(variance), loss, i);
+        (long unsigned)sqrt(variance), loss, i);
     printf("statistics:%lu:%lu:%lu:%f:%d\n", (long unsigned)mean, (long unsigned)median, 
-	   (long unsigned)variance, loss, i);
+        (long unsigned)variance, loss, i);
     oflops_log(now, GENERIC_MSG, msg);
   }
   return 0;
 }
 
-/** Register pcap filter.
- * @param ctx pointer to opaque context
- * @param ofc enumeration of channel that filter is being asked for
- * @param filter filter string for pcap * @param buflen length of buffer
+/** 
+ * \ingroup openflow_packet_in
+ * define pcap filters for each channel 
+ * \param ctx pointer to opaque context
+ * \param ofc channel id
+ * \param filter buffer to store filter
+ * \param buflen max length of buffer
  */
 int 
 get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc, 
-		char * filter, int buflen) {
+    char * filter, int buflen) {
   // Aminor hack to make the extraction code work
   if (ofc == OFLOPS_DATA1)
     return snprintf(filter, buflen, "udp");
   return 0;
 }
 
-
+/**
+ * \ingroup openflow_packet_in
+ * handle packet_in packets received on the control channel
+ * \param ctx data context of module
+ * \pram pktin data of the openflow packet received
+ */
 int 
 of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * pktin) {
   struct flow fl;
@@ -242,7 +264,7 @@ of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * pkti
   oflops_gettimeofday(ctx, &now);
 
   pktgen = extract_pktgen_pkt(ctx, ntohs(pktin->in_port), pktin->data, 
-			      ntohs(pktin->total_len), &fl);
+      ntohs(pktin->total_len), &fl);
 
   addr.s_addr = fl.nw_src;
   if(fl.tp_src != 8080) {
@@ -254,7 +276,7 @@ of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * pkti
     return 0;
   }
   addr.s_addr = fl.nw_dst;
-  
+
   struct entry *n1 = xmalloc(sizeof(struct entry));
   n1->snd.tv_sec = pktgen->tv_sec;
   n1->snd.tv_usec = pktgen->tv_usec;
@@ -265,6 +287,12 @@ of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * pkti
   return 0;
 }
 
+/**
+ * \ingroup openflow_packet_in
+ * log SNMP replies
+ * \param ctx data context of module 
+ * \param se pointer to SNMP data 
+ */
 int 
 handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
   netsnmp_variable_list *vars;
@@ -276,39 +304,44 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
     snprint_value(msg, len, vars->name, vars->name_length, vars);
     for (i = 0; i < ctx->cpuOID_count; i++) {
       if((vars->name_length == ctx->cpuOID_len[i]) &&
-	 (memcmp(vars->name, ctx->cpuOID[i],  ctx->cpuOID_len[i] * sizeof(oid)) == 0) ) {
-	snprintf(log, len, "cpu:%ld:%d:%s",
-		 se->pdu->reqid, 
-		 (int)vars->name[ vars->name_length - 1],msg);
-	oflops_log(now, SNMP_MSG, log);
+          (memcmp(vars->name, ctx->cpuOID[i],  ctx->cpuOID_len[i] * sizeof(oid)) == 0) ) {
+        snprintf(log, len, "cpu:%ld:%d:%s",
+            se->pdu->reqid, 
+            (int)vars->name[ vars->name_length - 1],msg);
+        oflops_log(now, SNMP_MSG, log);
       }
     } 
-      
+
     for(i=0;i<ctx->n_channels;i++) {
       if((vars->name_length == ctx->channels[i].inOID_len) &&
-	 (memcmp(vars->name, ctx->channels[i].inOID,  
-		 ctx->channels[i].inOID_len * sizeof(oid)) == 0) ) {
-	snprintf(log, len, "port:rx:%ld:%d:%s",  
-		 se->pdu->reqid, 
-		 (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], msg);
-	oflops_log(now, SNMP_MSG, log);
-	break;
+          (memcmp(vars->name, ctx->channels[i].inOID,  
+                  ctx->channels[i].inOID_len * sizeof(oid)) == 0) ) {
+        snprintf(log, len, "port:rx:%ld:%d:%s",  
+            se->pdu->reqid, 
+            (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], msg);
+        oflops_log(now, SNMP_MSG, log);
+        break;
       }
-	
+
       if((vars->name_length == ctx->channels[i].outOID_len) &&
-	 (memcmp(vars->name, ctx->channels[i].outOID,  
-		 ctx->channels[i].outOID_len * sizeof(oid))==0) ) {
-	snprintf(log, len, "port:tx:%ld:%d:%s",  
-		 se->pdu->reqid, 
-		 (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], msg);
-	oflops_log(now, SNMP_MSG, log);
-	break;
+          (memcmp(vars->name, ctx->channels[i].outOID,  
+                  ctx->channels[i].outOID_len * sizeof(oid))==0) ) {
+        snprintf(log, len, "port:tx:%ld:%d:%s",  
+            se->pdu->reqid, 
+            (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], msg);
+        oflops_log(now, SNMP_MSG, log);
+        break;
       }
     } //for
   }
   return 0;
 }
 
+/**
+ * \ingroup openflow_packet_in
+ * Configure packet generator and start packet generation
+ * \param ctx data context of the module 
+ */
 int
 handle_traffic_generation (oflops_context *ctx) {
   struct traf_gen_det det;
@@ -333,14 +366,16 @@ handle_traffic_generation (oflops_context *ctx) {
   det.delay = probe_snd_interval*1000;
   strcpy(det.flags, "IPDST_RND");
   add_traffic_generator(ctx, OFLOPS_DATA1, &det);  
-  
+
   start_traffic_generator(ctx);
   return 1;
 }
 
 /**
- * Initialization code with parameters
- * @param ctx 
+ * \ingroup openflow_packet_in
+ * Initialization module with space separated string
+ * \param ctx data context of the module 
+ * \param config_str initiliazation string
  */
 int init(struct oflops_context *ctx, char * config_str) {
   char *pos = NULL;
@@ -379,36 +414,30 @@ int init(struct oflops_context *ctx, char * config_str) {
         if((pkt_size < MIN_PKT_SIZE) && (pkt_size > MAX_PKT_SIZE))
           perror_and_exit("Invalid packet size value", 1);
       }  else 
-/* 	if(strcmp(param, "probe_rate") == 0) { */
-/*         //parse int to get measurement probe rate */
-/*         proberate = strtol(value, NULL, 0); */
-/*         if((proberate <= 0) || (proberate >= 1010))  */
-/*           perror_and_exit("Invalid probe rate param(Value between 1 and 1010)", 1); */
-/*       } else */ 
-	if(strcmp(param, "probe_snd_interval") == 0) {
-	  //parse int to get measurement probe rate
-	  probe_snd_interval = strtol(value, NULL, 0);
-	  if(( probe_snd_interval <= 0)) 
-          perror_and_exit("Invalid probe rate param(Value larger than 0)", 1);
-	} else 
-	  
-	  if(strcmp(param, "flows") == 0) {
-	    //parse int to get pkt size
-	    flows = strtol(value, NULL, 0);
-	    if(flows <= 0)  
-	      perror_and_exit("Invalid flow number", 1);
-      } else if(strcmp(param, "print") == 0) {
-	    //parse int to get pkt size
-	    print = strtol(value, NULL, 0);
-      } else 
-	    fprintf(stderr, "Invalid parameter:%s\n", param);
-      param = pos;
+        if(strcmp(param, "probe_snd_interval") == 0) {
+          //parse int to get measurement probe rate
+          probe_snd_interval = strtol(value, NULL, 0);
+          if(( probe_snd_interval <= 0)) 
+            perror_and_exit("Invalid probe rate param(Value larger than 0)", 1);
+        } else 
+
+          if(strcmp(param, "flows") == 0) {
+            //parse int to get pkt size
+            flows = strtol(value, NULL, 0);
+            if(flows <= 0)  
+              perror_and_exit("Invalid flow number", 1);
+          } else if(strcmp(param, "print") == 0) {
+            //parse int to get pkt size
+            print = strtol(value, NULL, 0);
+          } else 
+            fprintf(stderr, "Invalid parameter:%s\n", param);
+          param = pos;
     }
   } 
 
   //calculate sendind interval
   //probe_snd_interval = (pkt_size * byte_to_bits * sec_to_usec) / (proberate * mbits_to_bits);
   fprintf(stderr, "Sending probe interval : %u usec (pkt_size: %u bytes )\n", 
-	  (uint32_t)probe_snd_interval, (uint32_t)pkt_size);
+      (uint32_t)probe_snd_interval, (uint32_t)pkt_size);
   return 0;
 }
