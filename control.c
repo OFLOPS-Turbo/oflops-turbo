@@ -82,6 +82,31 @@ int setup_control_channel(oflops_context *ctx)
   fprintf( stderr, "Got connection from %s:%d \n",
       buf, htons(sin.sin_port));
   fprintf( stderr, "Setting control channel to non-blocking\n");
+/*
+  struct ofp_header b;
+  int count;
+//  uint8_t *buf;
+  do {
+  count = read(ctx->control_fd, &b, sizeof(struct ofp_header));
+
+  //a dirty method to remove a non hello packet from the socket stream
+  if(ntohs(b.length) > sizeof(struct ofp_header)) {
+    count = sizeof(struct ofp_header);
+//    buf = (uint8_t *)malloc(ntohs(b.length) * sizeof(uint8_t));
+    while( (count += read(ctx->control_fd, buf, ntohs(b.length) - count)) < ntohs(b.length) );
+//    free(buf);
+  }
+  }while(b.type != OFPT_HELLO);
+
+  write(ctx->control_fd, &b, sizeof(struct ofp_header));
+*/
+/*
+  void *b;
+  make_ofp_hello(&b);
+  ((struct ofp_header *)b)->xid = 0x12345;
+  free(b);
+*/
+
   flags = O_NONBLOCK;
   if(fcntl(ctx->control_fd, F_SETFL, flags))
     perror_and_exit("Dying on fcntl(control, O_NONBLOCK)",1);

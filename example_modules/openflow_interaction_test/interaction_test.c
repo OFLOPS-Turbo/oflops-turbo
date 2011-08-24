@@ -25,7 +25,6 @@
  */
 #define BYESTR "bye bye"
 #define GETSTAT "getstat"
-#define SND_PKT "send pkt"
 #define SNMPGET "snmp get"
 #define SND_ACT "send action"
 
@@ -68,6 +67,8 @@ uint64_t proberate = 100;
 /** pkt sizes. 
  */
 uint64_t pkt_size = 1500;
+
+//internat state of the module
 int finished; 
 int poll_started = 0;
 int send_flow_mod = 0, stored_flow_mod_time = 0;
@@ -79,12 +80,14 @@ int first_pkt = 0;
 uint64_t data_snd_interval;
 uint64_t probe_snd_interval;
 
+//stoer when events happened
 struct timeval stats_start;
 struct timeval flow_mod_timestamp;
 int trans_id=0;
 
 char *logfile = LOG_FILE;
 
+//a struct to store stats details
 struct stats_entry {
   struct timeval rcv,snd;
   int pkt_count;
@@ -92,21 +95,35 @@ struct stats_entry {
 
 int stats_count = 0;
 
-// control whether detailed packet information is printed
+// control whether detailed packet information is printed and 
+// whether the flow are exact match
 int print = 0, table = 0;
 
 //the local mac address of the probe 
 char data_mac[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
-
 int *ip_received;
 int ip_received_count;
 
-/** @ingroup modules
- * Packet in module.
- * The module sends packet into a port to generate packet-in events.
- * The rate, count and delay then determined.
- *
+/** \defgroup openflow_interaction_test
+ * \ingroup modules
+*
+* Parameters:
+*
+*   - pkt_size: This parameter can be used to control the length of the
+*  packets of the measurement probe. It allows indirectly to adjust the packet
+*  throughput of the experiment. The parameter uses bytes as measurement unit.
+*  The parameter applies for both measurement probes.
+*   - probe_rate: The rate of the sequential probe, measured in
+*  Mbps.
+*   - data_rate: The rate of the constant probe, measured in Mbps.
+*   - flows:  The number of unique flows that the module will
+*  update/insert.
+*   - table:  This parameter controls whether the inserted flow will
+*  be  a wildcard(value of 1) or exact match(value of 0). For the wildcard 
+*  flows, the module wildcards all of the fields except the destination IP address.
+*
+*
  * Copyright (C) t-labs, 2010
  * @author crotsos
  * @date June, 2010
@@ -118,6 +135,12 @@ char * name()
   return "openflow_interaction_test";
 }
 
+/**
+* \ingroup openflow_interaction_test
+* parse initialisation string and init parameters
+* \param ctx data context of module
+* \param config_str a space separated initialization sting string 
+*/
 int init(struct oflops_context *ctx, char * config_str) {
   char *pos = NULL;
   char *param = config_str;
@@ -246,9 +269,7 @@ int destroy(struct oflops_context *ctx) {
      	    (uint32_t)stats_counter[i].rcv.tv_usec,
 	     (uint32_t)time_diff(&stats_counter[i].snd,  
      		     &stats_counter[i].rcv));
-    //printf("%s\n", msg);
     oflops_log(now, GENERIC_MSG, msg);
-    //free(stats_np);
   }
   
   if(ix[0] > 0) {
@@ -267,7 +288,9 @@ int destroy(struct oflops_context *ctx) {
   return 0;
 }
 
-/** Initialization
+/**
+* \ingroup openflow_interaction_test
+* init flow table and schedule oflops events
  * @param ctx pointer to opaque context
  */
 int start(struct oflops_context * ctx)
@@ -390,7 +413,7 @@ int start(struct oflops_context * ctx)
 
   //send the flow modyfication command in 30 seconds. 
   gettimeofday(&now, NULL);
-  add_time(&now, 60, 0);
+  add_time(&now, 20, 0);
   oflops_schedule_timer_event(ctx,&now, SND_ACT);
 
   //get port and cpu status from switch 
@@ -404,7 +427,9 @@ int start(struct oflops_context * ctx)
   return 0;
 }
 
-/** Handle timer event
+/**
+* \ingroup openflow_interaction_test
+* Handle timer event
  * @param ctx pointer to opaque context
  * @param te pointer to timer event
  */
@@ -419,6 +444,7 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
   struct ofp_flow_stats_request *reqp;
   struct flow fl;
   struct in_addr ip_addr;
+  struct pollfd * poll_set = malloc(sizeof(struct pollfd));
 
   //send flow statistics request. 
   if(strcmp(str, GETSTAT) == 0) {
@@ -430,14 +456,8 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
     }
     memcpy(&stats_counter[trans_id].snd, &te->sched_time, sizeof(struct timeval));
     bzero(&stats_counter[trans_id].rcv, sizeof(struct timeval));
-    //oflops_log(te->sched_time, OFPT_STATS_REQUEST_FLOW, msg);
     //create generic statrequest message
-    //len = make_ofp_flow_get_stat(&b, trans_id++);
     len = make_ofp_aggr_flow_stats(&b, trans_id++);
-    //reqp = (struct ofp_flow_stats_request *)(b + sizeof(struct ofp_stats_request));
-    
-    //set the query mask
-    //reqp->match.wildcards = 0xFFFFFFFF;
     
     //send stats request
     ret = write(ctx->control_fd, b, len);
@@ -477,7 +497,16 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
     ip_addr.s_addr =  ntohl(inet_addr(network));
     for(i=0; i< flows; i++) {
       fl.nw_dst =   htonl(ntohl(inet_addr(network)) + i);
-      //intf("changing output port for ip %08x\n",  ntohl(fl.nw_dst));
+      do {
+        bzero(poll_set, sizeof(struct pollfd));
+        poll_set[0].fd = ctx->control_fd;
+        poll_set[0].events = POLLOUT;
+        ret = poll(poll_set, 1, -1);
+      } while ((ret == 0) || ((ret > 0) && !(poll_set[0].revents & POLLOUT)) );
+    
+      if(( ret == -1 ) && ( errno != EINTR))
+        perror_and_exit("poll",1);
+
       len = make_ofp_flow_modify_output_port(&b, &fl, ctx->channels[OFLOPS_DATA2].of_port, 1, 120);
       ((struct ofp_flow_mod *)b)->flags = 0;
       ret = write(ctx->control_fd, b, len);
@@ -487,6 +516,7 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
     oflops_gettimeofday(ctx, &flow_mod_timestamp);
     make_ofp_hello(&b);
     ((struct ofp_header *)b)->type = OFPT_BARRIER_REQUEST;
+    ret = write(ctx->control_fd, b, sizeof(struct ofp_header));
     free(b);  
     stored_flow_mod_time = 1; 
     printf("pcap flow modification send %lu.%06lu %d\n",  flow_mod_timestamp.tv_sec, flow_mod_timestamp.tv_usec, table); 
@@ -506,6 +536,12 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te)
   return 0;
 }
 
+/**
+* \ingroup openflow_interaction_test
+* log information from asynchronous snmp queries
+* \param ctx data context of the module
+* \param se the snmp message
+*/
 int 
 handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
   netsnmp_variable_list *vars;
@@ -550,21 +586,21 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
 
 /** Register pcap filter.
  * @param ctx pointer to opaque context
- * @param ofc e
-      printf("%s\n", msg);numeration of channel that filter is being asked for
+ * @param ofc enumeration of channel that filter is being asked for
  * @param filter filter string for pcap
  * @param buflen length of buffer
  */
 int get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc, char * filter, int buflen)
 {
-  if (ofc == OFLOPS_DATA2) {
+  if (ofc == OFLOPS_DATA2) 
     return snprintf(filter,buflen,"udp");
-    return 0;
-  }
+  
   return 0;
 }
 
-/** Handle pcap event.
+/**
+* \ingroup openflow_interaction_test
+* Handle pcap event.
  * @param ctx pointer to opaque context
  * @param pe pcap event
  * @param ch enumeration of channel that pcap event is triggered
@@ -578,8 +614,7 @@ int handle_pcap_event(struct oflops_context *ctx, struct pcap_event *pe,
   struct timeval now;
 
   pktgen = extract_pktgen_pkt(ctx, ch, (unsigned char *)pe->data, pe->pcaphdr.caplen, &fl);
-  
-  if ((pktgen != NULL) && (ch == OFLOPS_DATA2) ) { //&& (stored_flow_mod_time)) {
+  if ((pktgen != NULL) && (ch == OFLOPS_DATA2) ) { 
     addr.s_addr = fl.nw_dst;
     if(!first_pkt) {
       printf("INSERT_DELAY:%d:%s\n", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts), inet_ntoa(addr));
@@ -609,6 +644,11 @@ int handle_pcap_event(struct oflops_context *ctx, struct pcap_event *pe,
   return 0;
 }
 
+/**
+* \ingroup openflow_interaction_test
+* setup 2 measurement probes
+* \param ctx data context of the module
+*/
 int
 handle_traffic_generation (oflops_context *ctx) {
   struct traf_gen_det det;
@@ -616,16 +656,34 @@ handle_traffic_generation (oflops_context *ctx) {
   struct in_addr ip;
   init_traf_gen(ctx);
 
+  //measurement probe
+  ip.s_addr = ntohl(inet_addr("192.168.2.0")) + (flows);
+  str_ip = inet_ntoa(ip); 
+  strcpy(det.dst_ip_min,  inet_ntoa(ip)); 
+  ip.s_addr = htonl(ntohl(inet_addr("192.168.2.0")) + total_flows - 1); 
+  strcpy(det.dst_ip_max,  inet_ntoa(ip)); 
+  if(ctx->trafficGen == PKTGEN) 
+    strcpy(det.mac_src,"00:00:00:00:00:00");
+    else  
+    snprintf(det.mac_src, 20, "%02x:%02x:%02x:%02x:%02x:%02x", 
+   	     (unsigned char)data_mac[0], (unsigned char)data_mac[1],  
+   	     (unsigned char)data_mac[2], (unsigned char)data_mac[3],  
+   	     (unsigned char)data_mac[4], (unsigned char)data_mac[5]); 
+  strcpy(det.mac_dst,"00:15:17:7b:92:0a"); 
+  det.vlan = 0xffff; 
+  det.delay = probe_snd_interval*1000; 
+  strcpy(det.flags, "IPDST_RND"); 
+  add_traffic_generator(ctx, OFLOPS_DATA2, &det); 
+
   //background data
   strcpy(det.src_ip,"10.1.1.1");
   strcpy(det.dst_ip_min,"192.168.2.0");
 
   ip.s_addr = ntohl(inet_addr("192.168.2.0")) + (flows - 1);
   ip.s_addr = htonl(ip.s_addr);
-  str_ip = inet_ntoa(ip);
-  strcpy(det.dst_ip_max, str_ip);
+  strcpy(det.dst_ip_max, inet_ntoa(ip));
   if(ctx->trafficGen == PKTGEN)
-    strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
+    strcpy(det.mac_src,"00:00:00:00:00:00");
   else 
     snprintf(det.mac_src, 20, "%02x:%02x:%02x:%02x:%02x:%02x",
 	     (unsigned char)data_mac[0], (unsigned char)data_mac[1], 
@@ -633,7 +691,6 @@ handle_traffic_generation (oflops_context *ctx) {
 	     (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
   
   strcpy(det.mac_dst,"00:15:17:7b:92:0a");
-  //strcpy(det.mac_dst,"00:1e:68:9a:c5:75");
   det.vlan = 0xffff;
   det.vlan_p = 1;
   det.vlan_cfi = 0;
@@ -644,29 +701,16 @@ handle_traffic_generation (oflops_context *ctx) {
   strcpy(det.flags, "");
   add_traffic_generator(ctx, OFLOPS_DATA1, &det);
 
-  //measurement probe
-  ip.s_addr =  htonl(ntohl(ip.s_addr) + 1); 
-  str_ip = inet_ntoa(ip); 
-  strcpy(det.dst_ip_min, str_ip); 
-  ip.s_addr = htonl(ntohl(inet_addr("192.168.2.0")) + total_flows - 1); 
-  str_ip = inet_ntoa(ip); 
-  strcpy(det.dst_ip_max,str_ip); 
-  if(ctx->trafficGen == PKTGEN) 
-    strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74"); 
-  else  
-    snprintf(det.mac_src, 20, "%02x:%02x:%02x:%02x:%02x:%02x", 
-   	     (unsigned char)data_mac[0], (unsigned char)data_mac[1],  
-   	     (unsigned char)data_mac[2], (unsigned char)data_mac[3],  
-   	     (unsigned char)data_mac[4], (unsigned char)data_mac[5]); 
-  strcpy(det.mac_dst,"00:15:17:7b:92:0a"); 
-  det.vlan = 0xffff; 
-  det.delay = probe_snd_interval*1000; 
-  strcpy(det.flags, "IPDST_RND"); 
-  add_traffic_generator(ctx, OFLOPS_DATA2, &det); 
   start_traffic_generator(ctx);
   return 1;
 }
 
+/**
+* \ingroup openflow_interaction_test
+* log information for barrier reply and openflow stats replies
+* \param ctx data context of the module
+* \param ofph the data of the openflow packet 
+*/
 int
 of_event_other(struct oflops_context *ctx, const struct ofp_header * ofph) {
   struct timeval now;
@@ -678,19 +722,19 @@ of_event_other(struct oflops_context *ctx, const struct ofp_header * ofph) {
     stats_counter[ntohl(ofph->xid)].pkt_count++;
     if(ntohs(ofpr->type) == OFPST_FLOW) {
       if(!(ntohs(ofpr->flags) & OFPSF_REPLY_MORE)) {
-	//sprintf(msg, "%d", ntohl(ofph->xid));
-	gettimeofday(&now, NULL);
-	//oflops_log(now, OFPT_STATS_REPLY_FLOW, msg);
+	oflops_gettimeofday(&now, NULL);
 	memcpy(&stats_counter[ntohl(ofph->xid)].rcv, &now, sizeof(struct timeval));
 	stats_count++;
       }
     }
   } else if (ofph->type == OFPT_ERROR) {
+    oflops_gettimeofday(&now, NULL);
     err_p = (struct ofp_error_msg *)ofph;
     sprintf(msg, "OFPT_ERROR(type: %d, code: %d)", ntohs(err_p->type), ntohs(err_p->code));
     oflops_log(now, OFPT_ERROR_MSG, msg);
     fprintf(stderr, "%s\n", msg);
   } else if (ofph->type == OFPT_BARRIER_REPLY) {
+    oflops_gettimeofday(&now, NULL);
     snprintf(msg, 1024, "BARRIER_DELAY:%d", time_diff(&flow_mod_timestamp, &now));
     oflops_log(now, GENERIC_MSG, msg);
     printf("BARRIER_DELAY:%d\n",  time_diff(&flow_mod_timestamp, &now));

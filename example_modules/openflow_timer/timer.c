@@ -24,12 +24,22 @@
 #include "context.h"
 
 /**
- * \defgroup openflow_timer
+ * \defgroup openflow_timer openflow timer test
  * \ingroup modules
- * Openflow action install.
- * A module to measure delay and swiutching perfomance of the openflow actions.
- * The rate, count and delay then determined.
+ * A module to benchamrk the accuracy of the timers of the switch 
+ * 
+ * Paramters:
  *
+ *   - pkt_size: This parameter can be used to control the length of the
+ *  packets of the measurement probe. It allows indirectly to adjust the packet
+ *  throughput of the experiment. The parameter uses bytes as measurement unit.
+ *   - probe_rate: The rate of the measurement probe, measured in Mbps. 
+ *   - flows: The number of unique flows that the measurement flows will
+ *  generate.
+ *   - print:  This parameter enables the measurement module to print
+ *  extended per flow measurement information. The information is printed in log
+ *  file.
+ * 
  * Copyright (C) t-labs, 2010
  * \author crotsos
  * \date June, 2010
@@ -341,6 +351,7 @@ handle_traffic_generation (oflops_context *ctx) {
 int count = 0;
 /**
  * \ingroup openflow_timer
+ * log flow removal events in order to quantify the accuracy of the counter
  */
 int 
 of_event_flow_removed(struct oflops_context *ctx, const struct ofp_flow_removed * ofph) {  

@@ -129,7 +129,7 @@ static void test_module_loop(oflops_context *ctx, test_module *mod)
       }
       poll_set[n_fds].fd = ctx->control_fd;	// add the control channel at the end
       poll_set[n_fds].events = POLLIN;
-      if ( msgbuf_count_buffered(ctx->control_outgoing) > 0)
+      //if ( msgbuf_count_buffered(ctx->control_outgoing) > 0)
 	poll_set[n_fds].events |= POLLOUT;
       n_fds++;
 
@@ -156,7 +156,7 @@ static void test_module_loop(oflops_context *ctx, test_module *mod)
 	timer_run_next_event(ctx);
 	next_event = timer_get_next_event(ctx);
 	}*/
-      ret = poll(poll_set, n_fds, -1); //next_event);
+      ret = poll(poll_set, n_fds, 1); //next_event);
 
       if(( ret == -1 ) && ( errno != EINTR))
 	perror_and_exit("poll",1);

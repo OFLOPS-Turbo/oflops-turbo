@@ -44,7 +44,7 @@
  * - print: This parameter enables the measurement module to print
  *  extended per packet measurement information. The information is printed in a
  *  separate CSV file, named "action\_aggregate.log".
-*
+ *
  *
  * Copyright (C) t-labs, 2010
  * @author crotsos
@@ -193,9 +193,6 @@ start(struct oflops_context * ctx) {
   if(table == 0)
     fl->mask = 0; //if table is 0 the we generate an exact match */
   else 
-    /* fl->mask =   OFPFW_DL_DST | OFPFW_DL_SRC | (32 << OFPFW_NW_SRC_SHIFT) |  */
-    /*   (0 << OFPFW_NW_DST_SHIFT) | OFPFW_DL_VLAN | OFPFW_TP_DST | OFPFW_NW_PROTO |  */
-    /*   OFPFW_TP_SRC | OFPFW_DL_VLAN_PCP | OFPFW_NW_TOS; */
     fl->mask =  OFPFW_IN_PORT | OFPFW_DL_VLAN | OFPFW_TP_DST;
 
   fl->in_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
@@ -347,7 +344,9 @@ int destroy(struct oflops_context *ctx) {
   return 0;
 }
 
-/** Handle timer event
+/**
+ * \ingroup openflow_mod_flow
+ * Handle timer event
  * @param ctx pointer to opaque context
  * @param te pointer to timer event
  */
@@ -417,7 +416,9 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
   return 0;
 }
 
-/** Register pcap filter.
+/**
+ * \ingroup openflow_mod_flow
+ * Register pcap filter from control and all data channel
  * @param ctx pointer to opaque context
  * @param ofc enumeration of channel that filter is being asked for
  * @param filter filter string for pcap * @param buflen length of buffer
@@ -433,7 +434,9 @@ get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc,
   return 0;
 }
 
-/** Handle pcap event.
+/**
+ * \ingroup openflow_mod_flow
+ * Handle pcap event.
  * @param ctx pointer to opaque context
  * @param pe pcap event
  * @param ch enumeration of channel that pcap event is triggered
@@ -499,6 +502,12 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
   return 0;
 }
 
+/**
+ * \ingroup openflow_mod_flow
+ * handle error and barrier replies on the control channel
+ * \param ctx data context of the module
+ * \param ofph openflow data packet
+ */
 int
 of_event_other(oflops_context *ctx, struct ofp_header *ofph) {  
   struct ofp_error_msg *err_p = NULL;
@@ -537,6 +546,12 @@ of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * pkt_
   return 0;
 }
 
+/**
+ * \ingroup openflow_mod_flow
+ * reply appropriately to echo request in order to keep the control channel open
+ * \param ctx data context of the module
+ * \param ofph data of the openflow echo request
+ */
 int 
 of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph) {
   void *b;
@@ -550,6 +565,12 @@ of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph
   return 0;
 }
 
+/**
+ * \ingroup openflow_mod_flow
+ * log asynchronous SNMP replies
+ * \param ctx data ctontext of the module
+ * \param se snmp packet
+ */
 int 
 handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
   netsnmp_variable_list *vars;
@@ -595,6 +616,11 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
   return 0;
 }
 
+/**
+ * \ingroup openflow_mod_flow
+ * generate 2 measreument probe (constant and sequential)
+ * \param ctx data context of the module
+ */
 int
 handle_traffic_generation (oflops_context *ctx) {
   struct traf_gen_det det;
@@ -654,7 +680,8 @@ handle_traffic_generation (oflops_context *ctx) {
 }
 
 /**
- * Initialization code with parameters
+ * \ingroup openflow_mod_flow
+ * Initialization module with parameters
  * @param ctx 
  */
 int init(struct oflops_context *ctx, char * config_str) {

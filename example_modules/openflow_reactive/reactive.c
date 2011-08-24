@@ -27,13 +27,31 @@
 * \defgroup openflow_reactive
 * \ingroup modules
  * Openflow reactive.
- * A module to measure delay and swiutching perfomance of the openflow actions.
- * The rate, count and delay then determined.
+ * A module to benchmark how the flow insertion delay scales depending on the number 
+ * concurent ionserted flow. The measurement includes both the delay to generate the packet_out 
+ * event and the delay to install the flow 
+ *
+ * Parameters:
+*
+*   - pkt_size: This parameter can be used to control the length of the
+*  packets of the measurement probe. It allows indirectly to adjust the packet
+*  throughput of the experiment. The parameter uses bytes as measurement unit.
+*   - probe_rate: The rate of the measurement probe, measured in Mbps. 
+*   - flows: The number of unique flows that the measurement flows will
+*  generate.
+*   - print:  This parameter enables the measurement module to print
+*  extended per flow measurement information. The information is printed in log
+*  file.
+*
  *
  * Copyright (C) University of Cambridge, 2011
  * \author crotsos
  * \date March, 2011
- * 
+ *
+*/
+
+ /**
+* \ingroup openflow_reactive 
  * \return name of module
  */
 char * name() {
@@ -102,7 +120,8 @@ struct timeval *flow_send, *flow_controller,
   *flow_received;
 
 /**
- * Initialization
+* \ingroup openflow_reactive
+ * cleanup flow table and schedule events
  * \param ctx pointer to opaque context
  */
 int 
@@ -150,6 +169,11 @@ start(struct oflops_context * ctx) {
   return 0;
 }
 
+/**
+* \ingroup openflow_reactive
+  * calculate the insertion statistics
+  * \param ctx data context of the module
+*/
 int destroy(struct oflops_context *ctx) {
   char msg[1024];
   int i;
@@ -172,7 +196,9 @@ int destroy(struct oflops_context *ctx) {
   return 0;
 }
 
-/** Handle timer event
+/** 
+* \ingroup openflow_reactive
+* Handle timer event
  * \param ctx pointer to opaque context
  * \param te pointer to timer event
  */
@@ -201,7 +227,9 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
   return 0;
 }
 
-/** Register pcap filter.
+/**
+* \ingroup openflow_reactive
+* Register pcap filter.
  * \param ctx pointer to opaque context
  * \param ofc enumeration of channel that filter is being asked for
  * \param filter filter string for pcap * \param buflen length of buffer
@@ -215,7 +243,9 @@ get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc,
     return 0;
 }
 
-/** Handle pcap event.
+/**
+* \ingroup openflow_reactive
+* Handle pcap event.
  * \param ctx pointer to opaque context
  * \param pe pcap event
  * \param ch enumeration of channel that pcap event is triggered
@@ -252,6 +282,12 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
   return 0;
 }
 
+/**
+* \ingroup openflow_reactive
+* handle packet_in events
+* \param ctx data context of the module
+* \param pkt_in openflow packet data
+*/
 int 
 of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * pkt_in) {  
   struct flow fl;
@@ -299,6 +335,13 @@ of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * pkt_
   return 0;
 }
 
+
+/**
+* \ingroup openflow_reactive
+* reply appropriately to echo request events
+* \param ctx data context of the module
+* \param ofph openflow header data
+*/
 int 
 of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph) {
   void *b;
@@ -312,6 +355,12 @@ of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph
   return 0;
 }
 
+/**
+* \ingroup openflow_reactive
+* log asynchronous SNMP replies
+* \param ctx data context of the module
+* \param se SNMP packet data
+*/
 int 
 handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
   netsnmp_variable_list *vars;
@@ -358,6 +407,11 @@ handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
   return 0;
 }
 
+/**
+* \ingroup openflow_reactive
+* generate a single sequential measurement probe
+* \param ctx data context of the module
+*/
 int
 handle_traffic_generation (oflops_context *ctx) {
   struct traf_gen_det det;
@@ -397,6 +451,7 @@ handle_traffic_generation (oflops_context *ctx) {
 }
 
 /**
+* \ingroup openflow_reactive
  * Initialization code with parameters
  * \param ctx 
  */

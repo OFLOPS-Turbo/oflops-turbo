@@ -436,7 +436,6 @@ int init(struct oflops_context *ctx, char * config_str) {
   } 
 
   //calculate sendind interval
-  //probe_snd_interval = (pkt_size * byte_to_bits * sec_to_usec) / (proberate * mbits_to_bits);
   fprintf(stderr, "Sending probe interval : %u usec (pkt_size: %u bytes )\n", 
       (uint32_t)probe_snd_interval, (uint32_t)pkt_size);
   return 0;
