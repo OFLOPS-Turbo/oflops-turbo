@@ -3,7 +3,7 @@
 \usepackage[pdftex]{graphicx}
 \usepackage{listings}
 \usepackage{url}
-
+\usepackage{listings}
 \title{OFLOPS: User manual}
 \date{\today}
 
@@ -680,11 +680,228 @@ measurement probe, in Mbps. (default 10Mbps)
   \chapter{Developing OFLOPS modules}
 
 \section{OFLOPS API design}
+
+OFLOPS is an event driven modular platform. Its main focus is to allow rapid development
+of Openflow usage scenarios. In order to achieve this, the code is split in two parts: The main 
+platform and the modules. The main platform is repsonsible to implement a basic functionality for an
+openflow controller. It implements code that initializes a  control channel with the switch,
+an asynchronous SNMP client, a simplistic traffic generator and a high precision traffic generator. On the other
+hand, the module contain all the scenari specific code. The platform is responsible to abstract to a higher 
+level the OpenFlow interaction and can tae advantage of this functionality in order to implement with little
+code complex experiments. In this section I will cover the details on how to develop an OFLOPS module.
+
 \section{Module life-cycle}
-\section{OFLOPS Events}
-\subsection{Timer Events}
+
+The design that we have chosen for the OFLOPS module functionality is build around dynamic linking. Each module
+is compiled as a run time loadable library. Each module, in order to permit to the main platform to push event,
+must implement specific functions in its code. Each OFLOPS module can be seen as a set of implementations of 
+specific function signatures, along with a scenario specific internal module state. 
+
+The module lifecycle consist of 4 different phases, over which the main platform will interact with the module 
+using different methods:
+1) \textit{Bootstrap}: In this phase OFLOPS will call the init function of the module and pass as a argument
+the initialization string that the user provides throught the configuration file. The module is responsible to 
+allocate and initiliaze all the internal variables of the module. 
+2) \textit{Intialization}: In this phase the OFLOPS platform has setup a control channel with the switch but hasn't 
+start to interact with the switch and run the various threads of the module. In this phase the module is expected 
+to setup any required initialization of the switch flow table and schedule the various events of the module. 
+3) \textit{Run}: In this phase the platform will run the function that start the packet generation mechanism and 
+call all of the implemented openflow and SNMP event callbacks. A detailed analysis of the various events of this phase
+is described in Section \ref{OFLOPS_API}
+4\textit{Termination}: In this phase the module has stopped running the main event loop. The platform will call the 
+destroy function of the module, where it is expected for the module to execute any result processing code and release 
+all allocated memory. 
+
+\lstset{language=C, title={}}
+\section{OFLOPS API and Events}
+\label{OFLOPS_API}
+
 \subsection{Control Channel Events}
+
+In order to handle singalling on the control channel the OFLOPS platform uses a separate thread to monitor the control channel,
+parse received packet and convert them to appropriate events for the modules. In order for the modules to receive data from the 
+control channel, they should implement a specific function, depending on the openflow event that they are interested to get informed.
+The set for available handlers that the OFLOPS platform support is the following:
+\begin{lstlisting}
+/* handle packet_in events */
+int of_event_packet_in(struct oflops_context *ctx, 
+  const struct ofp_packet_in * pktin);
+
+/* handle flow_removed events */
+int of_event_flow_removed(struct oflops_context *ctx, 
+  const struct ofp_flow_removed * ofph);
+
+/* handle openflow echo requests events */
+int of_event_echo_request(struct oflops_context *ctx, 
+  const struct ofp_header * ofph);
+
+/* receive port_status events */
+int of_event_port_status(struct oflops_context *ctx, 
+  const struct ofp_port_status * ofph);
+
+/* handle all remaining openflow events */
+int of_event_other(struct oflops_context *ctx, 
+  const struct ofp_header * ofph);
+\end{lstlisting}
+
+Each function signature consists of the data context of the module along with a pointer to the data of the packet. OFLOPS also permits
+to module to inject custom packets to the control channel. In order to achieve this the plaform provides the following functions:
+
+\begin{lstlisting}
+size_t oflops_send_of_mesgs(struct oflops_context *ctx, 
+  char * buf, size_t buflen);
+int oflops_send_of_mesg(struct oflops_context *ctx, 
+  struct ofp_header * hdr);
+\end{lstlisting}
+
+This set of functions can be used only once the control channel has been established. oflops\_send\_of\_mesg sends only a single 
+openflow packet and infers the size of the packet buffer, through the length field of the openflow header. oflops\_send\_of\_mesgs
+permits the developer to send a number of packets, but requires to define the size of the packet buffer passes as an argument. 
+If the developer wishes to atain higher control of the tcp socket of the control channel, it can use the control\_fd field of 
+data context of the module, but he should be aware that the socket is non blocking and aggressive writes on the socket may lead 
+to packet losses. 
+
 \subsection{Data Channel Events}
+
+As it has already been discussed previously in this document, the OFLOPS platform contains a basic simple packet generation 
+mechanism. The platform currently provides 3 possible alternatives: a user space packet generator, a kernel space packet generator
+that use the pktgen module or a NetFPGA based packet generator. The selection of the pacet generation mechanism is done though the 
+configuration file and is abstracted from the module code. In order to bootstrap the packet generation mechanism the module must 
+provide an implementation of the following function:
+
+\begin{lstlisting}
+int handle_traffic_generation(struct oflops_context * ctx);
+\end{lstlisting}
+
+In this function the developer can initialize the packet generation mechanism. The platform provides the following functions 
+to developers:
+
+\begin{lstlisting}
+
+/* called before any interaction with the packet
+  generator */
+int init_traf_gen(struct oflops_context *ctx);
+
+struct traf_gen_det {
+  char src_ip[20];
+  dst_ip_max[20], dst_ip_min[20];
+  char mac_dst[20], mac_src[20];
+  uint16_t udp_src_port, udp_dst_port;
+  uint32_t pkt_size;
+  uint16_t vlan;
+  uint16_t vlan_p;
+  uint16_t vlan_cfi;
+  uint32_t delay;
+  uint64_t pkt_count;
+  
+  /* RANDOM -> packet generated uniformly at 
+  random for the specified ranges 
+   "" -> packets are ganerated sequentially 
+   iterating all possible pairs */
+  char flags[1024];
+};
+
+/* Adding a packet generation description to 
+  on a specific data channel */
+int add_traffic_generator(struct oflops_context *ctx, 
+  int channel, struct traf_gen_det *det);
+
+/* start packet generation*/
+int start_traffic_generator();
+
+/* terminate packet generation */
+int stop_traffic_generator( oflops_context *ctx);
+
+/* returns a string with detailed informations 
+   regrading packet generatio process */
+char *report_traffic_generator(oflops_context *ctx);
+
+struct pktgen_hdr {
+  uint32_t magic;
+  uint32_t seq_num;
+  uint32_t tv_sec;
+  uint32_t tv_usec;
+};
+
+/* Extract packet generation details from a packet 
+  */
+struct pktgen_hdr *extract_pktgen_pkt(oflops_context *ctx, int port,
+				      unsigned char *b, int len, struct flow *fl);
+
+\end{lstlisting}
+
+In order to initialize the packet generation process the developer must use the init\_traf\_gen function
+before ay other calls to the packet generation system. Once the mechanism has beed initiated, the module 
+can add packet generation descriptions to each data channel. A packet generation description is provided 
+throught the traf\_gen\_det structure which defines the way packets are generated. Developers currently 
+are only able to generate packet that variate based on the destination address. The fields of the packet
+
+\subsection{Timer Events}
+
+The main OFLOPS platform provide a simple mechanism that allows module to construct custom timed events.
+The main function to register an event is throught the function:
+
+\begin{lstlisting}
+int oflops_schedule_timer_event(struct oflops_context *ctx, 
+struct timeval *tv, void * arg);
+\end{lstlisting}
+where ctx is the data context of the module, tv is a timeval structure that define after how much
+time should the timer invoke the timer handling function, and arg is a module defined object that will
+be pushed to the event handling function when the event fires. In order for the module to receive timer 
+events, it must implement the following function:
+\begin{lstlisting}
+int   handle_timer_event (struct oflops_context *ctx, 
+  struct timer_event *te);
+\end{lstlisting}
+
+In this function the module can define in a custom way the various events. The details of the event 
+are contained in the structure timer\_event. The structure has the following format:
+
+\begin{lstlisting}
+typedef struct timer_event
+{
+	int timer_id;            
+	void * arg;
+	struct timeval sched_time;
+} 
+\end{lstlisting}
+
+In order for the code to detect the event fired each time, code developers can use the arg field of the 
+event in order to differentiate the different events.
+
 \subsection{SNMP events}
+
+As part of the main OpenFlow platform, module are able to query asynchronously the SNMP service of the switch.
+The SNMP functionlity is similarly event driver as the rest of the functionality of OFLOPS. Module can send queries
+using the function:
+\begin{lstlisting}
+int oflops_snmp_get(struct oflops_context * ctx, 
+  oid query[], size_t len);
+\end{lstlisting}
+
+The user can set in each call a query for a single OID. This is defined though the parameters query and len. Once
+a query has been send, a separate thread will listen on a UDP socket, receive the reply and generate an OFLOPS 
+event to the module. In order for a module to capture SNMP event through an OFLOPS 
+
+\begin{lstlisting}
+int handle_snmp_event(struct oflops_context * ctx, 
+  struct snmp_event * se);
+\end{lstlisting}
+
+The snmp\_event object, passed as an argument to the callback has the following format:
+\begin{lstlisting}
+typedef struct snmp_event
+{
+  /** SNMP variable list
+   */
+  struct variable_list* reply;
+  /** Pointer to SNMP reply
+   */
+  struct snmp_pdu* pdu;
+}
+\end{lstlisting}
+
+The data of the reply can be found in struct snmp\_pdu. In order to parse the information programmers should use
+the API provided by the net-snmp library \footnote{\url{http://www.net-snmp.org/wiki/index.php/TUT:Simple_Application}}. 
 
   \end{document}
