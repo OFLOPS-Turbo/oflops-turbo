@@ -12,8 +12,8 @@ an existing suite of tests and users are encouraged to develop their
 own tests.
 
 -------------------       QUICK INSTALL            --------------------
-debian:
-    % sudo apt-get install libsnmp-dev libpcap-dev
+debian/ubuntu:
+    % sudo apt-get install libsnmp-dev libpcap-dev libconfig8-dev
 fedora/centos:
     % sudo yum install net-snmp-devel libpcap-devel
 
