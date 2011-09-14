@@ -13,7 +13,7 @@ own tests.
 
 -------------------       QUICK INSTALL            --------------------
 debian/ubuntu:
-    % sudo apt-get install libsnmp-dev libpcap-dev libconfig8-dev
+    % sudo apt-get install libsnmp-dev libpcap-dev libconfig8-dev libgsl0l-dev
 fedora/centos:
     % sudo yum install net-snmp-devel libpcap-devel
 
