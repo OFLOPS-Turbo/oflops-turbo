@@ -1,3 +1,3 @@
 [submodule "netfpga-packet-generator-c-library"]
 	path = netfpga-packet-generator-c-library
-	url = https://crotsos@github.com/crotsos/netfpga-packet-generator-c-library.git
+	url = git://github.com/crotsos/netfpga-packet-generator-c-library.git
