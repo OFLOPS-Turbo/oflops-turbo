@@ -12,8 +12,8 @@ an existing suite of tests and users are encouraged to develop their
 own tests.
 
 -------------------       QUICK INSTALL            --------------------
-debian/ubuntu:
-    % sudo apt-get install libsnmp-dev libpcap-dev libconfig8-dev libgsl0l-dev
+debian:
+    % sudo apt-get install libsnmp-dev libpcap-dev
 fedora/centos:
     % sudo yum install net-snmp-devel libpcap-devel
 
@@ -42,7 +42,7 @@ TODO: make snmp utilities optional!
                 ifconfig veth$p up
                 done
     c) Start the software switch:
-        ofdatapath punix:/var/run/dp0.sock -i veth0,eth2 &
+        ofdatapath punix:/var/run/dp0.sock -i veth0,veth2 &
         ofprotocol tcp:localhost:6633 unix:/var/run/dp0.sock
         [see openflow reference implementation INSTALL file for more detail]
 
