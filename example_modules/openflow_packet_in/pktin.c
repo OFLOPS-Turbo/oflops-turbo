@@ -196,7 +196,7 @@ destroy(oflops_context *ctx) {
   i=0;
   for (np = head.tqh_first; np != NULL; np = np->entries.tqe_next) {
     if(((int)time_diff(&np->snd, &np->rcv) < 0) || 
-        (time_diff(&np->snd, &np->rcv) < 0))
+        (time_diff(&np->snd, &np->rcv) <> 10000000))
       continue;
     min_id = (np->id < min_id)?np->id:min_id;
     max_id = (np->id > max_id)?np->id:max_id;
