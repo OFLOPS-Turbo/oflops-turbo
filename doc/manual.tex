@@ -16,18 +16,18 @@
 \section{Why OFLOPS?}
 
 \begin{figure}[htb]
-\begin{center}
-\includegraphics[width=0.9\textwidth]{openflow-design}
-\end{center}
-\caption{Oflops design schematic}
-\label{oflops-design}
+    \begin{center}
+        \includegraphics[width=0.9\textwidth]{openflow-design}
+    \end{center}
+    \caption{Oflops design schematic}
+    \label{oflops-design}
 \end{figure}
 
 OFLOPS is an OpenFlow testing platform. The main focus of the platform is 
 to provide a set of basic measurement test that allow developers to understand and
 quantify the capabilities of an OpenFlow enabled device and locate any
 possible bottleneck. This platform should be consider as a counterpart of the
-oftest platform. The oftest platformcan be used to verify the accurate
+oftest platform. The oftest platform can be used to verify the accurate
 implementation of the protocol in terms of semantics, while OFLOPS is focused on the
 performance aspect of the implementation. 
 
@@ -49,22 +49,22 @@ etc.
 
 Some of the features of the platform are the following:
 \begin{itemize}
-\item Modularity: The platform is split in 2 parts. There is the OFLOPS executable
-program which implements the core functionality of the platform and there is a
-set of dynamically loaded libraries that implement the required functionality
-for a specific test. In order for these two unit to communicate, the platform
-defines a rich event-driven API. Each dynamic test can implement a subset of the
-provided event handler and adjust the platform behavior to the needs of the
-test.
-\item Low overhead: The platform focuses to perform multi-level high precision
-measurements in order to benchmark the performance of the switch. In order to
-achieve minimum delay by the framework, special care has been given to reduce to
-a minimum any processing delay. In order to parallelize the processing and
-take advantage of modern multicore system, the platform is fully multithreaded.  
-\item heterogeneity: The platform provides integration with multiple packet
-generation and capturing mechanisms. So far the platform can run both on commodity
-PCs with multiport NIC, as well as, NetFPGA equipped systems. Each platform
-provides different precision guarantees and costs. 
+    \item Modularity: The platform is split in 2 parts. There is the OFLOPS executable
+        program which implements the core functionality of the platform and there is a
+        set of dynamically loaded libraries that implement the required functionality
+        for a specific test. In order for these two unit to communicate, the platform
+        defines a rich event-driven API. Each dynamic test can implement a subset of the
+        provided event handler and adjust the platform behavior to the needs of the
+        test.
+    \item Low overhead: The platform focuses to perform multi-level high precision
+        measurements in order to benchmark the performance of the switch. In order to
+        achieve minimum delay by the framework, special care has been given to reduce to
+        a minimum any processing delay. In order to parallelise the processing and
+        take advantage of modern multicore system, the platform is fully multithreaded.  
+    \item heterogeneity: The platform provides integration with multiple packet
+        generation and capturing mechanisms. So far the platform can run both on commodity
+        PCs with multiport NIC, as well as, NetFPGA equipped systems. Each platform
+        provides different precision guarantees and costs. 
 \end{itemize}
 
 \chapter{Installation}
@@ -75,222 +75,222 @@ The source code of OFLOPS is available only through git repository.
 In order to get a copy of the code, users are required to have installed 
 the git command line tools. the source code can be downloaded using the 
 following command \footnote{Currently, latest release of the source code is not 
-  on the git repo, but user can get an early access view of the code through 
-    an e-mail to cr409@cl.cam.ac.uk}: 
-    \begin{quote}
+on the git repo, but user can get an early access view of the code through 
+an e-mail to cr409@cl.cam.ac.uk}: 
+\begin{quote}
     git clone git://gitosis.stanford.edu/oflops.git
-    \end{quote}
+\end{quote}
 
-    In order to build the code, OFLOPS requires two additional git packages. 
-    Firstly, it requires the source code of the NetFPGA packet 
-    generator c library. Because this library is also stored in a git repository, 
-    we have integrate the code as a git submodule and users can download it
-    issuing the following command:
+In order to build the code, OFLOPS requires two additional git packages. 
+Firstly, it requires the source code of the NetFPGA packet 
+generator c library. Because this library is also stored in a git repository, 
+we have integrate the code as a git submodule and users can download it
+issuing the following command:
 
-    \begin{quote}
+\begin{quote}
     git submodule init \&\& git submodule update
-    \end{quote}
+\end{quote}
 
-    Secondly, users are required to have a version of the OpenFlow header file.
-    By default the OFLOPS build configuration expects the OpenFlow reference
-    implementation to reside in the directory where OFLOPS code. In order
-    for a user to get access to the source code, he can issues the following
-    commands:
+Secondly, users are required to have a version of the OpenFlow header file.
+By default the OFLOPS build configuration expects the OpenFlow reference
+implementation to reside in the directory where OFLOPS code. In order
+for a user to get access to the source code, he can issues the following
+commands:
 
-    \begin{quote}
+\begin{quote}
     git clone git://gitosis.stanford.edu/openflow \\
-      git checkout -b release/1.0.0 remotes/origin/release/1.0.0
-      \end{quote}
+    git checkout -b release/1.0.0 remotes/origin/release/1.0.0
+\end{quote}
 
-      For the compilation of the OFLOPS code it is required to install a
-      series of libraries, namely pcap~\footnote{http://www.tcpdump.org/}, 
-      GNU Scientific Library~\footnote{http://www.gnu.org/software/gsl/}, 
-      libconfig~\footnote{http://www.hyperrealm.com/libconfig/} 
-      and net-snmp~\footnote{http://www.net-snmp.org/} Additionally, if the users 
-      require doxygen documentation of the source code, they can get automatically 
-      if they install the relevant package. The OFLOPS build configuration script 
-      is configured to check for the presence of the 
-      doxygen software package and generate the appropriate Makefile if it is 
-      present. In the case of a CentOS 5.3 distribution all the required libraries 
-      can be installed using the following command.
+For the compilation of the OFLOPS code it is required to install a
+series of libraries, namely PCAP~\footnote{http://www.tcpdump.org/}, 
+GNU Scientific Library~\footnote{http://www.gnu.org/software/gsl/}, 
+libconfig~\footnote{http://www.hyperrealm.com/libconfig/} 
+and net-snmp~\footnote{http://www.net-snmp.org/} Additionally, if the users 
+require doxygen documentation of the source code, they can get automatically 
+if they install the relevant package. The OFLOPS build configuration script 
+is configured to check for the presence of the 
+doxygen software package and generate the appropriate Makefile if it is 
+present. In the case of a CentOS 5.3 distribution all the required libraries 
+can be installed using the following command.
 
-      \begin{quote}
-      yum install gcc automake autoconf libtool libpcap-devel net-snmp-devel
-      doxygen gsl-devel\\
-        wget http://www.hyperrealm.com/libconfig/libconfig-1.4.7.tar.gz\\
-        tar -xvzf libconfig-1.4.7.tar.gz \\
-        cd libconfig-1.4.7 \\
-        ./configure \\
-        make \&\& make install 
-        \end{quote}
+\begin{quote}
+    yum install gcc automake autoconf libtool libpcap-devel net-snmp-devel
+    doxygen gsl-devel\\
+    wget http://www.hyperrealm.com/libconfig/libconfig-1.4.7.tar.gz\\
+    tar -xvzf libconfig-1.4.7.tar.gz \\
+    cd libconfig-1.4.7 \\
+    ./configure \\
+    make \&\& make install 
+\end{quote}
 
-        In order to build the source code readers must first build the c library of the
-        NetFPGA OFLOPS packet generator. Assuming that the user current working 
-        directory is the OFLOPS directory, then the following sequence of commands 
-        should be issued:
+In order to build the source code readers must first build the c library of the
+NetFPGA OFLOPS packet generator. Assuming that the user current working 
+directory is the OFLOPS directory, then the following sequence of commands 
+should be issued:
 
-        \begin{quote}
-        cd netfpga-packet-generator-c-library/ \\
-          ./autogen.sh \&\& ./configure \&\& make \\
-          cd .. \\
-          ./boot.sh \&\& ./configure \&\& make \\
-          \end{quote}
+\begin{quote}
+    cd netfpga-packet-generator-c-library/ \\
+    ./autogen.sh \&\& ./configure \&\& make \\
+    cd .. \\
+    ./boot.sh \&\& ./configure \&\& make \\
+\end{quote}
 
-          In case the user wants to use an alternate location for the OpenFlow reference
-          implementation, users may use the flag --with-openflow-src-dir= in the
-          configuration script and define an alternative location for the default
-          \emph{`pwd`/../openflow}. 
+In case the user wants to use an alternate location for the OpenFlow reference
+implementation, users may use the flag --with-openflow-src-dir= in the
+configuration script and define an alternative location for the default
+\emph{`pwd`/../openflow}. 
 
-          \section{NetFPGA support}
+\section{NetFPGA support}
 
-          OFLOPS platform provides integration with the NetFPGA platform.
-          We provide together with the OFLOPS source code a binary bitfile of a hardware
-          design that enable hardware level packet generation and capturing. 
-          Both of these features are
-          important for the precision of the measurement, because software packet generation 
-          and capture is, on one hand, limited in 
-          precision by the OS scheduler and, on the other hand, it is constraint by the 
-          bandwidth of the PCI bus. In order to use the hardware extension, the
-          user needs to acquire and install a NetFPGA card and its base software system.
-          We encourage readers to visit the NetFPGA website for further
-          details~\footnote{\url{http://www.netfpga.org}}. Once the NetFPGA platform is
-          configure on the host machine, users only need to download the appropriate bitfile to the FPGA
-          circuit and modify accordingly the configuration file of OFLOPS. In order to
-          download the bitfile, the following command is sufficient. 
+OFLOPS platform provides integration with the NetFPGA platform.
+We provide together with the OFLOPS source code a binary bitfile of a hardware
+design that enable hardware level packet generation and capturing. 
+Both of these features are
+important for the precision of the measurement, because software packet generation 
+and capture is, on one hand, limited in 
+precision by the OS scheduler and, on the other hand, it is constraint by the 
+bandwidth of the PCI bus. In order to use the hardware extension, the
+user needs to acquire and install a NetFPGA card and its base software system.
+We encourage readers to visit the NetFPGA website for further
+details~\footnote{\url{http://www.netfpga.org}}. Once the NetFPGA platform is
+configure on the host machine, users only need to download the appropriate bitfile to the FPGA
+circuit and modify accordingly the configuration file of OFLOPS. In order to
+download the bitfile, the following command is sufficient. 
 
-          \begin{quote}
-          nf2\_download netfpga-packet-generator-c-library/oflops\_packet\_generator.bit
-          \end{quote}
+\begin{quote}
+    nf2\_download netfpga-packet-generator-c-library/oflops\_packet\_generator.bit
+\end{quote}
 
-          \chapter{Running OFLOPS}
+\chapter{Running OFLOPS}
 
-          \section{Introduction}
+\section{Introduction}
 
-          OFLOPS builds its testing modules as shared libraries. Modules are 
-          loaded at run time using the dlopen functionality of libc. In order to
-          configure the test modules loaded during run-time and configure the
-          parameters of a test, the OFLOPS tool uses a simple syntax language based on
-          the libconfig format. In this chapter we describe the configuration parameter
-          that the OFLOPS platform provides.
+OFLOPS builds its testing modules as shared libraries. Modules are 
+loaded at run time using the dlopen functionality of libc. In order to
+configure the test modules loaded during run-time and configure the
+parameters of a test, the OFLOPS tool uses a simple syntax language based on
+the libconfig format. In this chapter we describe the configuration parameter
+that the OFLOPS platform provides.
 
-          \section{OFLOPS configuration files}
-          \label{oflops-config-lang}
+\section{OFLOPS configuration files}
+\label{oflops-config-lang}
 
-          The OFLOPS configuration file is based upon the libconfig file syntax, with 
-          a strict scheme for the configuration parameters. A set of example configuration 
-          files can be found in directory sample\_config/. The OFLOPS configuration file 
-          consists of a unique group parameter, named OFLOPS, which contains a set 
-          of values that group the configuration parameters based on the generic aspect
-          of the functionality that they define. Furthermore, the OFLOPS group contains a 
-          scalar parameters that defined which packet generation library will be used. The value is called 
-          \emph{traffic\_generation} and has 3 possible values: 
-          \begin{itemize}
-          \item 1, use userspace packet generator.
-          \item 2, user pktgen kenrel generator~\footnote{http://www.linuxfoundation.org/collaborate/workgroups/networking/pktgen}.
-          \item 3, use NetFPGA-based packet generator. 
-          \end{itemize}
-          Regarding the rest of the configuration parameters, they are grouped in 
-          the following group parameters: 
+The OFLOPS configuration file is based upon the libconfig file syntax, with 
+a strict scheme for the configuration parameters. A set of example configuration 
+files can be found in directory sample\_config/. The OFLOPS configuration file 
+consists of a unique group parameter, named OFLOPS, which contains a set 
+of values that group the configuration parameters based on the generic aspect
+of the functionality that they define. Furthermore, the OFLOPS group contains a 
+scalar parameters that defined which packet generation library will be used. The value is called 
+\emph{traffic\_generation} and has 3 possible values: 
+\begin{itemize}
+    \item 1, use userspace packet generator.
+    \item 2, user pktgen kenrel generator~\footnote{http://www.linuxfoundation.org/collaborate/workgroups/networking/pktgen}.
+    \item 3, use NetFPGA-based packet generator. 
+\end{itemize}
+Regarding the rest of the configuration parameters, they are grouped in 
+the following group parameters: 
 
-          \subsection{control channel configuration}
-          For the control section of the configuration file OFLOPS parses the following parameter:
-          \begin{itemize}
-          \item \emph{control\_dev}: The name of the network device used for the control channel of 
-          the controller. This device shouldn't be used at the same time as a data channel. 
-          \item \emph{control\_port}: The TCP port on which the OFLOPS controller will listen on.
-          \item \emph{snmp\_addr}: The IP address of the SNMP server of the OpenFlow switch.
-          \item \emph{cpu\_mib}: A list of MIB entries for the CPU cores of the switch, semicolon 
-          separated.
-          \item \emph{in\_mib}: The MIB entry of the packet counter of the input queue of the control 
-          channel switch port. 
-          \item \emph{out\_mib}: The MIB entry of the packet counter of the output queue of the control 
-          channel switch port.
-          \end{itemize} 
+\subsection{control channel configuration}
+For the control section of the configuration file OFLOPS parses the following parameter:
+\begin{itemize}
+    \item \emph{control\_dev}: The name of the network device used for the control channel of 
+        the controller. This device shouldn't be used at the same time as a data channel. 
+    \item \emph{control\_port}: The TCP port on which the OFLOPS controller will listen on.
+    \item \emph{snmp\_addr}: The IP address of the SNMP server of the OpenFlow switch.
+    \item \emph{cpu\_mib}: A list of MIB entries for the CPU cores of the switch, semicolon 
+        separated.
+    \item \emph{in\_mib}: The MIB entry of the packet counter of the input queue of the control 
+        channel switch port. 
+    \item \emph{out\_mib}: The MIB entry of the packet counter of the output queue of the control 
+        channel switch port.
+\end{itemize} 
 
-          \subsection{data channel configuration}
+\subsection{data channel configuration}
 
-          In order to configure the data channels used by an experiment, OFLOPS 
-          configuration file contains an array parameter called data which consist 
-          of variable number device description. The described network device will
-          be used by the OFLOPS testing module in order to generate traffic on the data
-          plane of the switch. 
+In order to configure the data channels used by an experiment, OFLOPS 
+configuration file contains an array parameter called data which consist 
+of variable number device description. The described network device will
+be used by the OFLOPS testing module in order to generate traffic on the data
+plane of the switch. 
 
-          \begin{itemize}
-          \item \emph{dev}: The name of the network device used by the channel. Each 
-          network device can only be used once per experiment. 
-          \item \emph{port\_num}: The ID of the port of the OpenFlow switch to which 
-          the network device is connected. This is required so that the testing modules
-          will know which port ID to use on a flow modification message. 
-          \item \emph{in\_snmp\_mib}: The SNMP MIB entry for the packet counter of the 
-          input queue of the switch port. 
-          \item \emph{out\_snmp\_mib}: The SNMP MIB entry for the packet counter of the
-          output queue of the switch port. 
-          \item \emph{type}: The library used to capture packets over the specific data
-          channel. The possible values are \emph{nf2}, for NetFPGA packet capturing, and 
-          \emph{pcap}, for libpcap-based packet capturing. 
-          \end{itemize}
+\begin{itemize}
+    \item \emph{dev}: The name of the network device used by the channel. Each 
+        network device can only be used once per experiment. 
+    \item \emph{port\_num}: The ID of the port of the OpenFlow switch to which 
+        the network device is connected. This is required so that the testing modules
+        will know which port ID to use on a flow modification message. 
+    \item \emph{in\_snmp\_mib}: The SNMP MIB entry for the packet counter of the 
+        input queue of the switch port. 
+    \item \emph{out\_snmp\_mib}: The SNMP MIB entry for the packet counter of the
+        output queue of the switch port. 
+    \item \emph{type}: The library used to capture packets over the specific data
+        channel. The possible values are \emph{nf2}, for NetFPGA packet capturing, and 
+        \emph{pcap}, for libpcap-based packet capturing. 
+\end{itemize}
 
-          \subsection{module configuration}
+\subsection{module configuration}
 
-          Finally the configuration file contains an entry with a variable number
-          of module configuration entries. The module entries can be used to locate 
-          and initialize appropriately a testing module. Specifically, for each entry
-          OFLOPS accepts the following parameters. 
+Finally the configuration file contains an entry with a variable number
+of module configuration entries. The module entries can be used to locate 
+and initialize appropriately a testing module. Specifically, for each entry
+OFLOPS accepts the following parameters. 
 
-          \begin{itemize}
-          \item \emph{path}: The path for the loadable library of the module. 
-          \item \emph{param}: A space separate array of module parameters with their 
-          respective value. The list of parameters is specific for each module and is 
-          described in a great extend in Chapter~\ref{oflops-modules}
-          \end{itemize}
+\begin{itemize}
+    \item \emph{path}: The path for the loadable library of the module. 
+    \item \emph{param}: A space separate array of module parameters with their 
+        respective value. The list of parameters is specific for each module and is 
+        described in a great extend in Chapter~\ref{oflops-modules}
+\end{itemize}
 
-          \subsection{Example configuration script}
+\subsection{Example configuration script}
 
-          In order to provide an example of an OFLOPS configuration file we present the
-          following configuration script. In this script we configure the control channel
-          to use the device eth1 and open a tcp socket on port 6633, while it will query
-          the snmp server on IP 192.168.1.2 in order get feedback from the switch. In this
-          experiment we are configuring also two data channels on device nf2c0 and nf2c1
-          on which we will be using the the netfpga packet capturing functionality.
-          Finally, for the experiment we dictate the OFLOPS to load the shared library
-          file libopenflow\_action\_delay.so, to which we pass a series of parameters. 
+In order to provide an example of an OFLOPS configuration file we present the
+following configuration script. In this script we configure the control channel
+to use the device eth1 and open a tcp socket on port 6633, while it will query
+the snmp server on IP 192.168.1.2 in order get feedback from the switch. In this
+experiment we are configuring also two data channels on device nf2c0 and nf2c1
+on which we will be using the the netfpga packet capturing functionality.
+Finally, for the experiment we dictate the OFLOPS to load the shared library
+file libopenflow\_action\_delay.so, to which we pass a series of parameters. 
 
-          \lstset{language=Java,numbers=left,frame=single,title=oflops.cfg}
-          \begin{lstlisting}[frame=single]                % Start your code-block
-          oflops: {
-control: {
-           control_dev = "eth1";
-           control_port = 6633;
-           snmp_addr = "192.168.1.2";
-           cpu_mib="1.3.6.1.2.1.25.3.3.1.2.768;1.3.6.1.2.1.25.3.3.1.2.769";  
-           in_mib="1.3.6.1.2.1.2.2.1.11.2";
-           out_mib="1.3.6.1.2.1.2.2.1.17.2";
-           snmp_community = "public";
-         };
+\lstset{language=Java,numbers=left,frame=single,title=oflops.cfg}
+\begin{lstlisting}[frame=single]
+    oflops: {
+    control: {
+    control_dev = "eth1";
+    control_port = 6633;
+    snmp_addr = "192.168.1.2";
+    cpu_mib="1.3.6.1.2.1.25.3.3.1.2.768;1.3.6.1.2.1.25.3.3.1.2.769";  
+    in_mib="1.3.6.1.2.1.2.2.1.11.2";
+    out_mib="1.3.6.1.2.1.2.2.1.17.2";
+    snmp_community = "public";
+    };
 
-         data = ({
-             dev="nf2c0";
-             port_num=1;
-             in_snmp_mib="1.3.6.1.2.1.2.2.1.11.3";
-             out_snmp_mib="1.3.6.1.2.1.2.2.1.17.3";
-             type="nf2";
-             },{
-             dev="nf2c1";
-             port_num=2;
-             in_snmp_mib="1.3.6.1.2.1.2.2.1.11.4";
-             out_snmp_mib="1.3.6.1.2.1.2.2.1.17.4";
-             type="nf2";
-             });
+    data = ({
+    dev="nf2c0";
+    port_num=1;
+    in_snmp_mib="1.3.6.1.2.1.2.2.1.11.3";
+    out_snmp_mib="1.3.6.1.2.1.2.2.1.17.3";
+    type="nf2";
+    },{
+    dev="nf2c1";
+    port_num=2;
+    in_snmp_mib="1.3.6.1.2.1.2.2.1.11.4";
+    out_snmp_mib="1.3.6.1.2.1.2.2.1.17.4";
+    type="nf2";
+    });
 
-         traffic_generator = 3;
-         dump_control_channel=0;
+    traffic_generator = 3;
+    dump_control_channel=0;
 
 
-module: ({
-         path="libopenflow_action_delay.so";
-         param="flows=10 data_rate=10 pkt_size=150 ";
-         });
-          };
+    module: ({
+    path="libopenflow_action_delay.so";
+    param="flows=10 data_rate=10 pkt_size=150 ";
+    });
+    };
 
 
 \end{lstlisting}
@@ -333,478 +333,492 @@ whether the action incurs any significant delay.
 
 The module provide the following set of parameters that the user can define:
 \begin{itemize}
-\item emph{pkt\_size}: This parameter can be used to control the length of
-packets of the measurement probe, measured in bytes. Thus, together with the 
-  rate parameter, it allows indirectly to adjust the packet throughput of the 
-experiment. (default 1500 bytes)
-  \item \emph{data\_rate}: The rate of the measurement probe measured in Mbps.
-(default 10Mbps) 
-  \item \emph{table}: The parameter define whether the inserted flow will be 
-a wildcard(value of 1) or exact match(value of 0).  (default 1)
-  \item \emph{action}:  A comma separate string of entries of the format
-  action\_id/action\_value. E.g. a value of `b/1010,0/2` defines that the action
-  will modify the tcp/udp port of the matching packet to a value of 1010 and the
-packet will be output on port 2. (default no action)
-  \end{itemize}
+    \item emph{pkt\_size}: This parameter can be used to control the length of
+        packets of the measurement probe, measured in bytes. Thus, together with the 
+        rate parameter, it allows indirectly to adjust the packet throughput of the 
+        experiment. (default 1500 bytes)
+    \item \emph{data\_rate}: The rate of the measurement probe measured in Mbps.
+        (default 10Mbps) 
+    \item \emph{table}: The parameter define whether the inserted flow will be 
+        a wildcard(value of 1) or exact match(value of 0).  (default 1)
+    \item \emph{action}:  A comma separate string of entries of the format
+        action\_id/action\_value. E.g. a value of `b/1010,0/2` defines that the action
+        will modify the tcp/udp port of the matching packet to a value of 1010 and the
+        packet will be output on port 2. (default no action)
+\end{itemize}
 
-  The module provide output for the result of the experiment on the log file. 
-  Specifically, it outputs 2 lines, one for each experiment phase, with the average, median 
-  and variance of the RTT delay of the probe and the packet
-  loss, calculated through SNMP. 
+The module provide output for the result of the experiment on the log file. 
+Specifically, it outputs 2 lines, one for each experiment phase, with the average, median 
+and variance of the RTT delay of the probe and the packet
+loss, calculated through SNMP. 
 
-  \section{openflow\_flow\_stats \& openflow\_aggr\_flow\_stats}
+\section{openflow\_flow\_stats \& openflow\_aggr\_flow\_stats}
 
-  These modules are used to understand the possible impact of the flow stats
-  extraction functionality of the OpenFlow protocol on the control and data plane of the
-  switch. The two modules follow a similar experimental setup, but they differ on
-  the type of the flow stat requests that they send. The first module uses the
-  flow\_stats\_request OpenFlow message type, while the latter uses the
-  aggr\_flow\_stats\_request. 
-  The scenario for this experiment is as follows: the flow table is
-  initialized with a set of flows for which OFLOPS generates relevant traffic. 
-  The measurement traffic consists of 2 probes: a \emph{constant probe}, that
-  matches a single flow, and a \emph{variable probe}, that uses at
-  random any of the inserted flows. The experiment runs for 1 minute and at 
-  the same time the controller queries the switch for its flow statistics over 
-  specific intervals. The module stores statistics for the measurement probe, as
-  well as, the reply time for the flow statistics and the CPU utilization. 
+These modules are used to understand the possible impact of the flow stats
+extraction functionality of the OpenFlow protocol on the control and data plane of the
+switch. The two modules follow a similar experimental setup, but they differ on
+the type of the flow stat requests that they send. The first module uses the
+flow\_stats\_request OpenFlow message type, while the latter uses the
+aggr\_flow\_stats\_request. 
+The scenario for this experiment is as follows: the flow table is
+initialized with a set of flows for which OFLOPS generates relevant traffic. 
+The measurement traffic consists of 2 probes: a \emph{constant probe}, that
+matches a single flow, and a \emph{variable probe}, that uses at
+random any of the inserted flows. The experiment runs for 1 minute and at 
+the same time the controller queries the switch for its flow statistics over 
+specific intervals. The module stores statistics for the measurement probe, as
+well as, the reply time for the flow statistics and the CPU utilization. 
 
-  The module provides the following configuration parameters:
-  \begin{itemize}
-  \item \emph{flows}: The total number of unique flow that the module will
-initialize the flow table of the switch. (default 128)
-  \item \emph{query}: The number of unique flows that the module will query the 
-  switch in each flow request. Because the matching method of the module is based 
-on the netmask field of the matching field. (default 128)
-  \item \emph{pkt\_size}:  This parameter can be used to control the length of the
-  packets of the measurement probe. It allows indirectly to adjust the packet
-  throughput of the experiment.
-  \item \emph{data\_rate}: The rate, in Mbps, of the variable probe. (default
-      10Mbps)
-\item \emph{probe\_rate}: The rate, in Mbps, of the constant probe. (default 10Mbps)
-  \item \emph{query\_delay}: The delay, in microseconds, between the different 
-stats requests. (default 10000 usec) 
-  \item \emph{print}: A parameter that defines whether the module will output full
-  per packet details of the measurement probes. If this value is set to 1, then
-  the module will print on a file called "measure.log" for each capture packet a
-  comma separated record with the timestamps of the generation and capture times of the
-  packet, the packet id, the port at which the packet was captured and the flow id 
-of the flow that was used in order to switch the packet. (default 0)
-  \item \emph{table}: This parameter controls whether the inserted flow will be
-a wildcard(value of 1) or exact match(value of 0). (default 0)
-  \end{itemize}
+The module provides the following configuration parameters:
+\begin{itemize}
+    \item \emph{flows}: The total number of unique flow that the module will
+        initialize the flow table of the switch. (default 128)
+    \item \emph{query}: The number of unique flows that the module will query the 
+        switch in each flow request. Because the matching method of the module is based 
+        on the netmask field of the matching field. (default 128)
+    \item \emph{pkt\_size}:  This parameter can be used to control the length of the
+        packets of the measurement probe. It allows indirectly to adjust the packet
+        throughput of the experiment.
+    \item \emph{data\_rate}: The rate, in Mbps, of the variable probe. (default
+        10Mbps)
+    \item \emph{probe\_rate}: The rate, in Mbps, of the constant probe. (default 10Mbps)
+    \item \emph{query\_delay}: The delay, in microseconds, between the different 
+        stats requests. (default 10000 usec) 
+    \item \emph{print}: A parameter that defines whether the module will output full
+        per packet details of the measurement probes. If this value is set to 1, then
+        the module will print on a file called "measure.log" for each capture packet a
+        comma separated record with the timestamps of the generation and capture times of the
+        packet, the packet id, the port at which the packet was captured and the flow id 
+        of the flow that was used in order to switch the packet. (default 0)
+    \item \emph{table}: This parameter controls whether the inserted flow will be
+        a wildcard(value of 1) or exact match(value of 0). (default 0)
+\end{itemize}
 
-  The output of the module is printed in the log file. The module prints, after the
-  end of the experiment, a log line for each flow\_stat\_reply containing timing
-  information. Additionally, the module prints RTT and loss statistics for each
-  measurement probe. Finally, the module queries the switch every 10 seconds and
-  outputs CPU information in the log file. 
+The output of the module is printed in the log file. The module prints, after the
+end of the experiment, a log line for each flow\_stat\_reply containing timing
+information. Additionally, the module prints RTT and loss statistics for each
+measurement probe. Finally, the module queries the switch every 10 seconds and
+outputs CPU information in the log file. 
 
-  As a future development of this module we are considering the potentiality to
-  estimate the accuracy of the statistic extraction mechanism. Unfortunately
-  though, so far we are unable to synchronize accurately the result of packet
-  counters of the capturing library, with the results of flow\_stats\_reply 
-  packets. 
+As a future development of this module we are considering the potentiality to
+estimate the accuracy of the statistic extraction mechanism. Unfortunately
+though, so far we are unable to synchronize accurately the result of packet
+counters of the capturing library, with the results of flow\_stats\_reply 
+packets. 
 
-  \section{openflow\_packet\_out}
+\section{openflow\_packet\_out}
 
-  This module is developed to measure the performance of the packet\_out
-  functionality of the OpenFlow protocol. This message type, allows a
-  controller to inject packets in the network by explicitly sending the packet
-  data to the switch and defining the output port of the packet. The module
-  provide basic measurement on the performance of the OpenFlow implementation
-  given a set of parameters. During the experiment, a constant flow of packet\_out
-  message is sent to the switch over
-  the control channel while the module capture output packets on the data plane of the
-  switch. This way the module can calculate the processing delay incurred to such
-  message types, as well as, any implication that may occur when the controller
-  increases it's sending rate. 
+This module is developed to measure the performance of the packet\_out
+functionality of the OpenFlow protocol. This message type, allows a
+controller to inject packets in the network by explicitly sending the packet
+data to the switch and defining the output port of the packet. The module
+provide basic measurement on the performance of the OpenFlow implementation
+given a set of parameters. During the experiment, a constant flow of packet\_out
+message is sent to the switch over
+the control channel while the module capture output packets on the data plane of the
+switch. This way the module can calculate the processing delay incurred to such
+message types, as well as, any implication that may occur when the controller
+increases it's sending rate. 
 
-  The module provides the following configuration parameters:
-  \begin{itemize}
-  \item \emph{pkt\_size}:  This parameter can be used to control the length of the
-  packets of the packet\_out message in bytes. It allows indirectly to adjust the packet
-throughput of the experiment. (default 1500 bytes)
-  \item \emph{probe\_snd\_interval}: This parameter controls the data rate of the 
-measurement probe, in Mbps. (default 10Mbps)
-  \item \emph{print}: This parameter enables the measurement module to print
-  extended per packet measurement information. The information is printed in log
-file. (default 0)
-  \end{itemize}
+The module provides the following configuration parameters:
+\begin{itemize}
+    \item \emph{pkt\_size}:  This parameter can be used to control the length of the
+        packets of the packet\_out message in bytes. It allows indirectly to adjust the packet
+        throughput of the experiment. (default 1500 bytes)
+    \item \emph{probe\_snd\_interval}: This parameter controls the data rate of the 
+        measurement probe, in Mbps. (default 10Mbps)
+    \item \emph{print}: This parameter enables the measurement module to print
+        extended per packet measurement information. The information is printed in log
+        file. (default 0)
+\end{itemize}
 
-  The module outputs in the log file of the program SNMP information from the switch, queried
-  every 10 seconds, as well as statistics for the RTT and packet loss of the
-  packets inserted using the packet\_out message type. If the parameter 1 is set
-  to one, then the module will additionally print per packet timestamps. 
+The module outputs in the log file of the program SNMP information from the switch, queried
+every 10 seconds, as well as statistics for the RTT and packet loss of the
+packets inserted using the packet\_out message type. If the parameter 1 is set
+to one, then the module will additionally print per packet timestamps. 
 
-  \section{openflow\_packet\_in}
+\section{openflow\_packet\_in}
 
-  This module is developed to measure the performance of the packet\_in
-  functionality of the OpenFlow protocol. This message type is generated when a
-  packet is received by the switch, that does not match any flow in the flow
-  table. For this experiment, the module initially removes any flows in the flow table and starts
-  to generate traffic at a specific rate on one of the ports of the switch. 
-  In parallel, the module receive packet\_in messages and computer per packet the
-  processing delay.
+This module is developed to measure the performance of the packet\_in
+functionality of the OpenFlow protocol. This message type is generated when a
+packet is received by the switch, that does not match any flow in the flow
+table. For this experiment, the module initially removes any flows in the flow table and starts
+to generate traffic at a specific rate on one of the ports of the switch. 
+In parallel, the module receive packet\_in messages and computer per packet the
+processing delay.
 
-  The module provides the following configuration parameters:
-  \begin{itemize}
-  \item \emph{pkt\_size}:  This parameter can be used to control the length of the
-  packets of the measurement probe. It allows indirectly to adjust the packet
-throughput of the experiment. (default 1500 bytes)
-  \item \emph{probe\_snd\_interval}: This parameter controls the data rate of the
-measurement probe, in Mbps. (default 10Mbps)
-  \item \emph{print}: This parameter defines if the measurement module prints
-  extended per packet measurement information. The information is printed in log
-  file. 
-  \end{itemize}
+The module provides the following configuration parameters:
+\begin{itemize}
+    \item \emph{pkt\_size}:  This parameter can be used to control the length of the
+        packets of the measurement probe. It allows indirectly to adjust the packet
+        throughput of the experiment. (default 1500 bytes)
+    \item \emph{probe\_snd\_interval}: This parameter controls the data rate of the
+        measurement probe, in Mbps. (default 10Mbps)
+    \item \emph{print}: This parameter defines if the measurement module prints
+        extended per packet measurement information. The information is printed in log
+        file. 
+\end{itemize}
 
-  The module outputs in the OFLOPS log file SNMP information from the 
-  switch, queried every 10 seconds, as well as statistics for the RTT and packet 
-  loss of the measurement probe, as measured through the packet\_in messages.
+The module outputs in the OFLOPS log file SNMP information from the 
+switch, queried every 10 seconds, as well as statistics for the RTT and packet 
+loss of the measurement probe, as measured through the packet\_in messages.
 
-  \section{openflow\_reactive}
+\section{openflow\_reactive}
 
-  This module can be used to understand the scalability properties, when an
-  OpenFlow switch is used in a reactive way, similar to the functionality that the NOX
-  controller provides. In this case, the controller inserts flows only when a
-  packet\_in event is generated. In order to simulate a usage scenario like 
-  this, the module initially removes any flows from the switch flow table and starts to generate
-  measurement traffic. The measurement traffic matches a specific number of
-  exact match flows and packets are generate in a way that matching flows are
-  used sequentially. The module logs for each flow the time it received the first
-  packet, the time it received the packet\_in message and the time a packet of the
-  flow was received on the data plane. 
+This module can be used to understand the scalability properties, when an
+OpenFlow switch is used in a reactive way, similar to the functionality that the NOX
+controller provides. In this case, the controller inserts flows only when a
+packet\_in event is generated. In order to simulate a usage scenario like 
+this, the module initially removes any flows from the switch flow table and starts to generate
+measurement traffic. The measurement traffic matches a specific number of
+exact match flows and packets are generate in a way that matching flows are
+used sequentially. The module logs for each flow the time it received the first
+packet, the time it received the packet\_in message and the time a packet of the
+flow was received on the data plane. 
 
-  The module exports the following parameters:
-  \begin{itemize}
-  \item \emph{pkt\_size}: This parameter can be used to control the length of the
-  packets of the measurement probe. It allows indirectly to adjust the packet
-  throughput of the experiment. The parameter uses bytes as measurement unit.
-  \item \emph{probe\_rate}: The rate of the measurement probe, measured in Mbps. 
-  \item \emph{flows}: The number of unique flows that the measurement flows will
-  generate.
-  \item \emph{print}:  This parameter enables the measurement module to print
-  extended per flow measurement information. The information is printed in log
-  file.
-  \end{itemize}
+The module exports the following parameters:
+\begin{itemize}
+    \item \emph{pkt\_size}: This parameter can be used to control the length of the
+        packets of the measurement probe. It allows indirectly to adjust the packet
+        throughput of the experiment. The parameter uses bytes as measurement unit.
+    \item \emph{probe\_rate}: The rate of the measurement probe, measured in Mbps. 
+    \item \emph{flows}: The number of unique flows that the measurement flows will
+        generate.
+    \item \emph{print}:  This parameter enables the measurement module to print
+        extended per flow measurement information. The information is printed in log
+        file.
+\end{itemize}
 
-  The module outputs in the OFLOPS log file the total delay incurred in order to
-  setup all of the flows of the experiment. In addition, the module polls the 
-  switch for SNMP packet counters and CPU usage every 10 sec and when the experiment 
-  completes and save the query result in the log file. Finally, if the print 
-  parameter is enabled, the module output in a CVS files a set of 
-  records,  one for each flow, that contain: the flow id and the timestamps of the time the first
-  packet of the flow was generated, the time when the first packet\_in event of
-  the flow was received by the controller and the time the first packet of the
-  received on the data plane. 
+The module outputs in the OFLOPS log file the total delay incurred in order to
+setup all of the flows of the experiment. In addition, the module polls the 
+switch for SNMP packet counters and CPU usage every 10 sec and when the experiment 
+completes and save the query result in the log file. Finally, if the print 
+parameter is enabled, the module output in a CVS files a set of 
+records,  one for each flow, that contain: the flow id and the timestamps of the time the first
+packet of the flow was generated, the time when the first packet\_in event of
+the flow was received by the controller and the time the first packet of the
+received on the data plane. 
 
-  \section{openflow\_add\_flow  \& openflow\_mod\_flow}
+\section{openflow\_add\_flow  \& openflow\_mod\_flow}
 
-  This set of modules can be used to measure the scalability properties of the flow
-  table. The modules measure the delay that the switch incurs when the controller
-  modifies the content of the flow table. The difference between the two modules is that the first
-  module considers only flows insertions, while the later focuses on flow updates.
-  The experimental scenario works as follows: During the initialization of the
-  experiment a set of flows is inserted in the flow table in order to switch all
-  of the traffic in the data plane. For the case of flow additions, the module
-  insert a single wildcarded flow that outputs data to port 3 of the 
-  experiment, while for flow modification, the module inserts a number of flows in the flow
-  table equal to the number of flows in the data plane that output matching
-  packets to port 3. The measurement traffic consists of 2 probes: a \emph{constant probe}, that
-  matches a single parameter, and a \emph{sequential probe}, that uses in a round
-  Robbin manner all of the inserted flows. We use two measurement probes
-  because we are interested to measure the delay to insert both a single flows as
-  well all of the flow. The experiment keeps the initial content of the flow table 
-  for 30 seconds, in order for the switch to reach a
-  steady state, and then sends a series of flow modification and a barrier
-  request. The module monitors all ports and stores information of the time 
-  when each new flow modification becomes active and when the barrier reply is
-  received. 
+This set of modules can be used to measure the scalability properties of the flow
+table. The modules measure the delay that the switch incurs when the controller
+modifies the content of the flow table. The difference between the two modules is that the first
+module considers only flows insertions, while the later focuses on flow updates.
+The experimental scenario works as follows: During the initialization of the
+experiment a set of flows is inserted in the flow table in order to switch all
+of the traffic in the data plane. For the case of flow additions, the module
+insert a single wildcarded flow that outputs data to port 3 of the 
+experiment, while for flow modification, the module inserts a number of flows in the flow
+table equal to the number of flows in the data plane that output matching
+packets to port 3. The measurement traffic consists of 2 probes: a \emph{constant probe}, that
+matches a single parameter, and a \emph{sequential probe}, that uses in a round
+Robbin manner all of the inserted flows. We use two measurement probes
+because we are interested to measure the delay to insert both a single flows as
+well all of the flow. The experiment keeps the initial content of the flow table 
+for 30 seconds, in order for the switch to reach a
+steady state, and then sends a series of flow modification and a barrier
+request. The module monitors all ports and stores information of the time 
+when each new flow modification becomes active and when the barrier reply is
+received. 
 
-  The module provides the following configuration parameters: 
-  \begin{itemize}
-  \item \emph{pkt\_size}: This parameter can be used to control the length of the
-  packets of the measurement probe. It allows indirectly to adjust the packet
-  throughput of the experiment. The parameter uses bytes as measurement unit.
-  The parameter applies for both measurement probes. 
-  \item \emph{probe\_rate}: The rate of the sequential probe, measured in Mbps. 
-  \item \emph{data\_rate}: The rate of the constant probe, measured in Mbps. 
-  \item \emph{flows}:  The number of unique flows that the module will
-  update/insert.
-  \item \emph{table}:  This parameter controls whether the inserted flow will be
-  a wildcard(value of 1) or exact match(value of 0). For the wildcard flows, the
-  module wildcards all of the fields except the destination IP address. 
-  \item \emph{print}: This parameter enables the measurement module to print
-  extended per packet measurement information. The information is printed in a
-  separate CSV file, named "action\_aggregate.log".
-  \end{itemize}
+The module provides the following configuration parameters: 
+\begin{itemize}
+    \item \emph{pkt\_size}: This parameter can be used to control the length of the
+        packets of the measurement probe. It allows indirectly to adjust the packet
+        throughput of the experiment. The parameter uses bytes as measurement unit.
+        The parameter applies for both measurement probes. 
+    \item \emph{probe\_rate}: The rate of the sequential probe, measured in Mbps. 
+    \item \emph{data\_rate}: The rate of the constant probe, measured in Mbps. 
+    \item \emph{flows}:  The number of unique flows that the module will
+        update/insert.
+    \item \emph{table}:  This parameter controls whether the inserted flow will be
+        a wildcard(value of 1) or exact match(value of 0). For the wildcard flows, the
+        module wildcards all of the fields except the destination IP address. 
+    \item \emph{print}: This parameter enables the measurement module to print
+        extended per packet measurement information. The information is printed in a
+        separate CSV file, named "action\_aggregate.log".
+\end{itemize}
 
-  The module logs in the OFLOPS log file the timestamps when the flow
-  modification and barrier request transmission starts(entry label:
-      START\_FLOW\_MOD, BARRIER\_REPLY) 
-  and ends(entry label: END\_FLOW\_MOD) and when each flow becomes active in the data 
-  plane(entry label: FLOW\_INSERTED). Additionally, the module prints for each
-  channel statistics regarding the RTT and packet loss for each data channel. 
+The module logs in the OFLOPS log file the timestamps when the flow
+modification and barrier request transmission starts(entry label:
+START\_FLOW\_MOD, BARRIER\_REPLY) 
+and ends(entry label: END\_FLOW\_MOD) and when each flow becomes active in the data 
+plane(entry label: FLOW\_INSERTED). Additionally, the module prints for each
+channel statistics regarding the RTT and packet loss for each data channel. 
 
-  \section{openflow\_echo\_delay}
+\section{openflow\_echo\_delay}
 
-  This module can be used to measure the processing delay of the control channel.
-  Specifically, it generated echo\_request messages for one minute, and calculates the delay
-  for the switch to reply. The module provides a single configuration 
-  parameter, \emph{delay}, which define the inter-request delay in microseconds. 
+This module can be used to measure the processing delay of the control channel.
+Specifically, it generated echo\_request messages for one minute, and calculates the delay
+for the switch to reply. The module provides a single configuration 
+parameter, \emph{delay}, which define the inter-request delay in microseconds. 
 
-  The module outputs in the log file a line for each echo\_reply, that
-  contains all the required timing information, for offline analysis. The
-  module also output at the end of the measurement an entry with mean, median and
-  variance of the reply delay as well as any possible reply loss. 
+The module outputs in the log file a line for each echo\_reply, that
+contains all the required timing information, for offline analysis. The
+module also output at the end of the measurement an entry with mean, median and
+variance of the reply delay as well as any possible reply loss. 
 
-  \section{openflow\_interaction\_test}
+\section{openflow\_interaction\_test}
 
-  This test was developed in order to understand how the flow stats extraction
-  mechanism may interfere with other control plane operations. In this experiment
-  we repeat the scenario described in the openflow\_flow\_stats module, but
-  after 1 minute the module tries to modify the flow table of the switch. In
-  parallel the module monitors the time it takes for the new flows to become
-  active on the data plane. 
+This test was developed in order to understand how the flow stats extraction
+mechanism may interfere with other control plane operations. In this experiment
+we repeat the scenario described in the openflow\_flow\_stats module, but
+after 1 minute the module tries to modify the flow table of the switch. In
+parallel the module monitors the time it takes for the new flows to become
+active on the data plane. 
 
-  The module exports the following configuration parameters:
-  \begin{itemize}
-  \item \emph{pkt\_size}: This parameter can be used to control the length of the
-  packets of the measurement probe. It allows indirectly to adjust the packet
-  throughput of the experiment. The parameter uses bytes as measurement unit.
-  The parameter applies for both measurement probes.
-  \item \emph{probe\_rate}: The rate of the sequential probe, measured in
-  Mbps.
-  \item \emph{data\_rate}: The rate of the constant probe, measured in Mbps.
-  \item \emph{flows}:  The number of unique flows that the module will
-  update/insert.
-  \item \emph{table}:  This parameter controls whether the inserted flow will
-  be
-  a wildcard(value of 1) or exact match(value of 0). For the wildcard 
-  flows, the module wildcards all of the fields except the destination IP address.
-  \end{itemize}
+The module exports the following configuration parameters:
+\begin{itemize}
+    \item \emph{pkt\_size}: This parameter can be used to control the length of the
+        packets of the measurement probe. It allows indirectly to adjust the packet
+        throughput of the experiment. The parameter uses bytes as measurement unit.
+        The parameter applies for both measurement probes.
+    \item \emph{probe\_rate}: The rate of the sequential probe, measured in
+        Mbps.
+    \item \emph{data\_rate}: The rate of the constant probe, measured in Mbps.
+    \item \emph{flows}:  The number of unique flows that the module will
+        update/insert.
+    \item \emph{table}:  This parameter controls whether the inserted flow will
+        be
+        a wildcard(value of 1) or exact match(value of 0). For the wildcard 
+        flows, the module wildcards all of the fields except the destination IP address.
+\end{itemize}
 
-  The module will output on the OFLOPS log file, all the details described in the
-  openflow\_flow\_stats and openflow\_add\_flow modules. 
+The module will output on the OFLOPS log file, all the details described in the
+openflow\_flow\_stats and openflow\_add\_flow modules. 
 
-  \section{openflow\_timer}
+\section{openflow\_timer}
 
-  With this measurement module, users can quantify the precision of the internal
-  timers of an OpenFlow switch. The OpenFlow protocol, provides for each flow a
-  couple of parameters that allows the controller the time for which a flow will be
-  effective. Once the timers have expired, the switch is obliged to remove the
-  flow from the flow table and inform the controller with an appropriate 
-  message, if the flow has a specific flag set. In this experiment, the flow table is
-  initialized with a default flow with low priority that switches packets to port
-  2 and in parallel it generate a sequential measurement probe that match a specific
-  range of flows. After a second of experimental run time, the controller insert a
-  set of new high priority flows that match the packets of the measurement probe 
-  and output packets to port 3 of the switch. Each flow has a specific hard timeout 
-  value assigned to it as well as the OFPFF\_SEND\_FLOW\_REM flag set. The module monitors 
-  the duration that the flows are active, using the data plane of the switch, as 
-  well as the duration feedback that it receives from the FLOW\_REM message and
-  stores them in the log file of OFLOPS. 
+With this measurement module, users can quantify the precision of the internal
+timers of an OpenFlow switch. The OpenFlow protocol, provides for each flow a
+couple of parameters that allows the controller the time for which a flow will be
+effective. Once the timers have expired, the switch is obliged to remove the
+flow from the flow table and inform the controller with an appropriate 
+message, if the flow has a specific flag set. In this experiment, the flow table is
+initialized with a default flow with low priority that switches packets to port
+2 and in parallel it generate a sequential measurement probe that match a specific
+range of flows. After a second of experimental run time, the controller insert a
+set of new high priority flows that match the packets of the measurement probe 
+and output packets to port 3 of the switch. Each flow has a specific hard timeout 
+value assigned to it as well as the OFPFF\_SEND\_FLOW\_REM flag set. The module monitors 
+the duration that the flows are active, using the data plane of the switch, as 
+well as the duration feedback that it receives from the FLOW\_REM message and
+stores them in the log file of OFLOPS. 
 
-  The module provides the following configuration parameters:
-  \begin{itemize}
-  \item \emph{pkt\_size}: This parameter can be used to control the length of the
-  packets of the measurement probe. It allows indirectly to adjust the packet
-  throughput of the experiment. The parameter uses bytes as measurement unit.
-  The parameter applies for both measurement probes.
-  \item \emph{data\_rate}: The rate of the constant probe, measured in Mbps.
-  \item \emph{flows}:  The number of unique flows that the module will
-  update.
-  \end{itemize}
+The module provides the following configuration parameters:
+\begin{itemize}
+    \item \emph{pkt\_size}: This parameter can be used to control the length of the
+        packets of the measurement probe. It allows indirectly to adjust the packet
+        throughput of the experiment. The parameter uses bytes as measurement unit.
+        The parameter applies for both measurement probes.
+    \item \emph{data\_rate}: The rate of the constant probe, measured in Mbps.
+    \item \emph{flows}:  The number of unique flows that the module will
+        update.
+\end{itemize}
 
-  \section{snmp\_queue\_delay}
+\section{snmp\_queue\_delay}
 
-  This module is developed in order to measure the switching performance in the
-  data plane of the switch. This test is important mostly for software
-  switches, as hardware switches perform switching at line rate using
-  specialized hardware designs resulting in negligible processing delay. 
-  In this experiment the module initializes the flow table with a single
-  flow that output packets to a specific port. The module generates traffic at
-  various rates for a specific time period and measure for each packet the switching delay. 
-  Specifically, the module tests for data rates of 1, 10, 64, 128, 256, 512 and 1000 Mbps.
+This module is developed in order to measure the switching performance in the
+data plane of the switch. This test is important mostly for software
+switches, as hardware switches perform switching at line rate using
+specialized hardware designs resulting in negligible processing delay. 
+In this experiment the module initializes the flow table with a single
+flow that output packets to a specific port. The module generates traffic at
+various rates for a specific time period and measure for each packet the switching delay. 
+Specifically, the module tests for data rates of 1, 10, 64, 128, 256, 512 and 1000 Mbps.
 
-  The module accepts the following configuration parameters:
-  \begin{itemize}
-  \item \emph{pkt\_size}: This parameter can be used to control the length of the
-  packets of the measurement probe. It allows indirectly to adjust the packet
-  throughput of the experiment. The parameter uses bytes as measurement unit.
-  \item \emph{duration}: The duration of the measurement period for each probing
-  rate. The measurement unit is seconds and the default value is 30. 
-  \end{itemize}
+The module accepts the following configuration parameters:
+\begin{itemize}
+    \item \emph{pkt\_size}: This parameter can be used to control the length of the
+        packets of the measurement probe. It allows indirectly to adjust the packet
+        throughput of the experiment. The parameter uses bytes as measurement unit.
+    \item \emph{duration}: The duration of the measurement period for each probing
+        rate. The measurement unit is seconds and the default value is 30. 
+\end{itemize}
 
-  The module will output in the OFLOPS log a set of records which provide for each
-  probing rate the mean, median and variance of the RTT and the packet loss. 
+The module will output in the OFLOPS log a set of records which provide for each
+probing rate the mean, median and variance of the RTT and the packet loss. 
 
-  \section{snmp\_tuple\_test}
+\section{snmp\_tuple\_test}
 
-  In this module we are testing all possible combinations of the OpenFlow toppled in
-  order to quantify any possible the impact of the tupple format to the data plane. This test
-  design occurred by the fact that some of the early implementations, did not
-  support at full extend the OpenFlow tupple. The module uses a single flow entry
-  and a single flow measurement probe. For each possible tupple combination the
-  controller send a flow modification with the appropriate flow match and then
-  sends traffic for a specific period of time. For each test, the module stores in the
-  log file the RTT and loss statistics of the flow. 
+In this module we are testing all possible combinations of the OpenFlow toppled in
+order to quantify any possible the impact of the tupple format to the data plane. This test
+design occurred by the fact that some of the early implementations, did not
+support at full extend the OpenFlow tupple. The module uses a single flow entry
+and a single flow measurement probe. For each possible tupple combination the
+controller send a flow modification with the appropriate flow match and then
+sends traffic for a specific period of time. For each test, the module stores in the
+log file the RTT and loss statistics of the flow. 
 
-  The module provides two possible parameters for this module: \emph{pkt\_size}
-  and \emph{duration}. The pkt\_size controls the length of the packet of the
-  measurement probe. The duration is used to define to the module the duration of
-  each tupple test. Currently the default value is 10 seconds. The module
-  outputs on the OFLOPS log file for each match case a line with statistics for
-  the RTT and packet loss of the measurement probe.  
-  
-  \section{openflow\_dummy}
+The module provides two possible parameters for this module: \emph{pkt\_size}
+and \emph{duration}. The pkt\_size controls the length of the packet of the
+measurement probe. The duration is used to define to the module the duration of
+each tupple test. Currently the default value is 10 seconds. The module
+outputs on the OFLOPS log file for each match case a line with statistics for
+the RTT and packet loss of the measurement probe.  
 
-  This module is a simple reference module that is included in order to exemplify
-  to user all the potential API calls that a module can implement. This module
-  does not implement any functionality and should not be used in any test.
+\section{openflow\_dummy}
 
-  %\section{oflops\_debug}
-  %
-  %\section{openflow\_action\_measurement}
-  %
-  %A module to measure the delay for a switch to reply to 
-  %
-  %\section{openflow\_flow\_dump\_test}
-  %\section{openflow\_port\_status}
-  %\section{openflow\_vlan\_mod}
-  %\section{snmp\_cpu}
-  %\section{openflow\_action\_install}
-  %\section{openflow\_path\_delay}
+This module is a simple reference module that is included in order to exemplify
+to user all the potential API calls that a module can implement. This module
+does not implement any functionality and should not be used in any test.
 
-  \chapter{Developing OFLOPS modules}
+%\section{oflops\_debug}
+%
+%\section{openflow\_action\_measurement}
+%
+%A module to measure the delay for a switch to reply to 
+%
+%\section{openflow\_flow\_dump\_test}
+%\section{openflow\_port\_status}
+%\section{openflow\_vlan\_mod}
+%\section{snmp\_cpu}
+%\section{openflow\_action\_install}
+%\section{openflow\_path\_delay}
 
-\section{OFLOPS API design}
+\chapter{Developing OFLOPS modules}
+
+\section{Introduction}
 
 OFLOPS is an event driven modular platform. Its main focus is to allow rapid development
 of Openflow usage scenarios. In order to achieve this, the code is split in two parts: The main 
 platform and the modules. The main platform is repsonsible to implement a basic functionality for an
 openflow controller. It implements code that initializes a  control channel with the switch,
-an asynchronous SNMP client, a simplistic traffic generator and a high precision traffic generator. On the other
-hand, the module contain all the scenari specific code. The platform is responsible to abstract to a higher 
-level the OpenFlow interaction and can tae advantage of this functionality in order to implement with little
-code complex experiments. In this section I will cover the details on how to develop an OFLOPS module.
+an asynchronous SNMP client, a simplistic traffic generator and a high
+precision packet capturer. The modular part of the code is responsible to
+implement all the scenario specific fuinctionality. The main platform is responsible to abstract to a higher
+level the OpenFlow interaction, thus allowing the module  to implement complex
+experiment with only a small amount of coding. In this section we will cover
+the details on OFLOPS module development.
 
 \section{Module life-cycle}
 
 The design that we have chosen for the OFLOPS module functionality is build around dynamic linking. Each module
 is compiled as a run time loadable library. Each module, in order to permit to the main platform to push event,
-must implement specific functions in its code. Each OFLOPS module can be seen as a set of implementations of 
-specific function signatures, along with a scenario specific internal module state. 
+must implement specific functions in its code. In effect. each OFLOPS module
+can be abstracted to a set of functions implementations along with a scenario specific internal module state.
 
-The module lifecycle consist of 4 different phases, over which the main platform will interact with the module 
-using different methods:
-1) \textit{Bootstrap}: In this phase OFLOPS will call the init function of the module and pass as a argument
+During execution, the OFLOPS architecture define a lifecycle for modules. The
+lifecycle consists of 4 phases, during which the main platform will interact
+with the module using different set of functions. The phases are the following:
+\begin{itemize}
+\item \textit{Bootstrap}: In this phase OFLOPS will call the init function of
+    the module and pass as an argument
 the initialization string that the user provides throught the configuration file. The module is responsible to 
 allocate and initiliaze all the internal variables of the module. 
-2) \textit{Intialization}: In this phase the OFLOPS platform has setup a control channel with the switch but hasn't 
+\item \textit{Intialization}: In this phase the OFLOPS platform has setup a control channel with the switch but hasn't 
 start to interact with the switch and run the various threads of the module. In this phase the module is expected 
 to setup any required initialization of the switch flow table and schedule the various events of the module. 
-3) \textit{Run}: In this phase the platform will run the function that start the packet generation mechanism and 
+\item \textit{Run}: In this phase the platform will run the function that start the packet generation mechanism and 
 call all of the implemented openflow and SNMP event callbacks. A detailed analysis of the various events of this phase
 is described in Section \ref{OFLOPS_API}
-4\textit{Termination}: In this phase the module has stopped running the main event loop. The platform will call the 
+\item \textit{Termination}: In this phase the module has stopped running the main event loop. The platform will call the 
 destroy function of the module, where it is expected for the module to execute any result processing code and release 
 all allocated memory. 
+\end{itemize}
 
 \lstset{language=C, title={}}
 \section{OFLOPS API and Events}
 \label{OFLOPS_API}
 
+In this section we are presenting in higher details the callbaks and function
+that the OFLOPS platform provides to modules. In order to cover in detail the
+API we group details based on the functionality they provide.
+
 \subsection{Control Channel Events}
 
-In order to handle singalling on the control channel the OFLOPS platform uses a separate thread to monitor the control channel,
-parse received packet and convert them to appropriate events for the modules. In order for the modules to receive data from the 
-control channel, they should implement a specific function, depending on the openflow event that they are interested to get informed.
-The set for available handlers that the OFLOPS platform support is the following:
-\begin{lstlisting}
+In order to handle signalling on the control channel the OFLOPS platform uses a separate thread to monitor the control channel,
+parse received packet and convert them to appropriate events for the modules. In order for modules to receive data from the
+control channel, they should implement specific functions, depending on the
+OpenFlow events that they are interested to get notified.
+The set of available handlers that the OFLOPS platform supports is the following:
+\begin{lstlisting}[caption={OpenFlow event callbacks}]
 /* handle packet_in events */
 int of_event_packet_in(struct oflops_context *ctx, 
-  const struct ofp_packet_in * pktin);
+    const struct ofp_packet_in * pktin);
 
 /* handle flow_removed events */
 int of_event_flow_removed(struct oflops_context *ctx, 
-  const struct ofp_flow_removed * ofph);
+    const struct ofp_flow_removed * ofph);
 
 /* handle openflow echo requests events */
 int of_event_echo_request(struct oflops_context *ctx, 
-  const struct ofp_header * ofph);
+    const struct ofp_header * ofph);
 
 /* receive port_status events */
 int of_event_port_status(struct oflops_context *ctx, 
-  const struct ofp_port_status * ofph);
+    const struct ofp_port_status * ofph);
 
-/* handle all remaining openflow events */
+/* handle all remaining OpenFlow events */
 int of_event_other(struct oflops_context *ctx, 
-  const struct ofp_header * ofph);
+    const struct ofp_header * ofph);
 \end{lstlisting}
 
 Each function signature consists of the data context of the module along with a pointer to the data of the packet. OFLOPS also permits
-to module to inject custom packets to the control channel. In order to achieve this the plaform provides the following functions:
+modules to inject OpenFlow packets to the control channel. In order to achieve this the platform provides the following functions:
 
-\begin{lstlisting}
+\begin{lstlisting}[caption={Control channel packet transmission}]
 size_t oflops_send_of_mesgs(struct oflops_context *ctx, 
-  char * buf, size_t buflen);
+    char * buf, size_t buflen);
 int oflops_send_of_mesg(struct oflops_context *ctx, 
-  struct ofp_header * hdr);
+    struct ofp_header * hdr);
 \end{lstlisting}
 
 This set of functions can be used only once the control channel has been established. oflops\_send\_of\_mesg sends only a single 
-openflow packet and infers the size of the packet buffer, through the length field of the openflow header. oflops\_send\_of\_mesgs
-permits the developer to send a number of packets, but requires to define the size of the packet buffer passes as an argument. 
-If the developer wishes to atain higher control of the tcp socket of the control channel, it can use the control\_fd field of 
+OpenFlow packet and infers the size of the packet buffer through the length field of the OpenFlow header. oflops\_send\_of\_mesgs
+permits the developer to send a number of packets, but requires to define the
+size of the packet buffer passed as an argument. 
+If the developer wishes to attain higher control of the TCP socket of the
+control channel, it can use the control\_fd field of the
 data context of the module, but he should be aware that the socket is non blocking and aggressive writes on the socket may lead 
 to packet losses. 
 
 \subsection{Data Channel Events}
 
-As it has already been discussed previously in this document, the OFLOPS platform contains a basic simple packet generation 
+As it has already been discussed previously in this document, the OFLOPS platform contains a simple packet generation 
 mechanism. The platform currently provides 3 possible alternatives: a user space packet generator, a kernel space packet generator
-that use the pktgen module or a NetFPGA based packet generator. The selection of the pacet generation mechanism is done though the 
-configuration file and is abstracted from the module code. In order to bootstrap the packet generation mechanism the module must 
+that use the pktgen module or a NetFPGA based packet generator. The selection
+of the packet generation mechanism is done though the 
+configuration file and is abstracted from the module code. In order to control the packet generation mechanism the module must 
 provide an implementation of the following function:
 
-\begin{lstlisting}
+\begin{lstlisting}[caption={traffic generation event callback}]
 int handle_traffic_generation(struct oflops_context * ctx);
 \end{lstlisting}
 
 In this function the developer can initialize the packet generation mechanism. The platform provides the following functions 
 to developers:
 
-\begin{lstlisting}
+\begin{lstlisting}[caption={Traffic generation methods}]
 
 /* called before any interaction with the packet
-  generator */
+   generator */
 int init_traf_gen(struct oflops_context *ctx);
 
 struct traf_gen_det {
-  char src_ip[20];
-  dst_ip_max[20], dst_ip_min[20];
-  char mac_dst[20], mac_src[20];
-  uint16_t udp_src_port, udp_dst_port;
-  uint32_t pkt_size;
-  uint16_t vlan;
-  uint16_t vlan_p;
-  uint16_t vlan_cfi;
-  uint32_t delay;
-  uint64_t pkt_count;
-  
-  /* RANDOM -> packet generated uniformly at 
-  random for the specified ranges 
-   "" -> packets are ganerated sequentially 
-   iterating all possible pairs */
-  char flags[1024];
+    char src_ip[20];
+    dst_ip_max[20], dst_ip_min[20];
+    char mac_dst[20], mac_src[20];
+    uint16_t udp_src_port, udp_dst_port;
+    uint32_t pkt_size;
+    uint16_t vlan;
+    uint16_t vlan_p;
+    uint16_t vlan_cfi;
+    uint32_t delay;
+    uint64_t pkt_count;
+
+    /* "RANDOM"-> packet generated uniformly at 
+    random for the specified ranges 
+    "" -> packets are ganerated sequentially 
+    iterating all possible pairs */
+    char flags[1024];
 };
 
 /* Adding a packet generation description to 
-  on a specific data channel */
+   on a specific data channel */
 int add_traffic_generator(struct oflops_context *ctx, 
-  int channel, struct traf_gen_det *det);
+    int channel, struct traf_gen_det *det);
 
 /* start packet generation*/
 int start_traffic_generator();
@@ -815,55 +829,117 @@ int stop_traffic_generator( oflops_context *ctx);
 /* returns a string with detailed informations 
    regrading packet generatio process */
 char *report_traffic_generator(oflops_context *ctx);
-
-struct pktgen_hdr {
-  uint32_t magic;
-  uint32_t seq_num;
-  uint32_t tv_sec;
-  uint32_t tv_usec;
-};
-
-/* Extract packet generation details from a packet 
-  */
-struct pktgen_hdr *extract_pktgen_pkt(oflops_context *ctx, int port,
-				      unsigned char *b, int len, struct flow *fl);
-
 \end{lstlisting}
 
 In order to initialize the packet generation process the developer must use the init\_traf\_gen function
-before ay other calls to the packet generation system. Once the mechanism has beed initiated, the module 
+before any other calls to the packet generation system. Once the mechanism has beed initiated, the module 
 can add packet generation descriptions to each data channel. A packet generation description is provided 
-throught the traf\_gen\_det structure which defines the way packets are generated. Developers currently 
-are only able to generate packet that variate based on the destination address. The fields of the packet
+throught the traf\_gen\_det structure which defines values for the various
+field of the generated packets. The traffic model that the platform currently
+supports generates traffic at constant rate. A module is able to define the
+size of each packet and the time gap between consecutive packets. Regarding the
+field values of the headers of the packets of the traffic generator, the
+traf\_gen\_det structure provides methods to define ranges for the various
+fields \footnote{Unfortunately the current release allows the module to create variation
+only through the destination IP, but in the near future we are planning to
+extend this and incorporate all of the fields of the OpenFlow tuple}. The
+traffic generator provides 2 method of traffic generation, defined through the
+flag field: \textit{RANDOM}, where each packet chooses its header values
+uniformly at random based on the defined ranges, and \textit{SEQUENTIAL}, where
+packet field values will iterate over all possible combination of the various
+fields. We don't claim that the model is realistic for a network, but is
+sufficient in order to benchmark the performance of the platform. Once a
+traffic generation description has been defined, the module can assign the
+description to a specific data channel through the function
+add\_traffic\_generator. The reader should be aware that in the current
+architecture, the packet generator is able to store only a single description
+for each data channel. In order to start and stop the packet generation process
+the API provides the methods start\_traffic\_generator and
+stop\_traffic\_generator respectively. Additionally, once the packet generation
+process has been stopped, the module may receive information regarding the
+details of the packet generation method through the function
+report\_traffic\_generator which return a formatted string. 
+
+As part of the OFLOPS platform we also provide methods to capture data over the 
+data channels of the switch. In order to control the packet capturing
+mechanism, the OFLOPS API provides the following methods: 
+
+\begin{lstlisting}[caption={packet capturing control methods}]
+int 
+get_pcap_filter(struct oflops_context *ctx, 
+    oflops_channel_name ofc, char * filter, 
+    int buflen);
+
+struct pcap_event {
+  struct pcap_pkthdr pcaphdr;
+  unsigned char * data;
+}
+
+int 
+handle_pcap_event(struct oflops_context *ctx, 
+    struct pcap_event *pe, oflops_channel_name ch) 
+
+struct pktgen_hdr {
+    uint32_t magic;
+    uint32_t seq_num;
+    uint32_t tv_sec;
+    uint32_t tv_usec;
+};
+
+/* Extract packet generation details from a packet 
+ */
+struct pktgen_hdr *extract_pktgen_pkt(oflops_context *ctx, 
+    int port, unsigned char *b, int len, struct flow *fl);
+\end{lstlisting}
+
+The function get\_pcap\_filter must be implemented by the module in order to
+control whether the platform will be capturing any packet on data channel
+\textit{ofc}. In order to capture data on the specific channel, the module must
+print a pcap like filter on the buffer \textit{filter}\footnote{the filter
+currently is applicable only when the platform uses pcap library to
+receive data. For the case of NetFPGA packet capturing, the filter is ignored
+and the packet callback function should perform filtering} and return a positive
+value, otherwise the platform will not capture any data on the specific
+channel. Once the filter has been setup and the platform starts receiving
+packet on the data channels, it will pass the captured packets to the module
+through the callback handle\_pcap\_event. The function receives as arument the
+data context of the module, a pointer to a pcap\_event structure that carries
+both a pcap-like header and a buffer with the real data of the captured
+packet, and the id of the channel over which the function received the
+packet. Finally, because each generated packet is crafted specially in order to
+store in its payload a custom header that contains informations regarding the
+time that the packet was generated, developers can use the function
+extract\_pktgen\_pkt in order to extract these information. These information
+are returned as a structure of type pktgen\_hdr.
 
 \subsection{Timer Events}
 
 The main OFLOPS platform provide a simple mechanism that allows module to construct custom timed events.
 The main function to register an event is throught the function:
 
-\begin{lstlisting}
-int oflops_schedule_timer_event(struct oflops_context *ctx, 
-struct timeval *tv, void * arg);
+\begin{lstlisting}[caption={timer event callbacks}]
+    int oflops_schedule_timer_event(struct oflops_context *ctx, 
+    struct timeval *tv, void * arg);
 \end{lstlisting}
 where ctx is the data context of the module, tv is a timeval structure that define after how much
 time should the timer invoke the timer handling function, and arg is a module defined object that will
 be pushed to the event handling function when the event fires. In order for the module to receive timer 
 events, it must implement the following function:
-\begin{lstlisting}
-int   handle_timer_event (struct oflops_context *ctx, 
-  struct timer_event *te);
+\begin{lstlisting}[caption={timer event registration}]
+    int   handle_timer_event (struct oflops_context *ctx, 
+    struct timer_event *te);
 \end{lstlisting}
 
 In this function the module can define in a custom way the various events. The details of the event 
 are contained in the structure timer\_event. The structure has the following format:
 
-\begin{lstlisting}
-typedef struct timer_event
-{
-	int timer_id;            
-	void * arg;
-	struct timeval sched_time;
-} 
+\begin{lstlisting}[caption={event structure}]
+    typedef struct timer_event
+    {
+    int timer_id;            
+    void * arg;
+    struct timeval sched_time;
+    } 
 \end{lstlisting}
 
 In order for the code to detect the event fired each time, code developers can use the arg field of the 
@@ -874,34 +950,36 @@ event in order to differentiate the different events.
 As part of the main OpenFlow platform, module are able to query asynchronously the SNMP service of the switch.
 The SNMP functionlity is similarly event driver as the rest of the functionality of OFLOPS. Module can send queries
 using the function:
-\begin{lstlisting}
-int oflops_snmp_get(struct oflops_context * ctx, 
-  oid query[], size_t len);
+
+\begin{lstlisting}[caption={asynchronous SNMP query}]
+    int oflops_snmp_get(struct oflops_context * ctx, 
+    oid query[], size_t len);
 \end{lstlisting}
 
 The user can set in each call a query for a single OID. This is defined though the parameters query and len. Once
 a query has been send, a separate thread will listen on a UDP socket, receive the reply and generate an OFLOPS 
 event to the module. In order for a module to capture SNMP event through an OFLOPS 
 
-\begin{lstlisting}
-int handle_snmp_event(struct oflops_context * ctx, 
-  struct snmp_event * se);
+\begin{lstlisting}[caption={SNMP reply event callback}]
+    int handle_snmp_event(struct oflops_context * ctx, 
+    struct snmp_event * se);
 \end{lstlisting}
 
 The snmp\_event object, passed as an argument to the callback has the following format:
-\begin{lstlisting}
-typedef struct snmp_event
-{
-  /** SNMP variable list
-   */
-  struct variable_list* reply;
-  /** Pointer to SNMP reply
-   */
-  struct snmp_pdu* pdu;
-}
+
+\begin{lstlisting}[caption={SNMP event structure}]
+    typedef struct snmp_event
+    {
+    /** SNMP variable list
+    */
+    struct variable_list* reply;
+    /** Pointer to SNMP reply
+    */
+    struct snmp_pdu* pdu;
+    }
 \end{lstlisting}
 
 The data of the reply can be found in struct snmp\_pdu. In order to parse the information programmers should use
 the API provided by the net-snmp library \footnote{\url{http://www.net-snmp.org/wiki/index.php/TUT:Simple_Application}}. 
 
-  \end{document}
+\end{document}
