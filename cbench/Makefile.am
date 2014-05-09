@@ -4,8 +4,8 @@ TOP=..
 
 OFSRC=@openflowsrc@
 
-CFLAGS+=-Wall -I$(OFSRC)/include -Wshadow 
-LDFLAGS+=-L$(TOP) -static -lm -loflops_test
+AM_CFLAGS=-Wall -I$(OFSRC)/include -Wshadow 
+AM_LDFLAGS=-L$(TOP) -static -lm -loflops_test
 
 bin_PROGRAMS=cbench
 

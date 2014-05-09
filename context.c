@@ -18,7 +18,7 @@
 oflops_context * oflops_default_context(void) {
 
   //initialize oflops nf packet generator (enable packet padding)
-  nf_init(1, 0, 0); 
+//  nf_init(1, 0, 0);
 
   oflops_context * ctx = malloc_and_check(sizeof(oflops_context));
   bzero(ctx, sizeof(*ctx));
@@ -28,7 +28,7 @@ oflops_context * oflops_default_context(void) {
   ctx->listen_port = OFP_TCP_PORT;	// listen on default port
 
   ctx->listen_fd   = -1;
-  ctx->snaplen = 112; 
+  ctx->snaplen = 112;
 
   ctx->n_channels=1;
   ctx->max_channels=10;
@@ -53,7 +53,7 @@ oflops_context * oflops_default_context(void) {
 }
 
 /**
-  * a method to reinit an oflops context structure. 
+  * a method to reinit an oflops context structure.
   * to be run me between tests.
   * \param ctx a pointer to the context object
   */

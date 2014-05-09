@@ -39,7 +39,7 @@ static void parse_test_module(oflops_context * ctx, int argc, char * argv[]);
 
 /*****************************************************************************
  * int parse_args(oflops_context * ctx, int argc, char * argv[])
- * 	
+ *
  **/
 
 int parse_args(oflops_context * ctx, int argc, char * argv[])
@@ -74,7 +74,7 @@ int parse_args(oflops_context * ctx, int argc, char * argv[])
 	  snmp_client = strtok(optarg, SNMP_DELIMITER);
 	  snmp_community = strtok(NULL, SNMP_DELIMITER);
 	  snmp_channel_init(ctx->snmp_channel_info, snmp_client, snmp_community);
-	  fprintf(stderr,"Adding SNMP channel on %s with community string %s.\n", 
+	  fprintf(stderr,"Adding SNMP channel on %s with community string %s.\n",
 		  snmp_client, snmp_community);
 	  break;
 	case 'd':
@@ -187,195 +187,195 @@ void usage(char * s1, char *s2)
  **/
 static void parse_test_module(oflops_context * ctx, int argc, char * argv[])
 {
-  char buf[BUFLEN];
-  int count=0;
-  int i;
+    char buf[BUFLEN];
+    int count=0;
+    int i;
 
-  if(argc==0)
-    usage("need to specify a test_module to load\n",NULL);
-  // turn all of the args into a single string
-  for(i=1;((count < BUFLEN) && (i<argc)); i++)
-    count += snprintf((buf+count),BUFLEN-count-1, " %s", argv[i]);
-  if(load_test_module(ctx,argv[0],buf))
-    fprintf(stderr, "Failed to load test_module %s\n", argv[0]);
+    if(argc==0)
+        usage("need to specify a test_module to load\n",NULL);
+    // turn all of the args into a single string
+    for(i=1;((count < BUFLEN) && (i<argc)); i++)
+        count += snprintf((buf+count),BUFLEN-count-1, " %s", argv[i]);
+    if(load_test_module(ctx,argv[0],buf))
+        fprintf(stderr, "Failed to load test_module %s\n", argv[0]);
 }
 
-int 
+int
 load_config_file(oflops_context * ctx, const char *config) {
-  config_t conf;
-  config_setting_t *elem, *data;
-  char *snmp_client, *snmp_community;
-  int i, len, argc = 0;
-  char cap_type_str[100];
-  char *path, **argv, *in_oid = NULL, *out_oid = NULL;
+    config_t conf;
+    config_setting_t *elem, *data;
+    char *snmp_client, *snmp_community;
+    int i, len, argc = 0;
+    char cap_type_str[100];
+    char *path, **argv, *in_oid = NULL, *out_oid = NULL;
 
-  config_init(&conf);
-  if(config_read_file(&conf, config) == CONFIG_FALSE) {
-    fprintf(stderr, "failed %s:%d %s\n", config, config_error_line(&conf), config_error_text(&conf));
-    return -1;
-  }
-
-  //reading the traffic generator paramters
-  elem = config_lookup(&conf, "oflops.traffic_generator");
-  if(elem != NULL) {
-    if(config_setting_get_int(elem) != 0)
-    ctx->trafficGen = config_setting_get_int(elem);
-  }
-
-  //reading the traffic generator paramters
-  elem = config_lookup(&conf, "oflops.dump_control_channel");
-  if(elem != NULL) {
-    if(config_setting_get_int(elem) != 0)
-      ctx->dump_controller = config_setting_get_int(elem);
-  }
-
-  elem = config_lookup(&conf, "oflops.control.control_dev");
-  if(elem != NULL) {
-    if(config_setting_get_string(elem) != NULL) {
-      printf("Setting up control channel on %s\n", config_setting_get_string(elem));
-      channel_info_init(&ctx->channels[OFLOPS_CONTROL], config_setting_get_string(elem));
+    config_init(&conf);
+    if(config_read_file(&conf, config) == CONFIG_FALSE) {
+        fprintf(stderr, "failed %s:%d %s\n", config, config_error_line(&conf), config_error_text(&conf));
+        return -1;
     }
-  }
 
-  elem = config_lookup(&conf, "oflops.control.control_port");
-  if(elem != NULL) {
-    if(config_setting_get_int(elem) != 0) {
-      ctx->listen_port = config_setting_get_int(elem);
+    //reading the traffic generator paramters
+    elem = config_lookup(&conf, "oflops.traffic_generator");
+    if(elem != NULL) {
+        if(config_setting_get_int(elem) != 0)
+            ctx->trafficGen = config_setting_get_int(elem);
     }
-  } //oflops.control.control_port
 
-  elem = config_lookup(&conf, "oflops.control.snmp_addr");
-  if(elem != NULL) {
-    if(config_setting_get_string(elem) != NULL) {
-      snmp_client = malloc(strlen(config_setting_get_string(elem)) + 1);
-      strcpy(snmp_client, config_setting_get_string(elem));
-      if( (elem = config_lookup(&conf, "oflops.control.snmp_community")) != NULL) {
-	snmp_community = malloc(strlen(config_setting_get_string(elem)) + 1);
-	strcpy(snmp_community, config_setting_get_string(elem));
-      }
-      snmp_channel_init(ctx->snmp_channel_info, snmp_client, snmp_community);
-      fprintf(stderr,"Adding SNMP channel on %s with community string %s.\n", 
-	      snmp_client, snmp_community);
-
-      free(snmp_client);
-      free(snmp_community);
+    //reading the traffic generator paramters
+    elem = config_lookup(&conf, "oflops.dump_control_channel");
+    if(elem != NULL) {
+        if(config_setting_get_int(elem) != 0)
+            ctx->dump_controller = config_setting_get_int(elem);
     }
-  } //oflops.control.snmp_addr
 
-  //reading snmp mib for ports of the control channel
-  if(in_oid != NULL) free(in_oid);
-  in_oid = NULL;
-  if(out_oid != NULL) free(out_oid);
-  out_oid = NULL;
-	
-  if(((elem = config_lookup(&conf, "oflops.control.in_mib")) != NULL) && 
-     (strlen( config_setting_get_string(elem)) > 0) ) {
-    in_oid = malloc(strlen(config_setting_get_string(elem)) + 1);
-    strcpy(in_oid,config_setting_get_string(elem));
-  } 
-  if( ((elem = config_lookup(&conf, "oflops.control.out_mib")) != NULL) && 
-      (strlen(config_setting_get_string(elem)) > 0) ) {
-    out_oid = malloc(strlen(config_setting_get_string(elem)) + 1);
-    strcpy(out_oid,config_setting_get_string(elem));
-  } 
-  setup_channel_snmp(ctx, OFLOPS_CONTROL, in_oid, out_oid);
-  
-  if(((elem = config_lookup(&conf, "oflops.control.cpu_mib")) != NULL) && 
-     (strlen( config_setting_get_string(elem)) > 0) ) {
-    len = strlen(config_setting_get_string(elem));
-    char *data = xmalloc(len + 1);
-    strcpy(data, config_setting_get_string(elem));
-    char *end = strtok(data, ";");
-    do {
-      ctx->cpuOID_count++;
-      ctx->cpuOID_len = realloc(ctx->cpuOID_len, ctx->cpuOID_count*sizeof(int));
-      ctx->cpuOID_len[ctx->cpuOID_count - 1] = MAX_OID_LEN;
-      ctx->cpuOID = realloc(ctx->cpuOID, ctx->cpuOID_count*sizeof(oid *));
-      ctx->cpuOID[ctx->cpuOID_count - 1] = xmalloc(MAX_OID_LEN*sizeof(oid));
-      if(!my_read_objid(end, 
-			ctx->cpuOID[ctx->cpuOID_count - 1], 
-			&ctx->cpuOID_len[ctx->cpuOID_count - 1])) 
-	perror_and_exit("read_objid failed", 1);  
-    } while (( end = strtok(NULL, ";")) != NULL);
-  }
-  //setting up details regarding the data ports from the data 
-  if((data = config_lookup(&conf, "oflops.data") ) != NULL ) {
-    for (i=0; i < config_setting_length(data); i++) {
-      elem = config_setting_get_elem(data, i);
-      if(config_setting_get_member(elem, "dev") != NULL) {
-	if(ctx->n_channels >= ctx->max_channels) {
-	  ctx->max_channels *= 2;
-	  ctx->channels = realloc_and_check(ctx->channels, ctx->max_channels * sizeof(channel_info));
-	}
-	channel_info_init(&ctx->channels[ctx->n_channels++], config_setting_get_string(config_setting_get_member(elem, "dev")));
-	fprintf(stderr,"Adding a data channel on %s\n", config_setting_get_string(config_setting_get_member(elem, "dev")));
-	if(config_setting_get_member(elem, "port_num") != NULL) {
-	  ctx->channels[ctx->n_channels-1].of_port = config_setting_get_int(config_setting_get_member(elem, "port_num"));
-	} else
-	  ctx->channels[ctx->n_channels-1].of_port = ctx->n_channels-1;
-
-	//reading snmp mib for ports
-	if(in_oid != NULL) free(in_oid);
-	in_oid = NULL;
-	if(out_oid != NULL) free(out_oid);
-	out_oid = NULL;
-	
-	if((config_setting_get_member(elem, "in_snmp_mib") != NULL) && 
-	   (strlen( config_setting_get_string(config_setting_get_member(elem, "in_snmp_mib"))) > 0) ) {
-	  in_oid = malloc(strlen(config_setting_get_string(config_setting_get_member(elem, "in_snmp_mib"))) + 1);
-	  strcpy(in_oid,config_setting_get_string(config_setting_get_member(elem, "in_snmp_mib")));
-	} 
-	if((config_setting_get_member(elem, "out_snmp_mib") != NULL) && 
-	   (strlen( config_setting_get_string(config_setting_get_member(elem, "out_snmp_mib"))) > 0) ) {
-	  out_oid = malloc(strlen(config_setting_get_string(config_setting_get_member(elem, "out_snmp_mib"))) + 1);
-	  strcpy(out_oid,config_setting_get_string(config_setting_get_member(elem, "out_snmp_mib")));
-	} 
-	if((config_setting_get_member(elem, "type") != NULL) && 
-	   (strlen( config_setting_get_string(config_setting_get_member(elem, "type"))) > 0) ) {
-	  strcpy(cap_type_str,config_setting_get_string(config_setting_get_member(elem, "type")));
-
-	  if(strncasecmp(cap_type_str, "pcap", sizeof("pcap")) == 0) 
-	    ctx->channels[ctx->n_channels-1].cap_type = PCAP;
-	  else if(strncasecmp(cap_type_str, "nf2", sizeof("nf2")) == 0)
-	    ctx->channels[ctx->n_channels-1].cap_type = NF2;
-	  else {
-	    fprintf(stderr, "Invalid capture library type %s\n", cap_type_str);
-	    exit(1);
-	  }
-	} 
-	setup_channel_snmp(ctx, ctx->n_channels-1, in_oid, out_oid);
-	
-	//TODO: fixe how we assign the SNMP MIB "snmp_mib"
-      }
+    elem = config_lookup(&conf, "oflops.control.control_dev");
+    if(elem != NULL) {
+        if(config_setting_get_string(elem) != NULL) {
+            printf("Setting up control channel on %s\n", config_setting_get_string(elem));
+            channel_info_init(&ctx->channels[OFLOPS_CONTROL], config_setting_get_string(elem));
+        }
     }
-  } //data
 
-  if((data = config_lookup(&conf, "oflops.module") ) != NULL ) {
-    for (i=0; i < config_setting_length(data); i++) {
-      elem = config_setting_get_elem(data, i);
+    elem = config_lookup(&conf, "oflops.control.control_port");
+    if(elem != NULL) {
+        if(config_setting_get_int(elem) != 0) {
+            ctx->listen_port = config_setting_get_int(elem);
+        }
+    } //oflops.control.control_port
 
-      if(config_setting_get_member(elem, "path") != NULL)  {
-	path = config_setting_get_string(config_setting_get_member(elem, "path"));
-	argc++;
-	len = strlen(path);
-	argv = malloc(sizeof(char *));
-	argv[0] = malloc((len + 1)*sizeof(char));
-	strcpy(argv[0], path);
-	if(config_setting_get_member(elem, "param") != NULL)  {
-	  path = config_setting_get_string(config_setting_get_member(elem, "param"));
-	  argv = realloc(argv, 2*sizeof(char *));
-	  argc++; //[len] = ' ';
-	  argv[1] = malloc((strlen(path) + 1)*sizeof(char));
-	  strcpy(argv[1], path);
-	}
+    elem = config_lookup(&conf, "oflops.control.snmp_addr");
+    if(elem != NULL) {
+        if(config_setting_get_string(elem) != NULL) {
+            snmp_client = malloc(strlen(config_setting_get_string(elem)) + 1);
+            strcpy(snmp_client, config_setting_get_string(elem));
+            if( (elem = config_lookup(&conf, "oflops.control.snmp_community")) != NULL) {
+                snmp_community = malloc(strlen(config_setting_get_string(elem)) + 1);
+                strcpy(snmp_community, config_setting_get_string(elem));
+            }
+            snmp_channel_init(ctx->snmp_channel_info, snmp_client, snmp_community);
+            fprintf(stderr,"Adding SNMP channel on %s with community string %s.\n",
+                    snmp_client, snmp_community);
 
-	parse_test_module(ctx, argc, argv);
-	for (i=0;i<argc;i++)
-	  free(argv[i]);
-	free(argv);
-      }
+            free(snmp_client);
+            free(snmp_community);
+        }
+    } //oflops.control.snmp_addr
+
+    //reading snmp mib for ports of the control channel
+    if(in_oid != NULL) free(in_oid);
+    in_oid = NULL;
+    if(out_oid != NULL) free(out_oid);
+    out_oid = NULL;
+
+    if(((elem = config_lookup(&conf, "oflops.control.in_mib")) != NULL) &&
+            (strlen( config_setting_get_string(elem)) > 0) ) {
+        in_oid = malloc(strlen(config_setting_get_string(elem)) + 1);
+        strcpy(in_oid,config_setting_get_string(elem));
     }
-  }
-  
-  config_destroy(&conf); 
+    if( ((elem = config_lookup(&conf, "oflops.control.out_mib")) != NULL) &&
+            (strlen(config_setting_get_string(elem)) > 0) ) {
+        out_oid = malloc(strlen(config_setting_get_string(elem)) + 1);
+        strcpy(out_oid,config_setting_get_string(elem));
+    }
+    setup_channel_snmp(ctx, OFLOPS_CONTROL, in_oid, out_oid);
+
+    if(((elem = config_lookup(&conf, "oflops.control.cpu_mib")) != NULL) &&
+            (strlen( config_setting_get_string(elem)) > 0) ) {
+        len = strlen(config_setting_get_string(elem));
+        char *data = xmalloc(len + 1);
+        strcpy(data, config_setting_get_string(elem));
+        char *end = strtok(data, ";");
+        do {
+            ctx->cpuOID_count++;
+            ctx->cpuOID_len = realloc(ctx->cpuOID_len, ctx->cpuOID_count*sizeof(size_t));
+            ctx->cpuOID_len[ctx->cpuOID_count - 1] = MAX_OID_LEN;
+            ctx->cpuOID = realloc(ctx->cpuOID, ctx->cpuOID_count*sizeof(oid *));
+            ctx->cpuOID[ctx->cpuOID_count - 1] = xmalloc(MAX_OID_LEN*sizeof(oid));
+            if(!my_read_objid(end,
+                        ctx->cpuOID[ctx->cpuOID_count - 1],
+                        &ctx->cpuOID_len[ctx->cpuOID_count - 1]))
+                perror_and_exit("read_objid failed", 1);
+        } while (( end = strtok(NULL, ";")) != NULL);
+    }
+    //setting up details regarding the data ports from the data
+    if((data = config_lookup(&conf, "oflops.data") ) != NULL ) {
+        for (i=0; i < config_setting_length(data); i++) {
+            elem = config_setting_get_elem(data, i);
+            if(config_setting_get_member(elem, "dev") != NULL) {
+                if(ctx->n_channels >= ctx->max_channels) {
+                    ctx->max_channels *= 2;
+                    ctx->channels = realloc_and_check(ctx->channels, ctx->max_channels * sizeof(channel_info));
+                }
+                channel_info_init(&ctx->channels[ctx->n_channels++], config_setting_get_string(config_setting_get_member(elem, "dev")));
+                fprintf(stderr,"Adding a data channel on %s\n", config_setting_get_string(config_setting_get_member(elem, "dev")));
+                if(config_setting_get_member(elem, "port_num") != NULL) {
+                    ctx->channels[ctx->n_channels-1].of_port = config_setting_get_int(config_setting_get_member(elem, "port_num"));
+                } else
+                    ctx->channels[ctx->n_channels-1].of_port = ctx->n_channels-1;
+
+                //reading snmp mib for ports
+                if(in_oid != NULL) free(in_oid);
+                in_oid = NULL;
+                if(out_oid != NULL) free(out_oid);
+                out_oid = NULL;
+
+                if((config_setting_get_member(elem, "in_snmp_mib") != NULL) &&
+                        (strlen( config_setting_get_string(config_setting_get_member(elem, "in_snmp_mib"))) > 0) ) {
+                    in_oid = malloc(strlen(config_setting_get_string(config_setting_get_member(elem, "in_snmp_mib"))) + 1);
+                    strcpy(in_oid,config_setting_get_string(config_setting_get_member(elem, "in_snmp_mib")));
+                }
+                if((config_setting_get_member(elem, "out_snmp_mib") != NULL) &&
+                        (strlen( config_setting_get_string(config_setting_get_member(elem, "out_snmp_mib"))) > 0) ) {
+                    out_oid = malloc(strlen(config_setting_get_string(config_setting_get_member(elem, "out_snmp_mib"))) + 1);
+                    strcpy(out_oid,config_setting_get_string(config_setting_get_member(elem, "out_snmp_mib")));
+                }
+                if((config_setting_get_member(elem, "type") != NULL) &&
+                        (strlen( config_setting_get_string(config_setting_get_member(elem, "type"))) > 0) ) {
+                    strcpy(cap_type_str,config_setting_get_string(config_setting_get_member(elem, "type")));
+
+                    if(strncasecmp(cap_type_str, "pcap", sizeof("pcap")) == 0)
+                        ctx->channels[ctx->n_channels-1].cap_type = PCAP;
+                    else if(strncasecmp(cap_type_str, "nf2", sizeof("nf2")) == 0)
+                        ctx->channels[ctx->n_channels-1].cap_type = NF2;
+                    else {
+                        fprintf(stderr, "Invalid capture library type %s\n", cap_type_str);
+                        exit(1);
+                    }
+                }
+                setup_channel_snmp(ctx, ctx->n_channels-1, in_oid, out_oid);
+
+                //TODO: fixe how we assign the SNMP MIB "snmp_mib"
+            }
+        }
+    } //data
+
+    if((data = config_lookup(&conf, "oflops.module") ) != NULL ) {
+        for (i=0; i < config_setting_length(data); i++) {
+            elem = config_setting_get_elem(data, i);
+
+            if(config_setting_get_member(elem, "path") != NULL)  {
+                path = config_setting_get_string(config_setting_get_member(elem, "path"));
+                argc++;
+                len = strlen(path);
+                argv = malloc(sizeof(char *));
+                argv[0] = malloc((len + 1)*sizeof(char));
+                strcpy(argv[0], path);
+                if(config_setting_get_member(elem, "param") != NULL)  {
+                    path = config_setting_get_string(config_setting_get_member(elem, "param"));
+                    argv = realloc(argv, 2*sizeof(char *));
+                    argc++; //[len] = ' ';
+                    argv[1] = malloc((strlen(path) + 1)*sizeof(char));
+                    strcpy(argv[1], path);
+                }
+
+                parse_test_module(ctx, argc, argv);
+                for (i=0;i<argc;i++)
+                    free(argv[i]);
+                free(argv);
+            }
+        }
+    }
+
+    config_destroy(&conf);
 };

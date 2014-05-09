@@ -12,7 +12,7 @@
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-
+ #include <poll.h>
 
 #include "module_run.h"
 #include "module_default.h"
@@ -29,7 +29,7 @@ static void process_pcap_event(oflops_context *ctx, test_module * mod, struct po
 
 /******************************************************
  * setup the test
- * 	
+ *
  */
 int setup_test_module(oflops_context *ctx, int ix_mod)
 {
@@ -48,14 +48,14 @@ int setup_test_module(oflops_context *ctx, int ix_mod)
 
 /******************************************************
  * call the main loop
- * 	
+ *
  */
 int run_test_module(oflops_context *ctx, int ix_mod)
 {
 
   struct test_module *mod = ctx->tests[ix_mod];
 
-  // moved the initialization code in the setup function  as this should 
+  // moved the initialization code in the setup function  as this should
   // happen before thmodule start method
   /* int i; */
   /* //Setup */
@@ -72,12 +72,12 @@ int run_test_module(oflops_context *ctx, int ix_mod)
 
   if((ctx->channels[OFLOPS_CONTROL].dump != NULL) && (ctx->dump_controller))
     pcap_dump_close(ctx->channels[OFLOPS_CONTROL].dump);
-	
+
   return 0;
 }
 /******************************************************
  * running traffic generation
- * 	
+ *
  */
 int run_traffic_generation(oflops_context *ctx, int ix_mod)
 {
@@ -95,83 +95,86 @@ int run_traffic_generation(oflops_context *ctx, int ix_mod)
  */
 static void test_module_loop(oflops_context *ctx, test_module *mod)
 {
-  struct pollfd * poll_set;
-  int fds = 0;
-  int snmpblock = 0;
-  fd_set fdset;
-  struct timeval timeout;
-  int ret;
-  int len; 
-  int ch;
-  int n_fds=0;
-	
-  len = sizeof(struct pollfd) * (ctx->n_channels + 1);
-  poll_set = malloc_and_check(len);
+    struct pollfd * poll_set;
+    int fds = 0;
+    int snmpblock = 0;
+    fd_set fdset;
+    struct timeval timeout;
+    int ret;
+    int len;
+    int ch;
+    int n_fds=0;
 
-  while(!ctx->should_end )
+    len = sizeof(struct pollfd) * (ctx->n_channels + 1);
+    poll_set = malloc_and_check(len);
+
+    while(!ctx->should_end )
     {
-      n_fds=0;
-      bzero(poll_set,len);
+        n_fds=0;
+        bzero(poll_set,len);
 
-      //Channels poll
-      for(ch=0; ch< ctx->n_channels; ch++) {
-	poll_set[n_fds].fd = ctx->channels[ch].pcap_fd;
-	poll_set[n_fds].events = 0;
-	if(( ctx->channels[ch].pcap_handle) || (ctx->channels[ch].nf_cap))
-	  poll_set[n_fds].events = POLLIN;
+        //Channels poll
+        for(ch=0; ch< ctx->n_channels; ch++) {
+            poll_set[n_fds].fd = ctx->channels[ch].pcap_fd;
+            poll_set[n_fds].events = 0;
+            if(( ctx->channels[ch].pcap_handle) || (ctx->channels[ch].nf_cap))  {
+                poll_set[n_fds].events = POLLIN;
+            }
 
-  // it was more efficient to write data on the control channel.
-  // 
-	//if ( msgbuf_count_buffered(ctx->channels[ch].outgoing) > 0)
-	//    poll_set[n_fds].events |= POLLOUT;
-	if( poll_set[n_fds].events != 0)
-	  n_fds++;
-      }
-      poll_set[n_fds].fd = ctx->control_fd;	// add the control channel at the end
-      poll_set[n_fds].events = POLLIN;
-      //if ( msgbuf_count_buffered(ctx->control_outgoing) > 0)
-	poll_set[n_fds].events |= POLLOUT;
-      n_fds++;
+            // it was more efficient to write data on the control channel.
+            //
+            //if ( msgbuf_count_buffered(ctx->channels[ch].outgoing) > 0)
+            //    poll_set[n_fds].events |= POLLOUT;
+            if( poll_set[n_fds].events != 0)
+                n_fds++;
+        }
+        poll_set[n_fds].fd = ctx->control_fd;	// add the control channel at the end
+        poll_set[n_fds].events = POLLIN;
+        //if ( msgbuf_count_buffered(ctx->control_outgoing) > 0)
+        poll_set[n_fds].events |= POLLOUT;
+        n_fds++;
 
-      //SNMP poll
-      FD_ZERO(&fdset);
-      timeout.tv_sec = 0;
-      timeout.tv_usec = 1;
-      snmp_select_info(&fds, &fdset, &timeout, &snmpblock);
-      fds = select(fds, &fdset, NULL,NULL, &timeout);
-      if (fds)
-	snmp_read(&fdset);
-      
-      //  this code was giving me segmentation errors for some reason and I decided 
-      // to remove it. worst case we just have some memory allocated by the snmp library, 
-      // but there is plenty of memory. 
-      //else
-      //snmp_timeout();
-      
-      // timer events now run on their own thread
-      //Timer poll
-      /*next_event = timer_get_next_event(ctx);
-	while(next_event <= 0 )
-	{
-	timer_run_next_event(ctx);
-	next_event = timer_get_next_event(ctx);
-	}*/
-      ret = poll(poll_set, n_fds, 1); //next_event);
+        //SNMP poll
+        FD_ZERO(&fdset);
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 1;
+        /*snmp_select_info(&fds, &fdset, &timeout, &snmpblock);*/
+        /*fds = select(fds, &fdset, NULL,NULL, &timeout);*/
+        /*if (fds)*/
+            /*snmp_read(&fdset);*/
 
-      if(( ret == -1 ) && ( errno != EINTR))
-	perror_and_exit("poll",1);
-      else if(ret == 0 ) {
-	//if(ctx->should_end == 1) {fprintf(stderr, "finishing poll loop\n"); break;}
-	//		  else fprintf(stderr, "not finished yet\n");
-	continue; //timer_run_next_event(ctx);
-      }
-      else // found something to read
-	{
-	  int i;	
-	  for(i=0; i<n_fds; i++)
-	    if(poll_set[i].revents & (POLLIN | POLLOUT))
-	      process_event(ctx, mod, &poll_set[i]);
-	}
+        //  this code was giving me segmentation errors for some reason and I decided
+        // to remove it. worst case we just have some memory allocated by the snmp library,
+        // but there is plenty of memory.
+        //else
+        //snmp_timeout();
+
+        // timer events now run on their own thread
+        //Timer poll
+        /*next_event = timer_get_next_event(ctx);
+          while(next_event <= 0 )
+          {
+          timer_run_next_event(ctx);
+          next_event = timer_get_next_event(ctx);
+          }*/
+        ret = poll(poll_set, n_fds, 1); //next_event);
+
+        if(( ret == -1 ) && ( errno != EINTR))
+            perror_and_exit("poll",1);
+        else if(ret == 0 ) {
+            //if(ctx->should_end == 1) {fprintf(stderr, "finishing poll loop\n"); break;}
+            //		  else fprintf(stderr, "not finished yet\n");
+            continue; //timer_run_next_event(ctx);
+        }
+        else // found something to read
+        {
+            int i;
+            for(i=0; i<n_fds; i++) {
+                if(poll_set[i].revents & (POLLIN | POLLOUT)) {
+                    process_event(ctx, mod, &poll_set[i]);
+                }
+            }
+        }
     }
 }
 
@@ -180,23 +183,22 @@ static void test_module_loop(oflops_context *ctx, test_module *mod)
  * a channel got an event
  * 	map the event to the correct channel, and call the appropriate event handler
  *
- * 	FIXME: for efficency, we really should have a faster fd-> channel map, but 
+ * 	FIXME: for efficency, we really should have a faster fd-> channel map, but
  * 		since the number of channels is small, we can just be fugly
  */
-
-
 static void process_event(oflops_context *ctx, test_module * mod, struct pollfd *pfd)
 {
-  int ch;
-  if(pfd->fd == ctx->control_fd)
-    return process_control_event(ctx, mod, pfd);
-  // this is inefficient, but ok since there are really typically only ~8  cases
-  for(ch=0; ch< ctx->n_channels; ch++)
-    if (pfd->fd == ctx->channels[ch].pcap_fd)
-      return process_pcap_event(ctx, mod, pfd,ch);
-  // only get here if we've screwed up somehow
-  fprintf(stderr, "Event on unknown fd %d .. dying", pfd->fd);
-  abort();
+    int ch;
+    if(pfd->fd == ctx->control_fd)
+        return process_control_event(ctx, mod, pfd);
+    // this is inefficient, but ok since there are really typically only ~8  cases
+    for(ch=0; ch< ctx->n_channels; ch++)
+        if (pfd->fd == ctx->channels[ch].pcap_fd) {
+            return process_pcap_event(ctx, mod, pfd, ch);
+        }
+    // only get here if we've screwed up somehow
+    fprintf(stderr, "Event on unknown fd %d .. dying", pfd->fd);
+    abort();
 }
 
 /***********************************************************************************************
@@ -207,7 +209,7 @@ static void process_event(oflops_context *ctx, test_module * mod, struct pollfd 
 static void process_control_event(oflops_context *ctx, test_module * mod, struct pollfd *pfd)
 {
   char * neobuf;
-  static char * buf; 
+  static char * buf;
   static int buflen   = -1;
   static int bufstart =  0;       // begin of unprocessed data
   static int bufend   =  0;       // end of unprocessed data
@@ -292,7 +294,7 @@ static void process_control_event(oflops_context *ctx, test_module * mod, struct
 	  mod->of_event_other(ctx, (struct ofp_header * ) neobuf);
 	  break;
         };
-      free(neobuf);               
+      free(neobuf);
       bufstart += msglen;
       count = bufend - bufstart;  // repurpose count
     }       // end while()
@@ -310,64 +312,66 @@ static void process_control_event(oflops_context *ctx, test_module * mod, struct
  */
 static void process_pcap_event(oflops_context *ctx, test_module * mod, struct pollfd *pfd, oflops_channel_name ch)
 {
-  struct pcap_event_wrapper wrap;
-  int count;
-  uint8_t *data;
-  static pcap_event *pe = NULL;
+    struct pcap_event_wrapper wrap;
+    int count;
+    uint8_t *data;
+    static pcap_event *pe = NULL;
 
-  if(pfd->revents & POLLOUT) {
-    int err;
-    if((err=msgbuf_write(ctx->channels[ch].outgoing,ctx->channels[ch].raw_sock, ctx->channels[ch].packet_len) < 0) && 
-       (err != EAGAIN) && (err != EWOULDBLOCK ) && (err != EINTR))
-      perror_and_exit("channel write()",1);
-  }
-  if(!(pfd->revents & POLLIN))		// nothing to read, return
+    if(pfd->revents & POLLOUT) {
+        int err;
+        if((err=msgbuf_write(ctx->channels[ch].outgoing,ctx->channels[ch].raw_sock, ctx->channels[ch].packet_len) < 0) &&
+                (err != EAGAIN) && (err != EWOULDBLOCK ) && (err != EINTR))
+            perror_and_exit("channel write()",1);
+    }
+    if(!(pfd->revents & POLLIN))		// nothing to read, return
+        return;
+
+    // read the next packet from the appropriate pcap socket
+    if(ctx->channels[ch].cap_type == PCAP) {
+        assert(ctx->channels[ch].pcap_handle);
+        count = pcap_dispatch(ctx->channels[ch].pcap_handle, 1, oflops_pcap_handler, (u_char *) & wrap);
+
+        //dump packet if required
+        if((ch == OFLOPS_CONTROL) && (ctx->channels[ch].pcap_handle)
+                && (ctx->dump_controller)) {
+            pcap_dump((u_char *)ctx->channels[ch].dump, &wrap.pe->pcaphdr, wrap.pe->data);
+        }
+
+        if (count == 0)
+            return;
+        if (count < 0)
+        {
+            fprintf(stderr,"process_pcap_event:pcap_dispatch returned %d :: %s \n", count,
+                    pcap_geterr(ctx->channels[ch].pcap_handle));
+            return;
+        }
+        // dispatch it to the test module
+        mod->handle_pcap_event(ctx, wrap.pe, ch);
+        // clean up our mess
+        pcap_event_free(wrap.pe);
+    } else  if(ctx->channels[ch].cap_type == NF2) {
+        if(pe == NULL) {
+            pe = malloc_and_check(sizeof(pcap_event));
+            //This is a hack
+            pe->data = malloc_and_check(2000);
+        }
+        // data = nf_cap_next(ctx->channels[ch].nf_cap, &pe->pcaphdr);
+        data = nf_cap_next(ctx->channels[ch].nf_cap, &pe->pcaphdr);
+
+        if(data != NULL) {
+            memcpy(pe->data, data, pe->pcaphdr.caplen);
+            mod->handle_pcap_event(ctx,pe, ch);
+        } else {
+            fprintf(stderr, "errorous packet received\n");
+            return;
+        }
+        free(pe->data);
+        free(pe);
+    }
     return;
-  
-  // read the next packet from the appropriate pcap socket
-  if(ctx->channels[ch].cap_type == PCAP) {
-    assert(ctx->channels[ch].pcap_handle);
-    count = pcap_dispatch(ctx->channels[ch].pcap_handle, 1, oflops_pcap_handler, (u_char *) & wrap);
-    
-    //dump packet if required
-    if((ch == OFLOPS_CONTROL) && (ctx->channels[ch].pcap_handle) 
-       && (ctx->dump_controller)) {
-      pcap_dump((u_char *)ctx->channels[ch].dump, &wrap.pe->pcaphdr, wrap.pe->data);
-    }
-    
-    if (count == 0)
-      return;
-    if (count < 0)
-      {
-	fprintf(stderr,"process_pcap_event:pcap_dispatch returned %d :: %s \n", count,
-		pcap_geterr(ctx->channels[ch].pcap_handle));
-	return;
-      }
-    // dispatch it to the test module
-    mod->handle_pcap_event(ctx, wrap.pe, ch);
-    // clean up our mess
-    pcap_event_free(wrap.pe);
-  } else  if(ctx->channels[ch].cap_type == NF2) {
-    if(pe == NULL) {
-      pe = malloc_and_check(sizeof(pcap_event));
-      //This is a hack
-      pe->data = malloc_and_check(2000);
-    }
-    //printf("received packet at port %d\n", ch);
-    data = nf_cap_next(ctx->channels[ch].nf_cap, &pe->pcaphdr);
-    
-    if(data != NULL) {
-      memcpy(pe->data, data, pe->pcaphdr.caplen);
-      mod->handle_pcap_event(ctx,pe, ch);
-    } else {
-      fprintf(stderr, "errorous packet received\n");
-      return;
-    }
-  }
-  return;
 }
 /*************************************************************************
- * int load_test_module(oflops_context *ctx, 
+ * int load_test_module(oflops_context *ctx,
  * 			char * mod_filename, char * initstr);
  * 	open this module and strip symbols out of it
  * 	and call init() on it
@@ -382,7 +386,7 @@ int load_test_module(oflops_context *ctx, char * mod_filename, char * initstr)
   // open module for dyn symbols
   handle = dlopen(mod_filename,RTLD_NOW);
   if(handle == NULL)
-    {	
+    {
       fprintf(stderr,"Error reading symbols from %s : %s\n",
 	      mod_filename, dlerror());
       return 1;
@@ -424,7 +428,7 @@ int load_test_module(oflops_context *ctx, char * mod_filename, char * initstr)
     }
   ctx->tests[ctx->n_tests++] = mod;
   mod->symbol_handle=handle;
-	
+
   if(mod->init)
     mod->init(ctx, initstr);
   return 0;

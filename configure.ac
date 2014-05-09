@@ -4,6 +4,7 @@
 AC_PREREQ([2.59])
 AC_INIT([oflops], [0.01], [rob.sherwood@stanford.edu])
 AM_INIT_AUTOMAKE([-Wall foreign])
+AM_PROG_AR
 AC_CONFIG_SRCDIR([.])
 AC_CONFIG_HEADERS([config.h])
 

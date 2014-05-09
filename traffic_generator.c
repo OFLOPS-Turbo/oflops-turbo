@@ -1,13 +1,18 @@
 #include "traffic_generator.h"
+#include "utils.h"
 
 #include <sys/queue.h>
 #include <sys/stat.h>
 #include <string.h>
-#include "utils.h"
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif /* _GNU_SOURCE */
+#include <pthread.h>
 
 /*
- * Used to iniitialize any code required by the 
- * traffic generation system. 
+ * Used to iniitialize any code required by the
+ * traffic generation system.
  * \param ctx the oflops context.
  */
 struct pkt_details {
@@ -25,7 +30,7 @@ struct pkt_details {
 };
 
 /*
- * Since traffic gen will have to keep only a few traffic probes, it makes sense to 
+ * Since traffic gen will have to keep only a few traffic probes, it makes sense to
  * use a linear time search approach and reduce complexity.
  */
 struct pkt_details **generator_state = NULL;
@@ -45,7 +50,7 @@ int init_traf_gen(struct oflops_context *ctx) {
 }
 
 
-int 
+int
 add_traffic_generator(struct oflops_context *ctx, int channel, struct traf_gen_det *det) {
   if(ctx->n_channels < channel) {
     perror_and_exit("the channel chose to generate traffic is incorrect", 1);
@@ -56,10 +61,10 @@ add_traffic_generator(struct oflops_context *ctx, int channel, struct traf_gen_d
   return 1;
 };
 
-int 
+int
 printf_and_check(char *filename, char *msg) {
   FILE *ctrl = fopen(filename, "w");
-  
+
   if(ctrl == NULL)
     perror_and_exit("failed to open file", 1);
 
@@ -72,7 +77,7 @@ printf_and_check(char *filename, char *msg) {
   return 1;
 }
 
-int 
+int
 start_traffic_generator(oflops_context *ctx) {
   if(ctx->trafficGen == PKTGEN) {
     return start_pktgen_traffic_generator(ctx);
@@ -100,20 +105,20 @@ report_pktgen_traffic_generator(oflops_context *ctx) {
 	for (i = 0 ; i < 18; i++) {
 	  fgets(line, len, status_file);
 	}
-	
+
 	ret = realloc(ret, size + sizeof("dev XXXXXXXXXXX "));
 	size += snprintf(&ret[size], sizeof("dev XXXXXXXXXXX "), "dev %s ", ctx->channels[ix].dev);
-	
+
 	//	snprintf("dev %s:\n", ctx->channels[ix].dev);
 	fgets(line, len, status_file);
 	//this is a new line
 	line[strlen(line)-1] = '\0';
-	
+
 	ret = realloc(ret, size + strlen(line) + 1);
 	memcpy(ret + size, line, strlen(line) + 1);
-	size += strlen(line) + 1; 
-	
-	fgets(line, len, status_file);	
+	size += strlen(line) + 1;
+
+	fgets(line, len, status_file);
 	line[strlen(line)-1] = ',';
 	ret = realloc(ret, size + strlen(line) + 1);
 	memcpy(ret + size - 1, line, strlen(line)  + 1);
@@ -168,11 +173,11 @@ send_pkt(struct oflops_context *ctx, int ix) {
   return 1;
 }
 
-int 
+int
 read_mac_addr(uint8_t *addr, char *str) {
   char *p = str, *tmp;
   int i = 0;
-  do {    
+  do {
     tmp = index(p, ':');
     if(tmp != NULL) {
       *tmp = '\0';
@@ -187,9 +192,9 @@ read_mac_addr(uint8_t *addr, char *str) {
 }
 
 int
-innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det) {  
+innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det) {
   int l3_size;
-  state->data = (void *)xmalloc(det->pkt_size); 
+  state->data = (void *)xmalloc(det->pkt_size);
   state->data_len = det->pkt_size;
 
   bzero((void *)state->data, state->data_len);
@@ -207,10 +212,10 @@ innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det
     state->eth_vlan->vid = htons(det->vlan) >>4;
     state->eth_vlan->ether_type = htons(ETHERTYPE_IP);
     state->ip = (struct iphdr *)(state->data + sizeof(struct ether_vlan_header));
-    state->ip->tot_len=htons(state->data_len - sizeof(struct ether_vlan_header)); 
+    state->ip->tot_len=htons(state->data_len - sizeof(struct ether_vlan_header));
   state->udp = (struct udphdr *)
     (state->data + sizeof(struct ether_vlan_header) + sizeof(struct iphdr));
-  state->tcp = (struct udphdr *)
+  state->tcp = (struct tcphdr *)
     (state->data + sizeof(struct ether_vlan_header) + sizeof(struct iphdr));
   l3_size = htons(state->data_len - sizeof(struct ether_vlan_header) - sizeof(struct iphdr));
   state->pktgen = (struct pktgen_hdr *)
@@ -218,10 +223,10 @@ innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det
   } else {
     state->eth->ether_type = htons(ETHERTYPE_IP);
     state->ip = (struct iphdr *)(state->data + sizeof(struct ether_header));
-    state->ip->tot_len=htons(state->data_len - sizeof(struct ether_header)); 
+    state->ip->tot_len=htons(state->data_len - sizeof(struct ether_header));
     state->udp = (struct udphdr *)
       (state->data + sizeof(struct ether_header) + sizeof(struct iphdr));
-    state->tcp = (struct udphdr *)
+    state->tcp = (struct tcphdr *)
       (state->data + sizeof(struct ether_header) + sizeof(struct iphdr));
     l3_size = htons(state->data_len - sizeof(struct ether_header) - sizeof(struct iphdr));
     state->pktgen = (struct pktgen_hdr *)
@@ -235,25 +240,25 @@ innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det
   //total packet size without ethernet header
   state->ip->ttl = 100;
   state->ip->protocol = IPPROTO_UDP; //udp protocol
-  state->ip->saddr = inet_addr(det->src_ip); 
+  state->ip->saddr = inet_addr(det->src_ip);
   state->ip->daddr = inet_addr(det->dst_ip_min); //test.nw_dst;
-  
+
   state->ip->check=ip_sum_calc(20, (void *)state->ip);
 
   state->udp->source = htons(det->udp_src_port);
   state->udp->dest = htons(det->udp_dst_port);
   state->udp->len = l3_size;
-  
+
   state->pktgen->magic = 0xbe9be955;
 
   return 1;
 }
 
-int 
+int
 init_traffic_gen(oflops_context *ctx) {
   int num_generator = 0;
   int ix;
-  
+
   srand(getpid());
 
   for(ix = 0; ix < ctx->n_channels; ix++) {
@@ -270,9 +275,9 @@ init_traffic_gen(oflops_context *ctx) {
   return num_generator;
 }
 
-int 
+int
 start_user_traffic_generator(oflops_context *ctx) {
-  int num_generator = init_traffic_gen(ctx), generator;  
+  int num_generator = init_traffic_gen(ctx), generator;
   while(ctx->should_end == 0) {
     generator = get_next_pkt(num_generator);
     if(generator >= 0 ) {
@@ -282,73 +287,77 @@ start_user_traffic_generator(oflops_context *ctx) {
   return 1;
 }
 
-int 
+int
 start_nf_traffic_generator(oflops_context *ctx) {
-  int flow_num, ix, i;
-  struct traf_gen_det *det;
-  struct pkt_details pkt_state;
-  struct pcap_pkthdr h;
-  int pkt_count;
-  uint32_t max_packets = 100000000;
-  uint32_t iteration[] = {0,0,0,0};
-  int data_to_send = 0; // in case we only want to capture data, we enable the capturing module,
-                        // but never load any data.
+    int flow_num, ix, i;
+    struct traf_gen_det *det;
+    struct pkt_details pkt_state;
+    struct pcap_pkthdr h;
+    int pkt_count;
+    uint32_t max_packets = 100000000;
+    uint32_t iteration[] = {0,0,0,0};
+    int data_to_send = 0; // in case we only want to capture data, we enable the capturing module,
+    // but never load any data.
 
-  for (ix = 0; ix < 4; ix++) 
-      nf_gen_reset_queue(ix);
-  
-  for(ix = 1; ix < ctx->n_channels; ix++) {
-    if(ctx->channels[ix].det != NULL) {
-      data_to_send = 1;
-      det = ctx->channels[ix].det;
+    //  for (ix = 0; ix < 4; ix++)
+    //      nf_gen_reset_queue(ix);
+    nf_init(1, 0, 1);
+    for (ix = 0; ix < 4; ix++)
+          nf_gen_rate_limiter_disable(ix, 0);
 
-      if(det->pkt_count) {
-	max_packets = det->pkt_count;
-      } else {
-	max_packets = 100000000;
-      }
 
-      flow_num = ntohl(inet_addr(det->dst_ip_max))-ntohl(inet_addr(det->dst_ip_min))+1L;
-      pkt_count = flow_num;
-      if(strstr(det->flags, "IPDST_RND") != NULL) 
-	pkt_count = 1.2*flow_num;
-      if(pkt_count) iteration[ix-1] = max_packets/pkt_count;
-      else iteration[ix-1] = max_packets;
-      printf("queue %d: flow_mum %d iterations %u (%s - %s)\n", 
-	     ix-1, pkt_count, iteration[ix-1], det->dst_ip_max, det->dst_ip_min);
+    for(ix = 1; ix < ctx->n_channels; ix++) {
+        if(ctx->channels[ix].det != NULL) {
+            data_to_send = 1;
+            det = ctx->channels[ix].det;
+
+            if(det->pkt_count) {
+                max_packets = det->pkt_count;
+            } else {
+                max_packets = 100000000;
+            }
+
+            flow_num = ntohl(inet_addr(det->dst_ip_max))-ntohl(inet_addr(det->dst_ip_min))+1L;
+            pkt_count = flow_num;
+            if(strstr(det->flags, "IPDST_RND") != NULL)
+                pkt_count = 1.2*flow_num;
+            if(pkt_count) iteration[ix-1] = max_packets/pkt_count;
+            else iteration[ix-1] = max_packets;
+            printf("queue %d: flow_mum %d iterations %u (%s - %s)\n",
+                    ix-1, pkt_count, iteration[ix-1], det->dst_ip_max, det->dst_ip_min);
+        }
     }
-  }
-  
-  printf("Running nf packet gen\n");
-  for(ix = 0; ix < ctx->n_channels; ix++) {
-    if(ctx->channels[ix].det != NULL) {
-      det = ctx->channels[ix].det;
-      h.len = det->pkt_size;
-      h.caplen = det->pkt_size;
-      h.ts.tv_sec = 0;
-      h.ts.tv_usec = 0;
-      flow_num = ntohl(inet_addr(det->dst_ip_max)) - ntohl(inet_addr(det->dst_ip_min)) + 1;
-      printf("Found %d flows %d pkt size iteration %d\n", flow_num, h.caplen, 
-	     iteration[ix - 1] );
 
-      innitialize_generator_packet(&pkt_state, ctx->channels[ix].det);
-      nf_gen_set_number_iterations (iteration[ix - 1], 1, ix-1);
-      
-      pkt_count = flow_num;
-      if(strstr(det->flags, "IPDST_RND") != NULL) 
-	pkt_count += 0.2*flow_num;
-    
-      for(i = 0; i < pkt_count; i++) { 
-	if(strstr(det->flags, "IPDST_RND") != NULL) 
-	  pkt_state.ip->daddr = htonl(ntohl(inet_addr(det->dst_ip_min)) + rand()%(flow_num));
-	else 
-	  pkt_state.ip->daddr = htonl(ntohl(inet_addr(det->dst_ip_min)) + i);
-	pkt_state.ip->check=0x0;
-	pkt_state.ip->check=htons(ip_sum_calc(20, (uint16_t *)pkt_state.ip)); 
-	nf_gen_load_packet(&h, pkt_state.data, ix - 1, det->delay); 
-      }
+    printf("Running nf packet gen\n");
+    for(ix = 0; ix < ctx->n_channels; ix++) {
+        if(ctx->channels[ix].det != NULL) {
+            det = ctx->channels[ix].det;
+            h.len = det->pkt_size;
+            h.caplen = det->pkt_size;
+            h.ts.tv_sec = 0;
+            h.ts.tv_usec = 0;
+            flow_num = ntohl(inet_addr(det->dst_ip_max)) - ntohl(inet_addr(det->dst_ip_min)) + 1;
+            printf("Found %d flows %d pkt size iteration %d\n", flow_num, h.caplen,
+                    iteration[ix - 1] );
+
+            innitialize_generator_packet(&pkt_state, ctx->channels[ix].det);
+            nf_gen_set_number_iterations (iteration[ix - 1], 1, ix-1);
+
+            pkt_count = flow_num;
+            if(strstr(det->flags, "IPDST_RND") != NULL)
+                pkt_count += 0.2*flow_num;
+
+            for(i = 0; i < pkt_count; i++) {
+                if(strstr(det->flags, "IPDST_RND") != NULL)
+                    pkt_state.ip->daddr = htonl(ntohl(inet_addr(det->dst_ip_min)) + rand()%(flow_num));
+                else
+                    pkt_state.ip->daddr = htonl(ntohl(inet_addr(det->dst_ip_min)) + i);
+                pkt_state.ip->check=0x0;
+                pkt_state.ip->check=htons(ip_sum_calc(20, (uint16_t *)pkt_state.ip));
+                nf_gen_load_packet(&h, pkt_state.data, ix - 1, det->delay);
+            }
+        }
     }
-  }
 
   nf_start(0);
   while(!ctx->should_end) {
@@ -360,12 +369,12 @@ start_nf_traffic_generator(oflops_context *ctx) {
       nf_start(0);
     }
   }
-  
+
   nf_finish();
   return 1;
 }
 
-int 
+int
 start_pktgen_traffic_generator(oflops_context *ctx) {
   int ix;
   char buf[5000];
@@ -383,7 +392,7 @@ start_pktgen_traffic_generator(oflops_context *ctx) {
     }
   }
   i=0;
-  //setup generic traffic generator details 
+  //setup generic traffic generator details
   for(ix = 0; ix < ctx->n_channels; ix++) {
     if(ctx->channels[ix].det != NULL) {
       sprintf(file, "/proc/net/pktgen/kpktgend_%d", i);
@@ -395,7 +404,7 @@ start_pktgen_traffic_generator(oflops_context *ctx) {
     }
   }
 
-  //setup specific interface details 
+  //setup specific interface details
   for(ix = 0; ix < ctx->n_channels; ix++) {
     if(ctx->channels[ix].det != NULL) {
       snprintf(intf_file, 1024, "/proc/net/pktgen/%s", ctx->channels[ix].dev);
@@ -409,18 +418,18 @@ start_pktgen_traffic_generator(oflops_context *ctx) {
       snprintf(buf, 5000, "pkt_size %d", ctx->channels[ix].det->pkt_size);
       printf_and_check(intf_file, buf);
 
-      snprintf(buf, 5000, "dst_min %s", ctx->channels[ix].det->dst_ip_min); 
-      printf_and_check(intf_file, buf);      
-      snprintf(buf, 5000, "dst_max %s", ctx->channels[ix].det->dst_ip_max); 
-      printf_and_check(intf_file, buf);    
+      snprintf(buf, 5000, "dst_min %s", ctx->channels[ix].det->dst_ip_min);
+      printf_and_check(intf_file, buf);
+      snprintf(buf, 5000, "dst_max %s", ctx->channels[ix].det->dst_ip_max);
+      printf_and_check(intf_file, buf);
       snprintf(buf, 5000, "flag %s ", ctx->channels[ix].det->flags);//IPDST_RND");
       printf_and_check(intf_file, buf);
 
-      snprintf(buf, 5000, "vlan_id %d", ctx->channels[ix].det->vlan); 
+      snprintf(buf, 5000, "vlan_id %d", ctx->channels[ix].det->vlan);
       printf_and_check(intf_file, buf);
-      snprintf(buf, 5000, "vlan_p %d", ctx->channels[ix].det->vlan_p); 
+      snprintf(buf, 5000, "vlan_p %d", ctx->channels[ix].det->vlan_p);
       printf_and_check(intf_file, buf);
-      snprintf(buf, 5000, "vlan_cfi %d", ctx->channels[ix].det->vlan_cfi); 
+      snprintf(buf, 5000, "vlan_cfi %d", ctx->channels[ix].det->vlan_cfi);
       printf_and_check(intf_file, buf);
 
       snprintf(buf, 5000, "dst_mac %s", ctx->channels[ix].det->mac_dst);
@@ -445,30 +454,30 @@ start_pktgen_traffic_generator(oflops_context *ctx) {
       snprintf(buf, 5000, "udp_dst_min %d", ctx->channels[ix].det->udp_dst_port);
       printf_and_check(intf_file, buf);
 
-      snprintf(buf, 5000, "count %llu", ctx->channels[ix].det->pkt_count);
+      snprintf(buf, 5000, "count %lu", ctx->channels[ix].det->pkt_count);
       printf_and_check(intf_file, buf);
     }
   }
-  
+
   //start process
   printf_and_check("/proc/net/pktgen/pgctrl", "start");
 
   return 1;
 };
 
-int 
+int
 stop_traffic_generator( oflops_context *ctx) {
   if(ctx->trafficGen == PKTGEN) {
     nf_finish();
   } else if(ctx->trafficGen == NF_PKTGEN) {
     //terminate process of packet generation
     FILE *ctrl = fopen("/proc/net/pktgen/pgctrl", "w");
-    if(ctrl == NULL) 
+    if(ctrl == NULL)
       perror_and_exit("failed to open file to terminate pktgen process", 1);
-    
+
     if (fprintf(ctrl, "stop") < 0)
       perror_and_exit("failed to stop packet generation process", 1);
-    
+
     fclose(ctrl);
   }
 
@@ -477,7 +486,7 @@ stop_traffic_generator( oflops_context *ctx) {
 
 //check here whether the pktgen format is correct
 struct pktgen_hdr *
-extract_pktgen_pkt( oflops_context *ctx, int port, 
+extract_pktgen_pkt( oflops_context *ctx, int port,
 		   unsigned char *b, int len, struct flow *fl) {
   struct ether_header *ether = (struct ether_header *)b;
   struct ether_vlan_header *ether_vlan = (struct ether_vlan_header *)b;
@@ -487,7 +496,7 @@ extract_pktgen_pkt( oflops_context *ctx, int port,
 
   if((port < 0) || (port > ctx->n_channels))
     return NULL;
-  
+
   if( (ntohs(ether->ether_type) == 0x8100) && (ntohs(ether_vlan->ether_type) == 0x0800)) {
     b = b + sizeof(struct ether_vlan_header);
     len -= sizeof(struct ether_vlan_header);
@@ -502,12 +511,12 @@ extract_pktgen_pkt( oflops_context *ctx, int port,
   struct iphdr *ip_p = (struct iphdr *) b;
   if (len < 4*ip_p->ihl) {
     printf("capture too small for ip: %d\n", len);
-    return 0;
+    return NULL;
   }
   b = b + 4*ip_p->ihl;
   len -=  4*ip_p->ihl;
 
-  
+
   if(fl!= NULL) {
     bzero(fl, sizeof(struct flow));
     //ethenet fields
@@ -524,17 +533,17 @@ extract_pktgen_pkt( oflops_context *ctx, int port,
     //ip fields
     fl->nw_src = ip_p->saddr;
     fl->nw_dst = ip_p->daddr;
-    
+
     fl->nw_proto = IPPROTO_UDP;
     //tcp/udp fields
     struct udphdr *udp_p = (struct udphdr *)b;
     fl->tp_src = ntohs(udp_p->source);
     fl->tp_dst = ntohs(udp_p->dest);
-    
+
   }
 
   b += sizeof(struct udphdr);
-  
+
   pktgen = (struct pktgen_hdr *)b;
 
   if(ctx->channels[port].cap_type == PCAP) {
@@ -544,7 +553,7 @@ extract_pktgen_pkt( oflops_context *ctx, int port,
     return pktgen;
   } else if (ctx->channels[port].cap_type == NF2) {
     return nf_gen_extract_header(ctx->channels[port].nf_cap, data, len);
-  } else 
+  } else
     printf("Can't extract: Unkonwn port type %d\n",ctx->channels[port].cap_type);
       return NULL;
 }
@@ -556,5 +565,5 @@ oflops_gettimeofday(struct oflops_context *ctx, struct timeval *ts) {
   } else {
     gettimeofday(ts, NULL);
   }
-  
+
 }

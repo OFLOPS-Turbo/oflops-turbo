@@ -13,6 +13,7 @@
 
 //include gsl to implement statistical functionalities
 #include <gsl/gsl_statistics.h>
+#include <gsl/gsl_sort.h>
 
 #include <test_module.h>
 
@@ -101,7 +102,6 @@ int start(struct oflops_context * ctx) {
   gettimeofday(&now, NULL);
   void *b;
   char msg[1024];
-  int res;
 
   //init measurement queue
   TAILQ_INIT(&head); 
@@ -118,13 +118,13 @@ int start(struct oflops_context * ctx) {
 
   //start openflow session with switch
   make_ofp_hello(&b);
-  res = oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
+  oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
   free(b);  
 
   //send a message to clean up flow tables. 
   printf("cleaning up flow table...\n");  
-  res = make_ofp_flow_del(&b);
-  res = oflops_send_of_mesg(ctx, b);  
+  make_ofp_flow_del(&b);
+  oflops_send_of_mesg(ctx, b);  
   free(b);
 
   //get port and cpu status from switch 
@@ -196,7 +196,7 @@ destroy(oflops_context *ctx) {
   i=0;
   for (np = head.tqh_first; np != NULL; np = np->entries.tqe_next) {
     if(((int)time_diff(&np->snd, &np->rcv) < 0) || 
-        (time_diff(&np->snd, &np->rcv) <> 10000000))
+        (time_diff(&np->snd, &np->rcv) > 10000000))
       continue;
     min_id = (np->id < min_id)?np->id:min_id;
     max_id = (np->id > max_id)?np->id:max_id;

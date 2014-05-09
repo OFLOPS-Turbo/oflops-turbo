@@ -45,7 +45,7 @@ int channel_info_init(struct channel_info * channel, char * dev)
 
   /*retrieve ethernet interface index*/
   strncpy(ifr.ifr_name, dev, IFNAMSIZ);
-  if (ioctl(dumb, SIOCGIFINDEX, &ifr) == -1) 
+  if (ioctl(dumb, SIOCGIFINDEX, &ifr) == -1)
     perror_and_exit("SIOCGIFINDEX",1);
 
   channel->ifindex = ifr.ifr_ifindex;
@@ -107,7 +107,7 @@ void setup_channel(oflops_context *ctx, test_module *mod, oflops_channel_name ch
       ch_info->pcap_handle = pcap_open_live(ch_info->dev,65000,1,0,errbuf);
 
       //based on the control channel capture param, open a pcap dump file named by default controller.pcap
-      if(ctx->dump_controller) { 
+      if(ctx->dump_controller) {
         ch_info->dump = pcap_dump_open(ch_info->pcap_handle, "controller.pcap");
         if(ch_info->dump == NULL ) {
           perror_and_exit(pcap_geterr(ch_info->pcap_handle), 1);
@@ -144,7 +144,7 @@ void setup_channel(oflops_context *ctx, test_module *mod, oflops_channel_name ch
       exit(1);
     }
 
-    //extract a file descriptor for the pcap handler and make it non blocking 
+    //extract a file descriptor for the pcap handler and make it non blocking
     //so that we can `select` it later
     if(pcap_setnonblock(ch_info->pcap_handle, 1, errbuf))
       fprintf(stderr,"setup_channel: pcap_setnonblock(): %s\n",errbuf);
@@ -165,27 +165,27 @@ void setup_channel(oflops_context *ctx, test_module *mod, oflops_channel_name ch
  * custom objoid parsing method, because the default library implementation segfaulted
  * \param in_oid a string representation of the oid
  * \param out_oid an oid pointer to save the oid obect
- * \param oid_len a pointer reference to return the length of the oid object 
+ * \param oid_len a pointer reference to return the length of the oid object
  */
-void
-my_read_objid(char *in_oid, oid *out_oid, size_t *out_oid_len) {
-  int oid_len = *out_oid_len, p = 0, tmp = 0, len = strlen(in_oid);
-  *(out_oid_len) = 0;
-  while(1) {
-    tmp = p;
-    while((in_oid[tmp] != '.') &&
-        (in_oid[tmp] != '\0')) {
-      tmp++;
+void my_read_objid(char *in_oid, oid *out_oid, size_t *out_oid_len)
+{
+    int oid_len = *out_oid_len, p = 0, tmp = 0, len = strlen(in_oid);
+    *(out_oid_len) = 0;
+    while(1) {
+        tmp = p;
+        while((in_oid[tmp] != '.') &&
+                (in_oid[tmp] != '\0')) {
+            tmp++;
+        }
+        in_oid[tmp] = '\0';
+        tmp++;
+        out_oid[*(out_oid_len)] = (oid)strtol(in_oid+p, NULL, 10);
+        if(oid_len == *out_oid_len) return 0;
+        *(out_oid_len)+=1;
+        p=tmp;
+        if(p >= len)
+            break;
     }
-    in_oid[tmp] = '\0';
-    tmp++;
-    out_oid[*(out_oid_len)] = (oid)strtol(in_oid+p, NULL, 10);
-    if(oid_len == *out_oid_len) return 0;
-    *(out_oid_len)+=1;
-    p=tmp;
-    if(p >= len)
-      break;
-  }
 }
 
 /****************************************************
@@ -194,11 +194,11 @@ my_read_objid(char *in_oid, oid *out_oid, size_t *out_oid_len) {
  * device set
  */
   void setup_channel_snmp(oflops_context *ctx, oflops_channel_name ch, char *in_oid, char *out_oid) {
-    if(in_oid == NULL)  
+    if(in_oid == NULL)
       ctx->channels[ch].inOID_len = 0;
     else {
       ctx->channels[ch].inOID_len = MAX_OID_LEN;
-      my_read_objid(in_oid, ctx->channels[ch].inOID, &ctx->channels[ch].inOID_len);    
+      my_read_objid(in_oid, ctx->channels[ch].inOID, &ctx->channels[ch].inOID_len);
 
       //comment this one because the snmp implementation was giving segaults
       /* if(read_objid(in_oid, ctx->channels[ch].inOID, &ctx->channels[ch].inOID_len) == 0) { */
@@ -208,7 +208,7 @@ my_read_objid(char *in_oid, oid *out_oid, size_t *out_oid_len) {
       /* } */
     }
 
-    if(out_oid == NULL)  
+    if(out_oid == NULL)
       ctx->channels[ch].outOID_len = 0;
     else {
       ctx->channels[ch].outOID_len = MAX_OID_LEN;
