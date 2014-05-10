@@ -1,7 +1,9 @@
 #include "oflops_snmp.h"
+#include "test_module.h"
+
 #include <utils.h>
 
-int snmp_channel_init(struct snmp_channel* channel, 
+int snmp_channel_init(struct snmp_channel* channel,
 		      char* host, char* community_string)
 {
   bzero(channel, sizeof(snmp_channel));
@@ -10,7 +12,7 @@ int snmp_channel_init(struct snmp_channel* channel,
   return 0;
 }
 
-void setup_snmp_channel(struct oflops_context* ctx)
+void setup_snmp_channel(oflops_context* ctx)
 {
   if ((ctx->snmp_channel_info->hostname == NULL) ||
       (ctx->snmp_channel_info->community_string == NULL))
@@ -38,7 +40,7 @@ void setup_snmp_channel(struct oflops_context* ctx)
 int snmp_response(int operation, struct snmp_session *sp, int reqid,
 		  struct snmp_pdu *pdu, void * magic)
 {
-  struct oflops_context* ctx = (struct oflops_context*) magic;
+  oflops_context* ctx = (oflops_context*) magic;
   if (operation == NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE)
   {
     struct snmp_event* se = malloc_and_check(sizeof(snmp_event));
@@ -50,7 +52,7 @@ int snmp_response(int operation, struct snmp_session *sp, int reqid,
   return 0;
 }
 
-void teardown_snmp_channel(struct oflops_context* ctx)
+void teardown_snmp_channel(oflops_context* ctx)
 {
   if (ctx->snmp_channel_info->req != NULL)
     snmp_free_pdu(ctx->snmp_channel_info->req);

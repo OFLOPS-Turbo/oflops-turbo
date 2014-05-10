@@ -90,7 +90,7 @@ int fakeswitch_get_count(struct fakeswitch *fs)
             ofph = msgbuf_peek(fs->inbuf);
             msglen = ntohs(ofph->length);
             if(count < msglen)
-                break;     // msg not all there yet; 
+                break;     // msg not all there yet;
             msgbuf_pull(fs->inbuf, NULL, ntohs(ofph->length));
             count -= msglen;
         }
@@ -207,7 +207,7 @@ void fakeswitch_handle_read(struct fakeswitch *fs)
                 break;
             case OFPT_FLOW_MOD:
                 fm = (struct ofp_flow_mod *) ofph;
-                if(fm->command== htons(OFPFC_ADD) || 
+                if(fm->command== htons(OFPFC_ADD) ||
                         fm->command == htons(OFPFC_MODIFY_STRICT))
                 {
                     fs->count++;        // got response to what we went
@@ -223,7 +223,7 @@ void fakeswitch_handle_read(struct fakeswitch *fs)
                 debug_msg(fs, "sent feature_rsp");
                 if( fs->delay == 0)
                     fs->ready_to_send = 1;
-                else 
+                else
                 {
                     fs->ready_to_send = 2;
                     gettimeofday(&fs->delay_start, NULL);
@@ -260,7 +260,7 @@ void fakeswitch_handle_read(struct fakeswitch *fs)
             case OFPT_STATS_REQUEST:
                 debug_msg(fs, "Silently ignoring stats_request msg\n");
                 break;
-            default: 
+            default:
     //            if(fs->debug)
                     fprintf(stderr, "Ignoring OpenFlow message type %d\n", ofph->type);
         };
@@ -281,11 +281,11 @@ static void fakeswitch_handle_write(struct fakeswitch *fs)
     int send_count = 0 ;
     int throughput_buffer = 65536;
     int i;
-    if( fs->ready_to_send == 1) 
+    if( fs->ready_to_send == 1)
     {
-        if ((fs->mode == MODE_LATENCY)  && ( fs->probe_state == 0 ))      
+        if ((fs->mode == MODE_LATENCY)  && ( fs->probe_state == 0 ))
             send_count = 1;                 // just send one packet
-        else if ((fs->mode == MODE_THROUGHPUT) && 
+        else if ((fs->mode == MODE_THROUGHPUT) &&
                 (msgbuf_count_buffered(fs->outbuf) < throughput_buffer))  // keep buffer full
             send_count = (throughput_buffer - msgbuf_count_buffered(fs->outbuf)) / fs->probe_size;
         for (i = 0; i < send_count; i++)
@@ -299,7 +299,7 @@ static void fakeswitch_handle_write(struct fakeswitch *fs)
             fs->current_mac_address = ++fs->current_mac_address % fs->total_mac_addresses;
             msgbuf_push(fs->outbuf, buf, count);
         }
-    } else if( fs->ready_to_send == 2) 
+    } else if( fs->ready_to_send == 2)
     {
         struct timeval now;
         gettimeofday(&now, NULL);

@@ -1,7 +1,6 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include "config.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -32,6 +31,7 @@ void perror_and_exit(char * str, int exit_code);
 void add_time(struct timeval *now, time_t secs,  suseconds_t usecs);
 void set_timeval(struct timeval *target, struct timeval *val);
 inline uint32_t time_diff(struct timeval *now, struct timeval *then);
+inline double time_diff_d(struct timeval *now, struct timeval *then);
 inline int time_cmp(struct timeval *now, struct timeval *then);
 
 void* xmalloc(size_t len);

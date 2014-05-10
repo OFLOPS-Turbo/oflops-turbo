@@ -14,7 +14,9 @@
 
 //include gsl to implement statistical functionalities
 #include <gsl/gsl_statistics.h>
+#include <gsl/gsl_sort.h>
 
+#include "of_parser.h"
 #include "log.h"
 #include "traffic_generator.h"
 #include "utils.h"
@@ -131,7 +133,7 @@ uint32_t extract_pkt_id(const char *b, int len);
  * \param ctx pointer to opaque context
  */
 int
-start(struct oflops_context * ctx) {
+start(oflops_context * ctx) {
   struct flow *fl = (struct flow*)xmalloc(sizeof(struct flow));
   fl_probe = (struct flow*)xmalloc(sizeof(struct flow));
   void *b; //somewhere to store message data
@@ -210,7 +212,7 @@ start(struct oflops_context * ctx) {
  * \param ctx data context of the module.
  */
 int
-destroy(struct oflops_context *ctx) {
+destroy(oflops_context *ctx) {
   char msg[1024];
   struct timeval now;
   FILE *out = fopen(logfile, "w");
@@ -275,9 +277,9 @@ destroy(struct oflops_context *ctx) {
  * @param ctx pointer to opaque context
  * @param te pointer to timer event
  */
-int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
+int handle_timer_event(oflops_context * ctx, struct timer_event *te) {
   char *str = te->arg;
-  int len, i;
+  int i;
   void *b;
   struct timeval now;
   //terminate process
@@ -286,7 +288,7 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
     oflops_end_test(ctx,1);
     return 0;
   } else if (strcmp(str, SND_ACT) == 0) {
-    len = make_ofp_flow_modify(&b, fl_probe, command, command_len,
+    make_ofp_flow_modify(&b, fl_probe, command, command_len,
         1, 1200);
     oflops_send_of_mesg(ctx, b);
     free(b);
@@ -314,7 +316,7 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
  * @param filter filter string for pcap
  * @param buflen length of buffer
  */
-int get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc,
+int get_pcap_filter(oflops_context *ctx, enum oflops_channel_name ofc,
         char * filter, int buflen)
 {
     if(ofc == OFLOPS_DATA2) {
@@ -331,25 +333,9 @@ int get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc,
  * @param ch enumeration of channel that pcap event is triggered
  */
 int
-handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_channel_name ch) {
+handle_pcap_event(oflops_context *ctx, struct pcap_event * pe, enum oflops_channel_name ch) {
   struct pktgen_hdr *pktgen;
-  int dir, len;
-  struct ofp_header *ofp;
-  struct pcap_event *ofp_msg;
   struct flow fl;
-
-/*  if (ch == OFLOPS_CONTROL) {
-    dir = append_data_to_flow(pe->data,pe->pcaphdr);
-    while(contains_next_msg(dir) > 0) {
-      len = get_next_msg(dir, &ofp_msg);
-      ofp = (struct ofp_header *)ofp_msg->data;
-      switch(ofp->type) {
-        case OFPT_FLOW_MOD:
-          oflops_log(pe->pcaphdr.ts,OFPT_FLOW_MOD_ADD, "flow modification send");
-          break;
-      }
-    }
-  } else  */
 
   if ((ch == OFLOPS_DATA1) || (ch == OFLOPS_DATA2) || (ch == OFLOPS_DATA3)) {
     // printf("got a packet on port %d\n", ch);
@@ -378,7 +364,7 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
  * \param ofph pointer to data of the echo packet
  */
 int
-of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph) {
+of_event_echo_request(oflops_context *ctx, const struct ofp_header * ofph) {
   struct ofp_header * ofp_reply = xmalloc(sizeof(struct ofp_header));
   memcpy(ofp_reply, ofph, sizeof(struct ofp_header));
   ofp_reply->type = OFPT_ECHO_REPLY;
@@ -393,7 +379,7 @@ of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph
  * \param se snmp data
  */
 int
-handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
+handle_snmp_event(oflops_context * ctx, struct snmp_event * se) {
   netsnmp_variable_list *vars;
   int len = 1024;
   char msg[1024], out_buf[1024];
@@ -498,7 +484,7 @@ read_hex(const char *data) {
  * Initialization code with parameters
  * @param ctx
  */
-int init(struct oflops_context *ctx, char * config_str) {
+int init(oflops_context *ctx, char * config_str) {
   char *pos = NULL;
   char *param = config_str;
   int len = strlen(config_str);

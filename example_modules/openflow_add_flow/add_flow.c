@@ -11,9 +11,12 @@
 #include <pthread.h>
 #include <poll.h>
 #include <limits.h>
+#include <openflow/openflow.h>
 
 #include <gsl/gsl_statistics.h>
+#include <gsl/gsl_sort.h>
 
+#include "of_parser.h"
 #include "log.h"
 #include "traffic_generator.h"
 #include "utils.h"
@@ -127,11 +130,10 @@ int ip_received_count;
  * @param ctx pointer to opaque context
  */
 int
-start(struct oflops_context * ctx) {
+start(oflops_context * ctx) {
     struct flow *fl = (struct flow*)xmalloc(sizeof(struct flow));
     fl_probe = (struct flow*)xmalloc(sizeof(struct flow));
     void *b; //somewhere to store message data
-    int res, len;
     struct timeval now;
     char msg[1024];
 
@@ -151,19 +153,19 @@ start(struct oflops_context * ctx) {
     get_mac_address(ctx->channels[OFLOPS_DATA2].dev, data_mac);
 
     //log when I start module
-    gettimeofday(&now, NULL);
+    oflops_gettimeofday(ctx, &now);
     oflops_log(now, GENERIC_MSG, msg);
     oflops_log(now,GENERIC_MSG , cli_param);
 
     //start openflow session with switch
     make_ofp_hello(&b);
-    res = oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
+    oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
     free(b);
 
     //send a message to clean up flow tables.
     printf("cleaning up flow table...\n");
-    res = make_ofp_flow_del(&b);
-    res = oflops_send_of_mesg(ctx, b);
+    make_ofp_flow_del(&b);
+    oflops_send_of_mesg(ctx, b);
     free(b);
 
     /**
@@ -183,9 +185,9 @@ start(struct oflops_context * ctx) {
     fl->nw_dst =  inet_addr("10.1.1.2");
     fl->tp_src = htons(8080);
     fl->tp_dst = htons(8080);
-    len = make_ofp_flow_add(&b, fl, ctx->channels[OFLOPS_DATA3].of_port, 1, 120);
+    make_ofp_flow_add(&b, fl, ctx->channels[OFLOPS_DATA3].of_port, 1, 240);
     ((struct ofp_flow_mod *)b)->priority = htons(10);
-    res = oflops_send_of_mesg(ctx, b);
+    oflops_send_of_mesg(ctx, b);
     ((struct ofp_flow_mod *)b)->flags = 0;
     free(b);
 
@@ -199,17 +201,17 @@ start(struct oflops_context * ctx) {
      * Shceduling events
      */
     //send the flow modyfication command in 30 seconds.
-    gettimeofday(&now, NULL);
+    oflops_gettimeofday(ctx, &now);
     add_time(&now, 10, 0);
     oflops_schedule_timer_event(ctx,&now, SND_ACT);
 
     //get port and cpu status from switch
-    gettimeofday(&now, NULL);
+    oflops_gettimeofday(ctx, &now);
     add_time(&now, 1, 0);
     oflops_schedule_timer_event(ctx,&now, SNMPGET);
 
     //end process
-    gettimeofday(&now, NULL);
+    oflops_gettimeofday(ctx, &now);
     add_time(&now, 240, 0);
     oflops_schedule_timer_event(ctx,&now, BYESTR);
 
@@ -221,13 +223,13 @@ start(struct oflops_context * ctx) {
  * Calculate measurement probe stats and output them.
  * \param ctx module context
  */
-int destroy(struct oflops_context *ctx) {
+int destroy(oflops_context *ctx) {
     FILE *out = NULL;
     struct entry *np;
     int  min_id[] = {INT_MAX, INT_MAX, INT_MAX};
     int ix[] = {0,0,0};
 
-    int max_id[] = {INT_MIN, INT_MIN, INT_MIN}, ch, i;
+    int max_id[] = {INT_MIN, INT_MIN, INT_MIN}, ch;
     char msg[1024];
     struct timeval now;
     double **data;
@@ -236,7 +238,7 @@ int destroy(struct oflops_context *ctx) {
     struct in_addr in;
 
     //get what time we start printin output
-    gettimeofday(&now, NULL);
+    oflops_gettimeofday(ctx, &now);
 
     //open log file if required
     if(print) {
@@ -301,11 +303,10 @@ int destroy(struct oflops_context *ctx) {
  * @param ctx context of module
  * @param te event data
  */
-int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
+int handle_timer_event(oflops_context * ctx, struct timer_event *te) {
     char *str = te->arg;
-    int len, i, inc=1;
+    int len, i, inc=1, count;
     void *b;
-    struct timeval now;
     struct in_addr ip_addr;
 
     //terminate process
@@ -353,12 +354,13 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
 
     } else if(strcmp(str, SNMPGET) == 0) {
         /*for(i = 0; i < ctx->cpuOID_count; i++) {*/
-            /*oflops_snmp_get(ctx, ctx->cpuOID[i], ctx->cpuOID_len[i]);*/
+        /*oflops_snmp_get(ctx, ctx->cpuOID[i], ctx->cpuOID_len[i]);*/
         /*}*/
         /*for(i=0;i<ctx->n_channels;i++) {*/
-            /*oflops_snmp_get(ctx, ctx->channels[i].inOID, ctx->channels[i].inOID_len);*/
-            /*oflops_snmp_get(ctx, ctx->channels[i].outOID, ctx->channels[i].outOID_len);*/
+        /*oflops_snmp_get(ctx, ctx->channels[i].inOID, ctx->channels[i].inOID_len);*/
+        /*oflops_snmp_get(ctx, ctx->channels[i].outOID, ctx->channels[i].outOID_len);*/
         /*}*/
+        // oflops_gettimeofday(ctx, &now);
         /*gettimeofday(&now, NULL);*/
         /*add_time(&now, 120, 0);*/
         /*oflops_schedule_timer_event(ctx,&now, SNMPGET);*/
@@ -374,7 +376,7 @@ int handle_timer_event(struct oflops_context * ctx, struct timer_event *te) {
  * @param filter filter string for pcap * @param buflen length of buffer
  */
 int
-get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc,
+get_pcap_filter(oflops_context *ctx, enum oflops_channel_name ofc,
         char * filter, int buflen) {
     if (ofc == OFLOPS_CONTROL) {
         return 0;
@@ -393,9 +395,8 @@ get_pcap_filter(struct oflops_context *ctx, oflops_channel_name ofc,
  * @param ch enumeration of channel that pcap event is triggered
  */
 int
-handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_channel_name ch) {
+handle_pcap_event(oflops_context *ctx, struct pcap_event * pe, enum oflops_channel_name ch) {
     struct pktgen_hdr *pktgen;
-    struct pcap_event *ofp_msg;
     struct flow fl;
     struct timeval now;
     struct entry *n1;
@@ -414,6 +415,7 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
                 ip_received_count++;
                 ip_received[id] = 1;
                 in.s_addr = fl.nw_dst;
+                printf("FLOW_INSERTED:%s\n", inet_ntoa(in));
                 snprintf(msg, 1024, "FLOW_INSERTED:%s", inet_ntoa(in));
                 oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
                 if (ip_received_count >= flows) {
@@ -422,7 +424,7 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
                     printf("%s\n", msg);
                     oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
                     oflops_log(pe->pcaphdr.ts, GENERIC_MSG, "LAST_PKT_RCV");
-                    gettimeofday(&now, NULL);
+                    oflops_gettimeofday(ctx, &now);
                     add_time(&now, 0, 10);
                     oflops_schedule_timer_event(ctx,&now, SNMPGET);
                     add_time(&now, 10, 0);
@@ -430,7 +432,7 @@ handle_pcap_event(struct oflops_context *ctx, struct pcap_event * pe, oflops_cha
                 }
             }
         }
-        /*if(pktgen->seq_num % 100000 == 0)*/
+        if(pktgen->seq_num % 10000 == 0)
             printf("data packet received %d port %d\n", pktgen->seq_num, ch);
 
         n1 = malloc(sizeof(struct entry));
@@ -467,9 +469,9 @@ of_event_other(oflops_context *ctx, struct ofp_header *ofph) {
             break;
         case OFPT_BARRIER_REPLY:
             oflops_log(now, GENERIC_MSG, "BARRIRER_REPLY");
-            snprintf(msg, 1024, "BARRIER_DELAY:%d", time_diff(&flow_mod_timestamp, &now));
+            snprintf(msg, 1024, "BARRIER_DELAY:%d", time_diff(&now, &flow_mod_timestamp));
             oflops_log(now, GENERIC_MSG, msg);
-            printf("BARRIER_DELAY:%d\n",  time_diff(&flow_mod_timestamp, &now));
+            printf("BARRIER_DELAY:%d\n",  time_diff(&now, &flow_mod_timestamp));
             break;
     }
     return 0;
@@ -482,7 +484,7 @@ of_event_other(oflops_context *ctx, struct ofp_header *ofph) {
  * \param pkt_in data of the pkt_in message
  */
 int
-of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * pkt_in) {
+of_event_packet_in(oflops_context *ctx, const struct ofp_packet_in * pkt_in) {
     switch(pkt_in->reason) {
         case  OFPR_NO_MATCH:
             /*   printf("OFPR_NO_MATCH: %d bytes\n", ntohs(pkt_in->total_len)); */
@@ -503,14 +505,13 @@ of_event_packet_in(struct oflops_context *ctx, const struct ofp_packet_in * pkt_
  * \param ofph data of the openflow echo request message.
  */
 int
-of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph) {
+of_event_echo_request(oflops_context *ctx, const struct ofp_header * ofph) {
     void *b;
-    int res;
 
     make_ofp_hello(&b);
     ((struct ofp_header *)b)->type = OFPT_ECHO_REPLY;
     ((struct ofp_header *)b)->xid = ofph->xid;
-    res = oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
+    oflops_send_of_mesgs(ctx, b, sizeof(struct ofp_hello));
     free(b);
     return 0;
 }
@@ -522,7 +523,7 @@ of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph
  * \param se the snmp reply of the message
  */
 int
-handle_snmp_event(struct oflops_context * ctx, struct snmp_event * se) {
+handle_snmp_event(oflops_context * ctx, struct snmp_event * se) {
     netsnmp_variable_list *vars;
     int len = 1024, i;
     char msg[1024], log[1024];
@@ -620,7 +621,7 @@ handle_traffic_generation (oflops_context *ctx) {
  * \param ctx data of the context of the module.
  * \param config_str the initiliazation string of the module.
  */
-int init(struct oflops_context *ctx, char * config_str) {
+int init(oflops_context *ctx, char * config_str) {
     char *pos = NULL;
     char *param = config_str;
     char *value = NULL;
@@ -629,7 +630,7 @@ int init(struct oflops_context *ctx, char * config_str) {
     //init counters
     finished = 0;
 
-    gettimeofday(&now, NULL);
+    oflops_gettimeofday(ctx, &now);
 
     cli_param = strdup(config_str);
 

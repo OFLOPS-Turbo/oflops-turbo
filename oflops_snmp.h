@@ -5,8 +5,6 @@ struct snmp_channel;
 struct snmp_event;
 
 #include "context.h"
-#include <net-snmp/net-snmp-config.h>
-#include <net-snmp/net-snmp-includes.h>
 
 /** Structure to hold SNMP reply.
  *
@@ -49,13 +47,9 @@ typedef struct snmp_channel
  * @param community_string
  * @return 0
  */
-int snmp_channel_init(struct snmp_channel* channel, 
+int snmp_channel_init(struct snmp_channel* channel,
 		      char* host, char* community_string);
 
-/** Setup SNMP session.
- * @param ctx context (includes reference to SNMP session/setup)
- */
-void setup_snmp_channel(struct oflops_context* ctx);
 
 /** Callback function for SNMP
  * @param operation type of SNMP operation
@@ -68,8 +62,4 @@ void setup_snmp_channel(struct oflops_context* ctx);
 int snmp_response(int operation, struct snmp_session *sp, int reqid,
 		  struct snmp_pdu *pdu, void *magic);
 
-/** Teardown SNMP session.
- * @param ctx context (includes reference to SNMP session/setup)
- */
-void teardown_snmp_channel(struct oflops_context* ctx);
 #endif

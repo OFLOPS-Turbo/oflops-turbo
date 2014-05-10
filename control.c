@@ -18,14 +18,14 @@
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
 
-
 #include <netinet/in.h>
 
 #include "control.h"
 #include "utils.h"
+#include "channel_info.h"
 
 /**
- * setup the control channel of the oflops context. 
+ * setup the control channel of the oflops context.
  */
 int setup_control_channel(oflops_context *ctx)
 {
@@ -55,7 +55,7 @@ int setup_control_channel(oflops_context *ctx)
   assert(ctx->channels[OFLOPS_CONTROL].dev);
 
   /*
-   * Get the name of the interface on which the socket was opened.  
+   * Get the name of the interface on which the socket was opened.
    */
   strncpy(ifr.ifr_name,ctx->channels[OFLOPS_CONTROL].dev,IFNAMSIZ);
   if( ioctl( ctx->listen_fd, SIOCGIFADDR, &ifr)  == -1 )
@@ -107,17 +107,17 @@ int setup_control_channel(oflops_context *ctx)
   free(b);
 */
 
-  flags = O_NONBLOCK;
-  if(fcntl(ctx->control_fd, F_SETFL, flags))
-    perror_and_exit("Dying on fcntl(control, O_NONBLOCK)",1);
-  fprintf( stderr, "Turning off @&^$!@# Nagle algorithm on control channel\n");
-  /*
-   * TCP_NODELAY and TCP_CORK basically control packet "Nagling," 
-   * or automatic concatenation of small packets into bigger frames performed 
-   * by a Nagle algorithm.
-   */
-  if(setsockopt(ctx->control_fd, SOL_TCP, TCP_NODELAY, &one, sizeof(one)))
-    perror_and_exit("Dying on setsockopt(tcp_nodelay",1);
+//  flags = O_NONBLOCK;
+//  if(fcntl(ctx->control_fd, F_SETFL, flags))
+//    perror_and_exit("Dying on fcntl(control, O_NONBLOCK)",1);
+//  fprintf( stderr, "Turning off @&^$!@# Nagle algorithm on control channel\n");
+//  /*
+//   * TCP_NODELAY and TCP_CORK basically control packet "Nagling,"
+//   * or automatic concatenation of small packets into bigger frames performed
+//   * by a Nagle algorithm.
+//   */
+//  if(setsockopt(ctx->control_fd, SOL_TCP, TCP_NODELAY, &one, sizeof(one)))
+//    perror_and_exit("Dying on setsockopt(tcp_nodelay",1);
 
   return 0;
 

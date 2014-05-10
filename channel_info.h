@@ -4,11 +4,7 @@
 struct channel_info;
 #include <pcap.h>
 
-#include "context.h"
 #include "test_module.h"
-#include "pcap_track.h"
-#include "msgbuf.h"
-#include "nf_pktgen.h"
 
 /**
  * \brief State for a specific control or data channel.
@@ -25,7 +21,7 @@ typedef struct channel_info {
   struct ptrack_list * timestamps; /**< (Deprecated) a list of buffers to store pcap packet timestamp */
   struct msgbuf * outgoing;       /**< a buffer to store data send out of the interface */
   struct traf_gen_det *det;       /**< a description of the artificial traffic generated on the channel (valid only for data channels). */
-  struct pcap_dump_t *dump;       /**< the structure that store the stores the state of the file, on which we dump pcap data(used only by the control channel) */
+  pcap_dumper_t *dump;            /**< the structure that store the stores the state of the file, on which we dump pcap data(used only by the control channel) */
   oid inOID[MAX_OID_LEN];         /**< SNMP oid of the input counter of the port on which the channel is attached on the switch */
   size_t inOID_len;               /**< length of the input OID structure */
   oid outOID[MAX_OID_LEN];        /**< SNMP oid of the output counter of the port on which the channel is attached on the switch */
@@ -41,16 +37,22 @@ typedef struct channel_info {
  *  \param dev the name of the interface
  *  \return return 1 on success or 0 otherwise
  */
-int channel_info_init(struct channel_info * channel, char * dev);
+int channel_info_init(struct channel_info * channel, const char * dev);
 
 /**
- * fill in a strct channel_ifno, based on the informations contained in 
- * the current context of the module 
+ * fill in a strct channel_ifno, based on the informations contained in
+ * the current context of the module
  * \param ctx oflops context of the module
  * \param mod a pointer a struct storing information for the running module
  * \param ch the id of the initialized channel
  */
-void setup_channel(struct oflops_context *ctx, 
+void setup_channel(oflops_context *ctx,
     struct test_module *mod, enum oflops_channel_name ch);
+
+
+void setup_channel_snmp(oflops_context *ctx, enum oflops_channel_name ch,
+        char *in_oid, char *out_oid);
+
+void my_read_objid(char *in_oid, oid *out_oid, size_t *out_oid_len);
 
 #endif

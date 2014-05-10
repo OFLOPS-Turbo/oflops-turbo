@@ -46,7 +46,7 @@ int msgbuf_read_all(struct msgbuf * mbuf, int sock, int len)
     while(count < len)
     {
         /** fprintf(stderr, "in msgbuf_read_all... count = %d len = %d tmp = %d\n",
-                count, len, tmp); **/
+          count, len, tmp); **/
         tmp =msgbuf_read(mbuf,sock);
         if((tmp == 0)  ||
                 ((tmp<0) && (errno != EWOULDBLOCK ) && (errno != EINTR) && (errno != EAGAIN)))
@@ -59,105 +59,107 @@ int msgbuf_read_all(struct msgbuf * mbuf, int sock, int len)
 /**********************************************************************/
 int msgbuf_write(struct msgbuf * mbuf, int sock, int len)
 {
-	int send_len = mbuf->end - mbuf->start;
-  int snd = 0, rc;
-  fd_set fds;
-struct timeval timeout;
-char *b  = mbuf->buf[mbuf->start];
+    int send_len = mbuf->end - mbuf->start;
+    /*int snd = 0, rc;*/
+    /*fd_set fds;*/
+    /*struct timeval timeout;*/
+    /*char *b  = (mbuf->buf + mbuf->start);*/
 
-	if (len > 0)
-	{
-		if (send_len < len)
-			return -1;
-		if (send_len > len)
-			send_len = len;
-  }
+    if (len > 0)
+    {
+        if (send_len < len)
+            return -1;
+        if (send_len > len)
+            send_len = len;
+    }
+    if (send_len == 0)
+        return 0;
 
-  //  while( snd <  send_len) {
-  //      timeout.tv_sec = 1;
-  //      timeout.tv_usec = 0;
-  //      FD_ZERO(&fds);
-  //      FD_SET(sock, &fds);
-  //      while((rc = select(sizeof(fds)*8, NULL, &fds, NULL, &timeout)) <= 0) {
-  //        FD_ZERO(&fds);
-  //        FD_SET(sock, &fds);
-  //        timeout.tv_sec = 1;
-  //        timeout.tv_usec = 0;
-  //        if(rc < 0) 
-  //          perror_and_exit("select failed", 1);
-  //      }
-  //
-  //      if (FD_ISSET(sock, &fds)) {
-  //        snd += write(sock, b + snd, send_len - snd);
-  //      }
-  //    }
+    //  while( snd <  send_len) {
+    //      timeout.tv_sec = 1;
+    //      timeout.tv_usec = 0;
+    //      FD_ZERO(&fds);
+    //      FD_SET(sock, &fds);
+    //      while((rc = select(sizeof(fds)*8, NULL, &fds, NULL, &timeout)) <= 0) {
+    //        FD_ZERO(&fds);
+    //        FD_SET(sock, &fds);
+    //        timeout.tv_sec = 1;
+    //        timeout.tv_usec = 0;
+    //        if(rc < 0)
+    //          perror_and_exit("select failed", 1);
+    //      }
+    //
+    //      if (FD_ISSET(sock, &fds)) {
+    //        snd += write(sock, b + snd, send_len - snd);
+    //      }
+    //    }
 
-  int count = write(sock, &mbuf->buf[mbuf->start], send_len);
-  if(count>0)
-    mbuf->start+=count;
-  if(mbuf->start >= mbuf->end)
-    mbuf->start = mbuf->end = 0;
-  return count;
+    int count = write(sock, &mbuf->buf[mbuf->start], send_len);
+    if(count>0)
+        mbuf->start+=count;
+    if(mbuf->start >= mbuf->end)
+        mbuf->start = mbuf->end = 0;
+    return count;
 }
 /**********************************************************************/
 int msgbuf_write_all(struct msgbuf * mbuf, int sock, int len)
 {
-  int tmp=0,count=0;
-  while(mbuf->start < mbuf->end)
-  {
-    tmp=msgbuf_write(mbuf, sock, len);
-    if((tmp < 0) && 
-        (errno != EAGAIN) && 
-        (errno != EWOULDBLOCK) && 
-        (errno != EINTR))
+    int tmp=0,count=0;
+    while(mbuf->start < mbuf->end)
+    {
+        tmp=msgbuf_write(mbuf, sock, len);
+        if((tmp < 0) &&
+                (errno != EAGAIN) &&
+                (errno != EWOULDBLOCK) &&
+                (errno != EINTR))
 
-      return tmp;
-    if(count > 0)
-      count+=tmp;
-  }
-  return count;
+            return tmp;
+        if(count > 0)
+            count+=tmp;
+    }
+    return count;
 }
 /**********************************************************************/
 void msgbuf_clear(struct msgbuf * mbuf)
 {
-  mbuf->start = mbuf->end = 0;
+    mbuf->start = mbuf->end = 0;
 }
 /**********************************************************************/
 void msgbuf_grow(struct msgbuf * mbuf)
 {
-  mbuf->len *=2 ;
-  mbuf->buf = realloc(mbuf->buf, mbuf->len);
-  if(mbuf->buf == NULL) {
-    perror("msgbuf_grow failed");
-    printf("buffer len: %d\n", mbuf->len);
-  }
-  assert(mbuf->buf);
+    mbuf->len *=2 ;
+    mbuf->buf = realloc(mbuf->buf, mbuf->len);
+    if(mbuf->buf == NULL) {
+        perror("msgbuf_grow failed");
+        printf("buffer len: %d\n", mbuf->len);
+    }
+    assert(mbuf->buf);
 }
 /**********************************************************************/
 void * msgbuf_peek(struct msgbuf *mbuf)
 {
-  if(mbuf->start >= mbuf->end)
-    return NULL;
-  return (void *) &mbuf->buf[mbuf->start]; 
+    if(mbuf->start >= mbuf->end)
+        return NULL;
+    return (void *) &mbuf->buf[mbuf->start];
 }
 /**********************************************************************/
 int msgbuf_pull(struct msgbuf *mbuf, char * buf, int count)
 {
-  int min = MIN(count, mbuf->end - mbuf->start);
-  if( min <= 0)
-    return -1;
-  if(buf)     // don't write if NULL
-    memcpy(buf, &mbuf->buf[mbuf->start], min);
-  mbuf->start+=min;
-  if(mbuf->start>= mbuf->end)
-    mbuf->start = mbuf->end = 0;
-  return min;
+    int min = MIN(count, mbuf->end - mbuf->start);
+    if( min <= 0)
+        return -1;
+    if(buf)     // don't write if NULL
+        memcpy(buf, &mbuf->buf[mbuf->start], min);
+    mbuf->start+=min;
+    if(mbuf->start>= mbuf->end)
+        mbuf->start = mbuf->end = 0;
+    return min;
 }
 /**********************************************************************/
 void msgbuf_push(struct msgbuf *mbuf, char * buf, int count)
 {
-  while((mbuf->end + count) > mbuf->len)
-    msgbuf_grow(mbuf);
-  memcpy(&mbuf->buf[mbuf->end], buf, count);
-  mbuf->end += count;
+    while((mbuf->end + count) > mbuf->len)
+        msgbuf_grow(mbuf);
+    memcpy(&mbuf->buf[mbuf->end], buf, count);
+    mbuf->end += count;
 }

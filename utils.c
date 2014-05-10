@@ -76,6 +76,13 @@ time_diff(struct timeval *now, struct timeval *then) {
     return (then->tv_sec - now->tv_sec)*1000000 + (then->tv_usec - now->tv_usec);
 }
 
+inline double
+time_diff_d(struct timeval *now, struct timeval *then) {
+    return (double)(then->tv_sec - now->tv_sec) +
+        ((double)(then->tv_usec - now->tv_usec))/1000000.0;
+}
+
+
 inline int
 time_cmp(struct timeval *now, struct timeval *then) {
     if(then->tv_sec != now->tv_sec) {

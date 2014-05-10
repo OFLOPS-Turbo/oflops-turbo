@@ -1,14 +1,15 @@
 #include <string.h>
 #include <dlfcn.h>
+#include <pcap.h>
+#include <ev.h>
+
+#include <openflow/openflow.h>
 
 #include "context.h"
 #include "timer_event.h"
 #include "utils.h"
 #include "log.h"
-
-#include <pcap.h>
-
-#include <openflow/openflow.h>
+#include "test_module.h"
 
 
 /**
@@ -18,7 +19,7 @@
 oflops_context * oflops_default_context(void) {
 
   //initialize oflops nf packet generator (enable packet padding)
-//  nf_init(1, 0, 0);
+  nf_init(1, 0, 0);
 
   oflops_context * ctx = malloc_and_check(sizeof(oflops_context));
   bzero(ctx, sizeof(*ctx));
@@ -49,6 +50,12 @@ oflops_context * oflops_default_context(void) {
 
   ctx->dump_controller = 0;
   ctx->cpuOID_count = 0;
+
+  ctx->io_loop = ev_loop_new(EVFLAG_AUTO);
+  ctx->timer_loop = ev_loop_new(EVFLAG_AUTO);
+  ctx->data_loop = ev_loop_new(EVFLAG_AUTO);
+  printf("io_loop=%p, timer_loop=%p\n", ctx->io_loop, ctx->timer_loop);
+
   return ctx;
 }
 

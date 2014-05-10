@@ -6,6 +6,9 @@
 
 #include <sys/types.h>
 #include <stdint.h>
+
+#include <nf_pktgen.h>
+
 #include "oflops.h"
 #include "context.h"
 #include "utils.h"
@@ -37,15 +40,15 @@ struct pktgen_hdr {
 };
 #endif
 
-int init_traf_gen(struct oflops_context *ctx);
-int add_traffic_generator(struct oflops_context *ctx, int channel, struct traf_gen_det *det);
+int init_traf_gen(oflops_context *ctx);
+int add_traffic_generator(oflops_context *ctx, int channel, struct traf_gen_det *det);
 int start_traffic_generator();
 int stop_traffic_generator( oflops_context *ctx);
 
 char *report_traffic_generator(oflops_context *ctx);
 
 struct pktgen_hdr *extract_pktgen_pkt(oflops_context *ctx, int port,
-				      unsigned char *b, int len, struct flow *fl);
-void oflops_gettimeofday(struct oflops_context *ctx, struct timeval *ts);
+				      const uint8_t *b, int len, struct flow *fl);
+void oflops_gettimeofday(oflops_context *ctx, struct timeval *ts);
 
 #endif

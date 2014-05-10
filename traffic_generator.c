@@ -5,9 +5,9 @@
 #include <sys/stat.h>
 #include <string.h>
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE 1
-#endif /* _GNU_SOURCE */
+#ifndef __USE_GNU
+#define __USE_GNU
+#endif /* __USE_GNU */
 #include <pthread.h>
 
 /*
@@ -40,7 +40,7 @@ int start_user_traffic_generator(oflops_context *ctx);
 int start_pktgen_traffic_generator(oflops_context *ctx);
 int start_nf_traffic_generator(oflops_context *ctx);
 
-int init_traf_gen(struct oflops_context *ctx) {
+int init_traf_gen(oflops_context *ctx) {
   if(ctx->trafficGen == PKTGEN) {
     setuid(0);
     if(system("/sbin/modprobe pktgen") != 0)
@@ -51,7 +51,7 @@ int init_traf_gen(struct oflops_context *ctx) {
 
 
 int
-add_traffic_generator(struct oflops_context *ctx, int channel, struct traf_gen_det *det) {
+add_traffic_generator(oflops_context *ctx, int channel, struct traf_gen_det *det) {
   if(ctx->n_channels < channel) {
     perror_and_exit("the channel chose to generate traffic is incorrect", 1);
   }
@@ -159,7 +159,7 @@ get_next_pkt(int num_generator) {
 }
 
 int
-send_pkt(struct oflops_context *ctx, int ix) {
+send_pkt(oflops_context *ctx, int ix) {
   struct timeval now;
   struct pkt_details *state = generator_state[ix];
 
@@ -487,11 +487,11 @@ stop_traffic_generator( oflops_context *ctx) {
 //check here whether the pktgen format is correct
 struct pktgen_hdr *
 extract_pktgen_pkt( oflops_context *ctx, int port,
-		   unsigned char *b, int len, struct flow *fl) {
+		   const uint8_t *b, int len, struct flow *fl) {
   struct ether_header *ether = (struct ether_header *)b;
   struct ether_vlan_header *ether_vlan = (struct ether_vlan_header *)b;
   struct pktgen_hdr *pktgen;
-  uint8_t *data = b;
+  const uint8_t *data = b;
 
 
   if((port < 0) || (port > ctx->n_channels))
@@ -559,7 +559,7 @@ extract_pktgen_pkt( oflops_context *ctx, int port,
 }
 
 void
-oflops_gettimeofday(struct oflops_context *ctx, struct timeval *ts) {
+oflops_gettimeofday(oflops_context *ctx, struct timeval *ts) {
   if(ctx->trafficGen == NF_PKTGEN) {
     nf_cap_timeofday(ts);
   } else {

@@ -5,10 +5,10 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "openflow/openflow.h"
+#include <openflow/openflow.h>
 #include "context.h"
 
-
+#include "channel_info.h"
 #include "usage.h"
 #include "utils.h"
 #include "module_run.h"
@@ -36,6 +36,7 @@ char * option_args[] =  {
 
 static char * make_short_from_long(struct option long_options[]);
 static void parse_test_module(oflops_context * ctx, int argc, char * argv[]);
+int load_config_file(oflops_context * ctx, const char *config);
 
 /*****************************************************************************
  * int parse_args(oflops_context * ctx, int argc, char * argv[])
@@ -200,8 +201,8 @@ static void parse_test_module(oflops_context * ctx, int argc, char * argv[])
         fprintf(stderr, "Failed to load test_module %s\n", argv[0]);
 }
 
-int
-load_config_file(oflops_context * ctx, const char *config) {
+int load_config_file(oflops_context * ctx, const char *config)
+{
     config_t conf;
     config_setting_t *elem, *data;
     char *snmp_client, *snmp_community;
@@ -283,19 +284,18 @@ load_config_file(oflops_context * ctx, const char *config) {
     if(((elem = config_lookup(&conf, "oflops.control.cpu_mib")) != NULL) &&
             (strlen( config_setting_get_string(elem)) > 0) ) {
         len = strlen(config_setting_get_string(elem));
-        char *data = xmalloc(len + 1);
-        strcpy(data, config_setting_get_string(elem));
-        char *end = strtok(data, ";");
+        char *token = (char *)xmalloc(len + 1);
+        strcpy(token, config_setting_get_string(elem));
+        char *end = strtok(token, ";");
         do {
             ctx->cpuOID_count++;
             ctx->cpuOID_len = realloc(ctx->cpuOID_len, ctx->cpuOID_count*sizeof(size_t));
             ctx->cpuOID_len[ctx->cpuOID_count - 1] = MAX_OID_LEN;
             ctx->cpuOID = realloc(ctx->cpuOID, ctx->cpuOID_count*sizeof(oid *));
             ctx->cpuOID[ctx->cpuOID_count - 1] = xmalloc(MAX_OID_LEN*sizeof(oid));
-            if(!my_read_objid(end,
+            my_read_objid(end,
                         ctx->cpuOID[ctx->cpuOID_count - 1],
-                        &ctx->cpuOID_len[ctx->cpuOID_count - 1]))
-                perror_and_exit("read_objid failed", 1);
+                        &ctx->cpuOID_len[ctx->cpuOID_count - 1]);
         } while (( end = strtok(NULL, ";")) != NULL);
     }
     //setting up details regarding the data ports from the data
@@ -378,4 +378,5 @@ load_config_file(oflops_context * ctx, const char *config) {
     }
 
     config_destroy(&conf);
+    return 0;
 };
