@@ -268,6 +268,7 @@ int oflops_end_test(oflops_context *ctx,int should_continue)
     // ctx->should_continue = should_continue;
     ev_break(ctx->io_loop, EVBREAK_ALL);
     ev_break(ctx->timer_loop, EVBREAK_ALL);
+    ev_break(ctx->data_loop, EVBREAK_ALL);
     return 0;
 }
 
