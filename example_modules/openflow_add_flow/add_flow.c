@@ -82,7 +82,7 @@ char *logfile = LOG_FILE;
 /**
  * Some constants to help me with conversions
  */
-const uint64_t sec_to_usec = 1000000;
+const uint64_t sec_to_usec = 1000000000;
 const uint64_t byte_to_bits = 8, mbits_to_bits = 1024*1024;
 
 // packet generation loca variables
@@ -165,7 +165,9 @@ start(oflops_context * ctx) {
     //send a message to clean up flow tables.
     printf("cleaning up flow table...\n");
     make_ofp_flow_del(&b);
-    oflops_send_of_mesg(ctx, b);
+    ((struct ofp_flow_mod *)b)->priority = htons(10);
+    ((struct ofp_flow_mod *)b)->out_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
+//    oflops_send_of_mesg(ctx, b);
     free(b);
 
     /**
@@ -173,13 +175,13 @@ start(oflops_context * ctx) {
      */
     printf("Sending measurement probe flow...\n");
     bzero(fl, sizeof(struct flow));
-    fl->mask = OFPFW_ALL & (~(OFPFW_IN_PORT|OFPFW_DL_TYPE));
+    fl->mask = OFPFW_ALL & (~(OFPFW_IN_PORT | OFPFW_DL_DST));
     fl->in_port = htons(ctx->channels[OFLOPS_DATA2].of_port);
     fl->dl_type = htons(ETHERTYPE_IP);
     memcpy(fl->dl_src, local_mac, 6);
     memcpy(fl->dl_dst, "\x00\x15\x17\x7b\x92\x0a", 6);
 
-    fl->dl_vlan = 0xffff;
+    fl->dl_vlan = 0;
     fl->nw_proto = IPPROTO_UDP;
     fl->nw_src =  inet_addr("10.1.1.1");
     fl->nw_dst =  inet_addr("10.1.1.2");
@@ -201,19 +203,13 @@ start(oflops_context * ctx) {
      * Shceduling events
      */
     //send the flow modyfication command in 30 seconds.
-    oflops_gettimeofday(ctx, &now);
-    add_time(&now, 10, 0);
-    oflops_schedule_timer_event(ctx,&now, SND_ACT);
+    oflops_schedule_timer_event(ctx, 31, 0, SND_ACT);
 
     //get port and cpu status from switch
-    oflops_gettimeofday(ctx, &now);
-    add_time(&now, 1, 0);
-    oflops_schedule_timer_event(ctx,&now, SNMPGET);
+    oflops_schedule_timer_event(ctx, 1, 0, SNMPGET);
 
     //end process
-    oflops_gettimeofday(ctx, &now);
-    add_time(&now, 240, 0);
-    oflops_schedule_timer_event(ctx,&now, BYESTR);
+    oflops_schedule_timer_event(ctx, 240, 0, BYESTR);
 
     return 0;
 }
@@ -403,7 +399,7 @@ handle_pcap_event(oflops_context *ctx, struct pcap_event * pe, enum oflops_chann
     char msg[1024];
     struct in_addr in;
 
-    if ((ch == OFLOPS_DATA1) || (ch == OFLOPS_DATA2) || (ch == OFLOPS_DATA3)) {
+    if ((ch == OFLOPS_DATA1) /* || (ch == OFLOPS_DATA2) || (ch == OFLOPS_DATA3) */ ) {
         if((pktgen = extract_pktgen_pkt(ctx, ch, pe->data, pe->pcaphdr.caplen, &fl)) == NULL) {
             printf("Failed to parse packet\n");
             return 0;
@@ -424,11 +420,8 @@ handle_pcap_event(oflops_context *ctx, struct pcap_event * pe, enum oflops_chann
                     printf("%s\n", msg);
                     oflops_log(pe->pcaphdr.ts, GENERIC_MSG, msg);
                     oflops_log(pe->pcaphdr.ts, GENERIC_MSG, "LAST_PKT_RCV");
-                    oflops_gettimeofday(ctx, &now);
-                    add_time(&now, 0, 10);
-                    oflops_schedule_timer_event(ctx,&now, SNMPGET);
-                    add_time(&now, 10, 0);
-                    oflops_schedule_timer_event(ctx,&now, BYESTR);
+                    oflops_schedule_timer_event(ctx, 0, 10, SNMPGET);
+                    oflops_schedule_timer_event(ctx,10, 0, BYESTR);
                 }
             }
         }
@@ -607,7 +600,7 @@ handle_traffic_generation (oflops_context *ctx) {
     det.udp_src_port = 8080;
     det.udp_dst_port = 8080;
     det.pkt_size = pkt_size;
-    det.delay = data_snd_interval*1000;
+    det.delay = data_snd_interval;
     strcpy(det.flags, "");
     add_traffic_generator(ctx, OFLOPS_DATA2, &det);
 
@@ -691,10 +684,10 @@ int init(oflops_context *ctx, char * config_str) {
 
     //calculate sendind interval
     probe_snd_interval = (pkt_size * byte_to_bits * sec_to_usec) / (proberate * mbits_to_bits);
-    fprintf(stderr, "Sending probe interval : %u usec (pkt_size: %u bytes, rate: %u Mbits/sec )\n",
+    fprintf(stderr, "Sending probe interval : %u nsec (pkt_size: %u bytes, rate: %u Mbits/sec )\n",
             (uint32_t)probe_snd_interval, (uint32_t)pkt_size, (uint32_t)proberate);
     data_snd_interval = (pkt_size * byte_to_bits * sec_to_usec) / (datarate * mbits_to_bits);
-    fprintf(stderr, "Sending probe interval : %u usec (pkt_size: %u bytes, rate: %u Mbits/sec )\n",
+    fprintf(stderr, "Sending probe interval : %u nsec (pkt_size: %u bytes, rate: %u Mbits/sec )\n",
             (uint32_t)data_snd_interval, (uint32_t)pkt_size, (uint32_t)datarate);
     return 0;
 }

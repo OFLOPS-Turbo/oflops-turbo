@@ -6,7 +6,6 @@
 #include <openflow/openflow.h>
 
 #include "context.h"
-#include "timer_event.h"
 #include "utils.h"
 #include "log.h"
 #include "test_module.h"
@@ -54,6 +53,8 @@ oflops_context * oflops_default_context(void) {
   ctx->io_loop = ev_loop_new(EVFLAG_AUTO);
   ctx->timer_loop = ev_loop_new(EVFLAG_AUTO);
   ctx->data_loop = ev_loop_new(EVFLAG_AUTO);
+  ctx->cpuOID_len = NULL;
+  ctx->cpuOID = NULL;
   printf("io_loop=%p, timer_loop=%p\n", ctx->io_loop, ctx->timer_loop);
 
   return ctx;

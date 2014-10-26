@@ -292,11 +292,11 @@ handle_traffic_generation (oflops_context *ctx) {
   for (i = 0; i < datarate_count; i++) {
     char filename[100];
     snprintf(filename, 100, "queue-%04d-delay.txt", datarate[i] );
-    test_output = fopen(filename, "w");
-    if(!test_output)
-      perror_and_exit("fopen", 1);
-
-    start_count = get_snmp_packet_counter(ctx);
+//    test_output = fopen(filename, "w");
+//    if(!test_output)
+//      perror_and_exit("fopen", 1);
+//
+//    start_count = get_snmp_packet_counter(ctx);
     //init packet counter
     delay_count = 0;
 
@@ -318,7 +318,7 @@ handle_traffic_generation (oflops_context *ctx) {
 
     sleep(10);
 
-    fclose(test_output);
+//    fclose(test_output);
 
 
     end_count = get_snmp_packet_counter(ctx);
@@ -339,9 +339,9 @@ handle_traffic_generation (oflops_context *ctx) {
     // TODO: snprintf the name of of_data1 device instead
 
     if(ctx->trafficGen == NF_PKTGEN) {
-      display_xmit_metrics(0, &gen_stat);
-	nf_cap_stat(0, &stat);
-	snprintf(msg, 1024, "nf:%u:%u:%u", datarate[i], gen_stat.pkt_snd_cnt, stat.pkt_cnt);
+      // display_xmit_metrics(0, &gen_stat);
+      nf_cap_stat(0, &stat);
+      snprintf(msg, 1024, "nf:%u:%u:%u", datarate[i], gen_stat.pkt_snd_cnt, stat.pkt_cnt);
       oflops_log(now, GENERIC_MSG, msg);
       printf("%s\n", msg);
     }

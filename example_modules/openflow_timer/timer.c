@@ -172,17 +172,17 @@ start(oflops_context * ctx) {
     //get port and cpu status from switch
     gettimeofday(&now, NULL);
     add_time(&now, 1, 0);
-    oflops_schedule_timer_event(ctx,&now, SND_FLOW);
+    oflops_schedule_timer_event(ctx, 1, 0, SND_FLOW);
 
     //get port and cpu status from switch
     gettimeofday(&now, NULL);
     add_time(&now, 1, 0);
-    oflops_schedule_timer_event(ctx,&now, SNMPGET);
+    oflops_schedule_timer_event(ctx, 1, 0, SNMPGET);
 
     //end process
     gettimeofday(&now, NULL);
     add_time(&now, 60, 0);
-    oflops_schedule_timer_event(ctx,&now, BYESTR);
+    oflops_schedule_timer_event(ctx, 60, 0, BYESTR);
     return 0;
 }
 
@@ -219,7 +219,6 @@ destroy(oflops_context *ctx) {
 int handle_timer_event(oflops_context * ctx, struct timer_event *te) {
     char *str = te->arg;
     int i;
-    struct timeval now;
     struct flow *fl = (struct flow*)xmalloc(sizeof(struct flow));
     void *b; //somewhere to store message data
     int len;
@@ -267,9 +266,7 @@ int handle_timer_event(oflops_context * ctx, struct timer_event *te) {
             oflops_snmp_get(ctx, ctx->channels[i].inOID, ctx->channels[i].inOID_len);
             oflops_snmp_get(ctx, ctx->channels[i].outOID, ctx->channels[i].outOID_len);
         }
-        gettimeofday(&now, NULL);
-        add_time(&now, 1, 0);
-        oflops_schedule_timer_event(ctx,&now, SNMPGET);
+        oflops_schedule_timer_event(ctx, 1, 0, SNMPGET);
     }
     return 0;
 }
@@ -368,9 +365,7 @@ of_event_flow_removed(oflops_context *ctx, const struct ofp_flow_removed * ofph)
     count++;
     if(count>=flows) {
         //end process
-        gettimeofday(&now, NULL);
-        add_time(&now, 5, 0);
-        oflops_schedule_timer_event(ctx,&now, BYESTR);
+        oflops_schedule_timer_event(ctx, 5, 0, BYESTR);
         return 0;
     }
     return 0;

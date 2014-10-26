@@ -28,16 +28,12 @@ int start(oflops_context * ctx)
     struct timeval now;
     struct ofp_header ofph;
     gettimeofday(&now, NULL);
-    now.tv_sec ++;
-    oflops_schedule_timer_event(ctx,&now, "1 sec");
-    now.tv_sec ++;
-    oflops_schedule_timer_event(ctx,&now, "2 sec");
-    now.tv_sec ++;
-    oflops_schedule_timer_event(ctx,&now, "3 sec");
-    now.tv_sec ++;
-    oflops_schedule_timer_event(ctx,&now, "4 sec");
-    now.tv_sec ++;	// 5 secs on the future, stop this module
-    oflops_schedule_timer_event(ctx,&now, BYESTR);
+    oflops_schedule_timer_event(ctx, 1, 0, "1 sec");
+    oflops_schedule_timer_event(ctx, 2, 0, "2 sec");
+    oflops_schedule_timer_event(ctx, 3, 0, "3 sec");
+    oflops_schedule_timer_event(ctx, 4, 0, "4 sec");
+    // 5 secs on the future, stop this module
+    oflops_schedule_timer_event(ctx, 5, 0, BYESTR);
     // send a friendly hello
     ofph.length = htons(sizeof(struct ofp_header));
     ofph.xid = 0;

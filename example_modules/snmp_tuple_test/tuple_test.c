@@ -5,7 +5,7 @@
 #include <gsl/gsl_statistics.h>
 #include <gsl/gsl_combination.h>
 #include <gsl/gsl_sf_gamma.h>
- 
+
 #include "context.h"
 #include "utils.h"
 #include "log.h"
@@ -13,13 +13,13 @@
 
 /** @ingroup modules
  * queue delay module.
- * This module send a a single packet probe in 
+ * This module send a a single packet probe in
  * order define at which rate  packet buffering ,ay appear.
  *
  * Copyright (C) Computer Laboratory, University of Cambridge, 2011
  * @author crotsos
  * @date February, 2011
- * 
+ *
  * @return name of module */
 char * name() {
 	return "snmp_queue_delay";
@@ -56,7 +56,7 @@ int tuple_field_val[] = {
   OFPFW_NW_SRC_ALL, OFPFW_NW_DST_ALL, OFPFW_DL_VLAN_PCP, OFPFW_NW_TOS
 };
 
-/** The rate at which data will be send between the data ports (In Mbits per sec.). 
+/** The rate at which data will be send between the data ports (In Mbits per sec.).
  */
 uint64_t duration = 30;
 
@@ -73,41 +73,41 @@ get_snmp_packet_counter(struct oflops_context *ctx, uint32_t *in, uint32_t *out)
     snmp_perror("snmp_open");
     return 1;
   }
-    
+
   do {
     pdu = snmp_pdu_create(SNMP_MSG_GET);
-    snmp_add_null_var(pdu, ctx->channels[OFLOPS_DATA1].inOID, 
+    snmp_add_null_var(pdu, ctx->channels[OFLOPS_DATA1].inOID,
 		      ctx->channels[OFLOPS_DATA1].inOID_len);
     /*
      * Send the Request out.
-     */  
+     */
     status = snmp_synch_response(ss, pdu, &response);
     if (status == STAT_SUCCESS && response->errstat == SNMP_ERR_NOERROR) {
-      for(vars = response->variables; vars; vars = vars->next_variable)  { 
+      for(vars = response->variables; vars; vars = vars->next_variable)  {
 	*in = (uint32_t)*(vars->val.integer);
       }
     }
   } while(status != STAT_SUCCESS || response->errstat != SNMP_ERR_NOERROR);
-  
+
   if (response)
     snmp_free_pdu(response);
   response = NULL;
 
   do {
     pdu = snmp_pdu_create(SNMP_MSG_GET);
-    snmp_add_null_var(pdu, ctx->channels[OFLOPS_DATA2].outOID, 
+    snmp_add_null_var(pdu, ctx->channels[OFLOPS_DATA2].outOID,
 		      ctx->channels[OFLOPS_DATA1].outOID_len);
     /*
      * Send the Request out.
-     */  
+     */
     status = snmp_synch_response(ss, pdu, &response);
     if (status == STAT_SUCCESS && response->errstat == SNMP_ERR_NOERROR) {
-      for(vars = response->variables; vars; vars = vars->next_variable)  { 
+      for(vars = response->variables; vars; vars = vars->next_variable)  {
 	*out = (uint32_t)*(vars->val.integer);
       }
     }
   } while(status != STAT_SUCCESS || response->errstat != SNMP_ERR_NOERROR);
-  
+
   if (response)
     snmp_free_pdu(response);
   response = NULL;
@@ -144,39 +144,39 @@ int init(struct oflops_context *ctx, char * config_str) {
     if(value != NULL) {
       if(strcmp(param, "pkt_size") == 0) {
         pkt_size = atoi(value);
-        if((pkt_size <= 70) || (pkt_size > 1500))  
+        if((pkt_size <= 70) || (pkt_size > 1500))
           perror_and_exit("Invalid pkt size param(Values between 70 and 1500 bytes)", 1);
-        
+
       } else if(strcmp(param, "duration") == 0) {
         duration = (uint64_t)atoi(value);
-	if((duration < 10) )  
+	if((duration < 10) )
           perror_and_exit("Invalid duration param(Values larger than 10 sec)", 1);
-        
+
       }
       param = pos;
     }
-  } 
+  }
   return 0;
 }
 
 /** Initialization
  * @param ctx pointer to opaque context
  */
-int start(struct oflops_context * ctx) { 
+int start(struct oflops_context * ctx) {
   void *b;
-  msg_init();  
+  msg_init();
   int ret;
   //get the mac address of channel 1
   get_mac_address(ctx->channels[OFLOPS_DATA1].dev, local_mac);
   printf("%s: %02x:%02x:%02x:%02x:%02x:%02x\n", ctx->channels[OFLOPS_DATA1].dev,
-	 (unsigned char)local_mac[0], (unsigned char)local_mac[1], 
-	 (unsigned char)local_mac[2], (unsigned char)local_mac[3], 
+	 (unsigned char)local_mac[0], (unsigned char)local_mac[1],
+	 (unsigned char)local_mac[2], (unsigned char)local_mac[3],
 	 (unsigned char)local_mac[4], (unsigned char)local_mac[5]);
 
 
   make_ofp_hello(&b);
   ret = write(ctx->control_fd, b, sizeof(struct ofp_hello));
-  free(b);  
+  free(b);
 
   return 0;
 }
@@ -208,22 +208,22 @@ handle_traffic_generation (oflops_context *ctx) {
   struct nf_cap_stats stat;
   gsl_combination * c;
   char tuple[1024];
-  
+
   init_traf_gen(ctx);
-  
+
   //background dadatata
   strcpy(det.src_ip,"10.1.1.1");
   strcpy(det.dst_ip_min,"10.1.1.2");
   strcpy(det.dst_ip_max, "10.1.1.2");
-  
+
   if(ctx->trafficGen == PKTGEN)
     strcpy(det.mac_src,"00:00:00:00:00:00"); //"00:1e:68:9a:c5:74");
-  else 
+  else
     snprintf(det.mac_src, 20, "%02x:%02x:%02x:%02x:%02x:%02x",
-	     (unsigned char)local_mac[0], (unsigned char)local_mac[1], 
-	     (unsigned char)local_mac[2], (unsigned char)local_mac[3], 
+	     (unsigned char)local_mac[0], (unsigned char)local_mac[1],
+	     (unsigned char)local_mac[2], (unsigned char)local_mac[3],
 	     (unsigned char)local_mac[4], (unsigned char)local_mac[5]);
-      
+
   //claculate interpacket gap
   data_snd_interval = (pkt_size * byte_to_bits * sec_to_usec*1000) / (datarate * mbits_to_bits);
   det.delay = data_snd_interval;
@@ -231,9 +231,9 @@ handle_traffic_generation (oflops_context *ctx) {
   //calculate packets send
   if(data_snd_interval)
     det.pkt_count = ((uint64_t)(duration*1000000000) / (data_snd_interval));
-  else 
+  else
     det.pkt_count = (uint64_t)(duration*1000000000);
-  
+
   strcpy(det.mac_dst,"00:1e:68:9a:c5:75");
   det.vlan = 0xffff;
   det.vlan_p = 1;
@@ -243,17 +243,17 @@ handle_traffic_generation (oflops_context *ctx) {
   det.pkt_size = pkt_size;
   strcpy(det.flags, "");
 
-  fprintf(stderr, "Sending data interval : %u nsec (duration: %d sec, pkt_size: %u bytes, rate: %u Mbits/sec %llu packets)\n", 
+  fprintf(stderr, "Sending data interval : %u nsec (duration: %d sec, pkt_size: %u bytes, rate: %u Mbits/sec %llu packets)\n",
 	  (uint32_t)data_snd_interval, duration, (uint32_t)pkt_size, (uint32_t)datarate,  det.pkt_count);
   //calculating interpacket gap
   for (len = 1; len <= tuple_field_num; len++) {
     c = gsl_combination_calloc (tuple_field_num, len);
     do {
       get_snmp_packet_counter(ctx, &start_rcv_count, &start_snd_count);
-      
+
       //start packet generator
       add_traffic_generator(ctx, OFLOPS_DATA1, &det);
-      
+
       // clean up flow table
       printf("cleaning up flow table...\n");
       res = make_ofp_flow_del(&b);
@@ -270,26 +270,26 @@ handle_traffic_generation (oflops_context *ctx) {
       //Send a singe ruke to route the traffic we will generate
       bzero(&fl, sizeof(struct flow));
       fl.mask = val;
-      fl.in_port = htons(ctx->channels[OFLOPS_DATA1].of_port); 
-      fl.dl_type = htons(ETHERTYPE_IP); 
-      memcpy(fl.dl_src, local_mac, ETH_ALEN); 
-      memcpy(fl.dl_dst, "\x00\x1e\x68\x9a\xc5\x75", ETH_ALEN); 
+      fl.in_port = htons(ctx->channels[OFLOPS_DATA1].of_port);
+      fl.dl_type = htons(ETHERTYPE_IP);
+      memcpy(fl.dl_src, local_mac, ETH_ALEN);
+      memcpy(fl.dl_dst, "\x00\x1e\x68\x9a\xc5\x75", ETH_ALEN);
       fl.dl_vlan = 0xffff;
       fl.nw_proto = IPPROTO_UDP;
       fl.nw_src =  inet_addr("10.1.1.1");
       fl.nw_dst =  inet_addr("10.1.1.2");
-      fl.tp_src = htons(8080);            
-      fl.tp_dst = htons(8080);  
-      ret = make_ofp_flow_add(&b, &fl, ctx->channels[OFLOPS_DATA2].of_port, 0, 
+      fl.tp_src = htons(8080);
+      fl.tp_dst = htons(8080);
+      ret = make_ofp_flow_add(&b, &fl, ctx->channels[OFLOPS_DATA2].of_port, 0,
 			      OFP_FLOW_PERMANENT);
       write(ctx->control_fd, b, ret);
       free(b);
       sleep(1);
       start_traffic_generator(ctx);
       get_snmp_packet_counter(ctx, &end_rcv_count, &end_snd_count);
-      
-      if(ctx->trafficGen == NF_PKTGEN) { 
-	display_xmit_metrics(0, &gen_stat);
+
+      if(ctx->trafficGen == NF_PKTGEN) {
+// 	display_xmit_metrics(0, &gen_stat);
 	gettimeofday(&now, NULL);
 	nf_cap_stat(1, &stat);
 	loss = (float)(gen_stat.pkt_snd_cnt - stat.pkt_cnt)/(float)gen_stat.pkt_snd_cnt;
@@ -300,15 +300,15 @@ handle_traffic_generation (oflops_context *ctx) {
 	printf("%s\n", msg);
       }
     } while (gsl_combination_next (c) == GSL_SUCCESS);
-    
+
     gsl_combination_free (c);
   }
-  
+
   oflops_end_test(ctx,1);
   return 1;
 }
 
-int 
+int
 of_event_echo_request(struct oflops_context *ctx, const struct ofp_header * ofph) {
   void *b;
   int res;

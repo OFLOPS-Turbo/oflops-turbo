@@ -124,15 +124,12 @@ start(oflops_context * ctx) {
   printf("test %u.%06u\n", now.tv_sec, now.tv_usec);
   add_time(&now, delay/1000000, delay%1000000);
   printf("after %u.%06u\n", now.tv_sec, now.tv_usec);
-  oflops_schedule_timer_event(ctx,&now, ECHO_REQUEST);
+  oflops_schedule_timer_event(ctx, delay/1000000, delay%1000000, ECHO_REQUEST);
 
   //get port and cpu status from switch
-  add_time(&now, 1, 0);
-  oflops_schedule_timer_event(ctx,&now, SNMPGET);
-
+  oflops_schedule_timer_event(ctx, 1, 0, SNMPGET);
   //end process
-  add_time(&now, 20, 0);
-  oflops_schedule_timer_event(ctx,&now, BYESTR);
+  oflops_schedule_timer_event(ctx, 20, 0, BYESTR);
 
   return 0;
 }
@@ -206,10 +203,7 @@ int handle_timer_event(oflops_context * ctx, struct timer_event *te) {
     free(b);
 
     //arrange next echo
-    oflops_gettimeofday(ctx, &now);
-    add_time(&now, delay/1000000, delay%1000000);
-    printf("next event in %u.%06u\n", delay/1000000, delay%1000000);
-    oflops_schedule_timer_event(ctx, &now, ECHO_REQUEST);
+    oflops_schedule_timer_event(ctx, delay/1000000, delay%1000000, ECHO_REQUEST);
 
   } else if(strcmp(str, SNMPGET) == 0) {
     for(i = 0; i < ctx->cpuOID_count; i++) {
@@ -219,9 +213,7 @@ int handle_timer_event(oflops_context * ctx, struct timer_event *te) {
       oflops_snmp_get(ctx, ctx->channels[i].inOID, ctx->channels[i].inOID_len);
       oflops_snmp_get(ctx, ctx->channels[i].outOID, ctx->channels[i].outOID_len);
     }
-    oflops_gettimeofday(ctx, &now);
-    add_time(&now, 10, 0);
-    oflops_schedule_timer_event(ctx,&now, SNMPGET);
+    oflops_schedule_timer_event(ctx, 10, 0, SNMPGET);
   }
   return 0;
 }

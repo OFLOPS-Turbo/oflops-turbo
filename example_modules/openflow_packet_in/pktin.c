@@ -129,14 +129,10 @@ int start(oflops_context * ctx) {
   free(b);
 
   //get port and cpu status from switch
-  gettimeofday(&now, NULL);
-  add_time(&now, 1, 0);
-  oflops_schedule_timer_event(ctx,&now, SNMPGET);
+  oflops_schedule_timer_event(ctx, 1, 0, SNMPGET);
 
   //Schedule end
-  gettimeofday(&now, NULL);
-  add_time(&now, 60, 0);
-  oflops_schedule_timer_event(ctx,&now, BYESTR);
+  oflops_schedule_timer_event(ctx, 60, 0, BYESTR);
 
   return 0;
 }
@@ -168,7 +164,7 @@ int handle_timer_event(oflops_context * ctx, struct timer_event *te)
     }
     gettimeofday(&now, NULL);
     add_time(&now, 1, 0);
-    oflops_schedule_timer_event(ctx,&now, SNMPGET);
+    oflops_schedule_timer_event(ctx, 1, 0, SNMPGET);
   } else if(!strcmp(str,BYESTR)) {
     oflops_end_test(ctx,1);
   } else

@@ -5,7 +5,6 @@
 #include "oflops_snmp.h"
 #include "oflops_pcap.h"
 #include "channel_info.h"
-#include "timer_event.h"
 
 /**  New test_module should implement these call backs.
  * Unimplemeted callbacks fall back to a default behavior.
@@ -175,7 +174,7 @@ int oflops_get_channel_raw_fd(oflops_context *ctx, enum oflops_channel_name ch);
  * @param arg	a parameter to pass to the event
  * @return a unique ID for the event (if test wants to cancel it) or -1 on error
  */
-int oflops_schedule_timer_event(oflops_context *ctx, struct timeval *tv, void * arg);
+int oflops_schedule_timer_event(oflops_context *ctx, uint32_t, uint32_t, void * arg);
 // FIXME: expose cancel timmer
 
 /** Lookup the timestamp for this chunk of data

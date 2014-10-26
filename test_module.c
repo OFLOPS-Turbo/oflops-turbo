@@ -21,7 +21,6 @@
 #include <openflow/openflow.h>
 #include "oflops_snmp.h"
 #include "oflops_pcap.h"
-#include "timer_event.h"
 
 #include "msgbuf.h"
 #include "channel_info.h"
@@ -195,7 +194,7 @@ int oflops_get_channel_raw_fd(oflops_context *ctx, enum oflops_channel_name ch);
  * @param arg	a parameter to pass to the event
  * @return a unique ID for the event (if test wants to cancel it) or -1 on error
  */
-int oflops_schedule_timer_event(oflops_context *ctx, struct timeval *tv, void * arg);
+int oflops_schedule_timer_event(oflops_context *ctx, uint32_t sec, uint32_t usec, void * arg);
 // FIXME: expose cancel timmer
 
 /** Lookup the timestamp for this chunk of data
@@ -332,9 +331,13 @@ int oflops_get_channel_fd(oflops_context * ctx, enum oflops_channel_name ch)
  * hook for the test module to schedule an timer_event to be called back into the module
  **/
 
-int oflops_schedule_timer_event(oflops_context *ctx, struct timeval *tv, void * arg)
+int oflops_schedule_timer_event(oflops_context *ctx, uint32_t sec, uint32_t usec, void * arg)
 {
-    return wc_event_ev_add(ctx, NULL, arg, *tv);
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	tv.tv_sec += sec;
+	tv.tv_usec += usec;
+	return wc_event_ev_add(ctx, NULL, arg, tv);
 }
 
 /********************************************************************************

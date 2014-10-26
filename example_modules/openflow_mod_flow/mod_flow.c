@@ -191,6 +191,10 @@ start(oflops_context * ctx) {
     fl_probe->nw_src =  inet_addr("10.1.1.1");
     ip_addr.s_addr = inet_addr(network);
     ip_addr.s_addr =  ntohl(ip_addr.s_addr);
+    fl_probe->nw_proto = IPPROTO_UDP;
+    fl_probe->tp_src = htons(8080);
+    fl_probe->tp_dst = htons(8080);
+
     for(i=0; i< flows; i++) {
         fl_probe->nw_dst =  htonl(ip_addr.s_addr);
         len = make_ofp_flow_modify_output_port(&b, fl_probe,
@@ -201,10 +205,6 @@ start(oflops_context * ctx) {
         free(b);
         ip_addr.s_addr += inc;
     }
-    fl_probe->nw_proto = IPPROTO_UDP;
-    fl_probe->tp_src = htons(8080);
-    fl_probe->tp_dst = htons(8080);
-
     ip_received = xmalloc(flows*sizeof(int));
     memset(ip_received, 0, flows*sizeof(int));
 
@@ -212,19 +212,13 @@ start(oflops_context * ctx) {
      * Shceduling events
      */
     //send the flow modyfication command in 30 seconds.
-    oflops_gettimeofday(ctx, &now);
-    add_time(&now, 40, 0);
-    oflops_schedule_timer_event(ctx,&now, SND_ACT);
+    oflops_schedule_timer_event(ctx, 40, 0, SND_ACT);
 
     //get port and cpu status from switch
-    oflops_gettimeofday(ctx, &now);
-    add_time(&now, 1, 0);
-    oflops_schedule_timer_event(ctx,&now, SNMPGET);
+    oflops_schedule_timer_event(ctx, 1, 0, SNMPGET);
 
     //end process
-    oflops_gettimeofday(ctx, &now);
-    add_time(&now, 240, 0);
-    oflops_schedule_timer_event(ctx,&now, BYESTR);
+    oflops_schedule_timer_event(ctx, 240, 0, BYESTR);
 
     return 0;
 }
@@ -437,9 +431,9 @@ handle_pcap_event(oflops_context *ctx, struct pcap_event * pe, enum oflops_chann
                     oflops_log(pe->pcaphdr.ts, GENERIC_MSG, "LAST_PKT_RCV");
                     oflops_gettimeofday(ctx, &now);
                     add_time(&now, 0, 10);
-                    oflops_schedule_timer_event(ctx,&now, SNMPGET);
+                    oflops_schedule_timer_event(ctx, 0, 10, SNMPGET);
                     add_time(&now, 10, 0);
-                    oflops_schedule_timer_event(ctx,&now, BYESTR);
+                    oflops_schedule_timer_event(ctx, 10, 0, BYESTR);
                 }
             }
         }

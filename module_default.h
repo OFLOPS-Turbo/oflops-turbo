@@ -4,7 +4,6 @@
 #include <openflow/openflow.h>
 
 #include "context.h"
-#include "timer_event.h"
 #include "oflops_snmp.h"
 #include "channel_info.h"
 

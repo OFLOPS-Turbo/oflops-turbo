@@ -9,6 +9,7 @@
 #include <poll.h>
 #include <limits.h>
 #include <math.h>
+#include <stdio.h>
 
 //include gsl to implement statistical functionalities
 #include <gsl/gsl_statistics.h>
@@ -403,24 +404,17 @@ int start(oflops_context * ctx)
   free(b);
 
   //Schedule end
-  gettimeofday(&now, NULL);
-  add_time(&now, TEST_DURATION, 0);
-  oflops_schedule_timer_event(ctx,&now, BYESTR);
+  oflops_schedule_timer_event(ctx, TEST_DURATION, 0, BYESTR);
 
   //the event to request the flow statistics.
-  gettimeofday(&now, NULL);
-  add_time(&now, query_delay/SEC_TO_USEC, query_delay%SEC_TO_USEC);
-  oflops_schedule_timer_event(ctx,&now, GETSTAT);
+  oflops_schedule_timer_event(ctx, query_delay/SEC_TO_USEC, 
+		  query_delay%SEC_TO_USEC, GETSTAT);
 
   //send the flow modyfication command in 30 seconds.
-  gettimeofday(&now, NULL);
-  add_time(&now, 20, 0);
-  oflops_schedule_timer_event(ctx,&now, SND_ACT);
+  oflops_schedule_timer_event(ctx, 20, 0, SND_ACT);
 
   //get port and cpu status from switch
-  gettimeofday(&now, NULL);
-  add_time(&now, 1, 0);
-  oflops_schedule_timer_event(ctx,&now, SNMPGET);
+  oflops_schedule_timer_event(ctx, 1, 0, SNMPGET);
 
   flows_exponent = (int)floor(log2(flows));
   query_exponent = (int)log2(query);
@@ -462,9 +456,8 @@ int handle_timer_event(oflops_context * ctx, struct timer_event *te)
     free(b);
 
     //schedule next query
-    gettimeofday(&now, NULL);
-    add_time(&now, query_delay/SEC_TO_USEC, query_delay%SEC_TO_USEC);
-    oflops_schedule_timer_event(ctx, &now, GETSTAT);
+    oflops_schedule_timer_event(ctx, query_delay/SEC_TO_USEC, 
+		query_delay%SEC_TO_USEC, GETSTAT);
   } else if (strcmp(str, BYESTR) == 0) {
     //terminate programm execution
     printf("terminating test....\n");
@@ -525,9 +518,7 @@ int handle_timer_event(oflops_context * ctx, struct timer_event *te)
       oflops_snmp_get(ctx, ctx->channels[i].inOID, ctx->channels[i].inOID_len);
       oflops_snmp_get(ctx, ctx->channels[i].outOID, ctx->channels[i].outOID_len);
     }
-    gettimeofday(&now, NULL);
-    add_time(&now, 10, 0);
-    oflops_schedule_timer_event(ctx,&now, SNMPGET);
+    oflops_schedule_timer_event(ctx, 10, 0, SNMPGET);
   }
   return 0;
 }
@@ -627,9 +618,7 @@ int handle_pcap_event(oflops_context *ctx, struct pcap_event *pe,
 	if(ip_received_count % 100) {
 	  printf("id %d %s\n", ip_received_count, inet_ntoa(addr));
 	}
-	gettimeofday(&now, NULL);
-	add_time(&now, 1, 0);
-	oflops_schedule_timer_event(ctx,&now, BYESTR);
+	oflops_schedule_timer_event(ctx, 1, 0, BYESTR);
 	printf("Received all packets to channel 2\n");
 	printf("COMPLETE_INSERT_DELAY:%u\n", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
 	snprintf(msg, 1024, "COMPLETE_INSERT_DELAY:%u", time_diff(&flow_mod_timestamp, &pe->pcaphdr.ts));
@@ -729,7 +718,7 @@ of_event_other(oflops_context *ctx, const struct ofp_header * ofph) {
     fprintf(stderr, "%s\n", msg);
   } else if (ofph->type == OFPT_BARRIER_REPLY) {
     oflops_gettimeofday(ctx, &now);
-    snprintf(msg, 1024, "BARRIER_DELAY:%d", time_diff(&flow_mod_timestamp, &now));
+    snprintf(msg, 100, "BARRIER_DELAY:%d", time_diff(&flow_mod_timestamp, &now));
     oflops_log(now, GENERIC_MSG, msg);
     printf("BARRIER_DELAY:%d\n",  time_diff(&flow_mod_timestamp, &now));
   }

@@ -30,7 +30,6 @@ oflops_SOURCES= \
 				module_default.h  module_default.c \
 				oflops.c oflops.h \
 				oflops_pcap.h oflops_pcap.c \
-				timer_event.h timer_event.c \
 				msg.c msg.h \
 				log.c log.h \
 				wc_event.h wc_event.c \

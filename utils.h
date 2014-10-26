@@ -24,7 +24,7 @@
 
 #define malloc_and_check(x) _realloc_and_check(NULL,(x),__FILE__,__LINE__);
 #define realloc_and_check(ptr,x) _realloc_and_check((ptr),(x),__FILE__,__LINE__);
-void * _realloc_and_check(void * ptr,size_t bytes, char * file, int lineno);
+void * _realloc_and_check(void * ptr, size_t bytes, char * file, int lineno);
 
 void perror_and_exit(char * str, int exit_code);
 
@@ -37,6 +37,8 @@ inline int time_cmp(struct timeval *now, struct timeval *then);
 void* xmalloc(size_t len);
 
 void fail(const char *msg);
+char ***parse_module_args(char *);
+void free_module_args(char ***);
 
 /**
  * Endiannes change for 64 bit numbers.

@@ -78,6 +78,14 @@ typedef struct {
 
 } oflops_context;
 
+typedef struct timer_event
+{
+    int timer_id;               /**< the id of the  */
+    void * arg;
+    struct timeval sched_time;
+} timer_event;
+
+
 oflops_context *oflops_default_context(void);
 int reset_context(oflops_context *);
 

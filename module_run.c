@@ -21,7 +21,7 @@
 #include "test_module.h"
 #include "utils.h"
 #include "msgbuf.h"
-
+#include "traffic_generator.h"
 
 static void test_module_loop(oflops_context *ctx, test_module *mod);
 static void process_pcap_event(struct ev_loop *loop, struct ev_io *w, int revents);
@@ -158,6 +158,13 @@ static void process_control_event(struct ev_loop *loop, struct ev_io *w, int rev
     {
         if((len = msgbuf_write(ctx->control_outgoing,ctx->control_fd, 0)) < 0)
             perror_and_exit("control write()",1);
+        if (len > 0) {
+            /*struct timeval now;*/
+            char msg[1024];
+            oflops_gettimeofday(ctx, &now);
+            sprintf(msg, "SND_DATA:%d", len);
+            oflops_log(now, GENERIC_MSG, msg);
+        }
     }
 
     if(revents | EV_READ) {

@@ -13,7 +13,6 @@
 
 #include "wc_event.h"
 #include "utils.h"
-#include "timer_event.h"
 #include "traffic_generator.h"
 
 /***************************** local types

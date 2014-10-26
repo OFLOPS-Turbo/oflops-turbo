@@ -23,8 +23,8 @@ int channel_info_init(struct channel_info * channel, const char * dev)
     struct ifreq ifr;
     int dumb;
     char *tmp;
-
     bzero(channel, sizeof(channel_info));
+
     if((tmp = index(dev, ':')) != NULL) {
         *tmp = '\0';
         tmp++;
@@ -32,6 +32,7 @@ int channel_info_init(struct channel_info * channel, const char * dev)
     } else {
         channel->of_port = -1;
     }
+
     channel->inOID_len = MAX_OID_LEN;
     channel->outOID_len = MAX_OID_LEN;
     channel->dev = strdup(dev);
@@ -40,14 +41,13 @@ int channel_info_init(struct channel_info * channel, const char * dev)
     channel->sock = -1;
     channel->dump = NULL;
     channel->cap_type = PCAP;
-
     /* Not sure why I need a socket to do this */
     dumb = socket(AF_INET, SOCK_STREAM, 0);
-
     /*retrieve ethernet interface index*/
     strncpy(ifr.ifr_name, dev, IFNAMSIZ);
-    if (ioctl(dumb, SIOCGIFINDEX, &ifr) == -1)
-        perror_and_exit("SIOCGIFINDEX",1);
+
+    if(ioctl(dumb, SIOCGIFINDEX, &ifr) == -1)
+        perror_and_exit("SIOCGIFINDEX", 1);
 
     channel->ifindex = ifr.ifr_ifindex;
     channel->packet_len = 0;
@@ -64,53 +64,53 @@ int channel_info_init(struct channel_info * channel, const char * dev)
  */
 
 
-void setup_channel(oflops_context *ctx, test_module *mod, enum oflops_channel_name ch) {
+void setup_channel(oflops_context *ctx, test_module *mod, enum oflops_channel_name ch)
+{
     char buf[BUFLEN];
     char errbuf[PCAP_ERRBUF_SIZE];
     struct bpf_program filter;
-    bpf_u_int32 mask=0, net=0;
-
+    bpf_u_int32 mask = 0, net = 0;
     channel_info *ch_info = &ctx->channels[ch];
-    if(ch_info->dev==NULL)	// no device specified
-    {
+
+    if(ch_info->dev == NULL) { // no device specified
         ch_info->dev = pcap_lookupdev(errbuf);
-        fprintf(stderr,"%s channel %i not configured; guessing device: ",
-                ((ch==OFLOPS_CONTROL)?"Control":"Data"), ch);
+        fprintf(stderr, "%s channel %i not configured; guessing device: ",
+                ((ch == OFLOPS_CONTROL) ? "Control" : "Data"), ch);
+
         if(ch_info->dev)
-            fprintf(stderr,"%s",ch_info->dev);
-        else
-        {
+            fprintf(stderr, "%s", ch_info->dev);
+        else {
             fprintf(stderr, " pcap_lookup() failed: %s ; exiting....\n", errbuf);
             exit(1);
         }
     }
 
     // setup pcap filter, if wanted
-    if( mod->get_pcap_filter(ctx,ch,buf,BUFLEN) <=0)
-    {
+    if(mod->get_pcap_filter(ctx, ch, buf, BUFLEN) <= 0) {
         fprintf(stderr, "Test %s:  No pcap filter for channel %d on %s\n",
                 mod->name(), ch, ch_info->dev);
-        ch_info->pcap_handle=NULL;
+        ch_info->pcap_handle = NULL;
         return;
     }
-    assert(ch_info->dev);		// need to have someting here
-    fprintf(stderr,"Test %s:  Starting pcap filter \"%s\" on dev %s for channel %d\n",
+
+    assert(ch_info->dev);       // need to have someting here
+    fprintf(stderr, "Test %s:  Starting pcap filter \"%s\" on dev %s for channel %d\n",
             mod->name(), buf, ch_info->dev, ch);
-    errbuf[0]=0;
+    errbuf[0] = 0;
 
     // for the case of the control channel we always use the pcap capturing library.
     if((ch == OFLOPS_CONTROL) || (ch_info->cap_type == PCAP)) {
-
         //for the data channel use capture len param to define the cpatured packet length
         if(ch != OFLOPS_CONTROL) {
             ch_info->pcap_handle = pcap_open_live(ch_info->dev, ctx->snaplen, 1,  0, errbuf);
         } else {
-            ch_info->pcap_handle = pcap_open_live(ch_info->dev,65000,1,0,errbuf);
+            ch_info->pcap_handle = pcap_open_live(ch_info->dev, 65000, 1, 0, errbuf);
 
             //based on the control channel capture param, open a pcap dump file named by default controller.pcap
             if(ctx->dump_controller) {
                 ch_info->dump = pcap_dump_open(ch_info->pcap_handle, "controller.pcap");
-                if(ch_info->dump == NULL ) {
+
+                if(ch_info->dump == NULL) {
                     perror_and_exit(pcap_geterr(ch_info->pcap_handle), 1);
                 }
             } else {
@@ -119,47 +119,49 @@ void setup_channel(oflops_context *ctx, test_module *mod, enum oflops_channel_na
         }
 
         if(!ch_info->pcap_handle) {
-            fprintf( stderr, "pcap_open_live failed: %s\n",errbuf);
+            fprintf(stderr, "pcap_open_live failed: %s\n", errbuf);
             exit(1);
         }
 
-        if(strlen(errbuf)>0)
-            fprintf( stderr, "Non-fatal pcap warning: %s\n", errbuf);
-        if((pcap_lookupnet(ch_info->dev,&net,&mask,errbuf) == -1) &&
-                (ch == OFLOPS_CONTROL)) {	// only control has an IP
-            fprintf(stderr,"WARN: pcap_lookupnet: %s; ",errbuf);
-            fprintf(stderr,"filter rules might fail\n");
+        if(strlen(errbuf) > 0)
+            fprintf(stderr, "Non-fatal pcap warning: %s\n", errbuf);
+
+        if((pcap_lookupnet(ch_info->dev, &net, &mask, errbuf) == -1) &&
+                (ch == OFLOPS_CONTROL)) {   // only control has an IP
+            fprintf(stderr, "WARN: pcap_lookupnet: %s; ", errbuf);
+            fprintf(stderr, "filter rules might fail\n");
         }
 
         //setup pcap filter
         bzero(&filter, sizeof(filter));
+
         if(pcap_compile(ch_info->pcap_handle, &filter, buf, 1, net)) {
-            fprintf( stderr, "pcap_compile: %s\n", errbuf);
+            fprintf(stderr, "pcap_compile: %s\n", errbuf);
             exit(1);
         }
-        if(strlen(errbuf)>0)
-            fprintf( stderr, "Non-fatal pcap_setfilter: %s\n", errbuf);
 
-        if(pcap_setfilter(ch_info->pcap_handle,&filter ) == -1) {
-            fprintf(stderr,"pcap_setfilter: %s\n",errbuf);
+        if(strlen(errbuf) > 0)
+            fprintf(stderr, "Non-fatal pcap_setfilter: %s\n", errbuf);
+
+        if(pcap_setfilter(ch_info->pcap_handle, &filter) == -1) {
+            fprintf(stderr, "pcap_setfilter: %s\n", errbuf);
             exit(1);
         }
 
         //extract a file descriptor for the pcap handler and make it non blocking
         //so that we can `select` it later
         if(pcap_setnonblock(ch_info->pcap_handle, 1, errbuf))
-            fprintf(stderr,"setup_channel: pcap_setnonblock(): %s\n",errbuf);
-        ch_info->pcap_fd = pcap_get_selectable_fd(ch_info->pcap_handle);
+            fprintf(stderr, "setup_channel: pcap_setnonblock(): %s\n", errbuf);
 
+        ch_info->pcap_fd = pcap_get_selectable_fd(ch_info->pcap_handle);
         //else open the nf packet gen capturer
     } else  if(ch_info->cap_type == NF2) {
         ch_info->nf_cap = nf_cap_enable(ch_info->dev, ctx->snaplen);
         ch_info->pcap_fd = nf_cap_fileno(ch_info->nf_cap);
-        printf("nf2 capture on %s (sock:%d)\n",ch_info->dev , ch_info->pcap_fd );
+        printf("nf2 capture on %s (sock:%d)\n", ch_info->dev , ch_info->pcap_fd);
     } else {
         perror_and_exit("Invalid capture type", 1);
     }
-
 }
 
 /**
@@ -172,18 +174,24 @@ void my_read_objid(char *in_oid, oid *out_oid, size_t *out_oid_len)
 {
     int oid_len = *out_oid_len, p = 0, tmp = 0, len = strlen(in_oid);
     *(out_oid_len) = 0;
+
     while(1) {
         tmp = p;
+
         while((in_oid[tmp] != '.') &&
                 (in_oid[tmp] != '\0')) {
             tmp++;
         }
+
         in_oid[tmp] = '\0';
         tmp++;
-        out_oid[*(out_oid_len)] = (oid)strtol(in_oid+p, NULL, 10);
+        out_oid[*(out_oid_len)] = (oid)strtol(in_oid + p, NULL, 10);
+
         if(oid_len == *out_oid_len) return;
-        *(out_oid_len)+=1;
-        p=tmp;
+
+        *(out_oid_len) += 1;
+        p = tmp;
+
         if(p >= len)
             break;
     }
@@ -195,14 +203,13 @@ void my_read_objid(char *in_oid, oid *out_oid, size_t *out_oid_len)
  * device set
  */
 void setup_channel_snmp(oflops_context *ctx, enum oflops_channel_name ch,
-        char *in_oid, char *out_oid)
+                        char *in_oid, char *out_oid)
 {
     if(in_oid == NULL)
         ctx->channels[ch].inOID_len = 0;
     else {
         ctx->channels[ch].inOID_len = MAX_OID_LEN;
         my_read_objid(in_oid, ctx->channels[ch].inOID, &ctx->channels[ch].inOID_len);
-
         //comment this one because the snmp implementation was giving segaults
         /* if(read_objid(in_oid, ctx->channels[ch].inOID, &ctx->channels[ch].inOID_len) == 0) { */
         /*   printf("inOID: %s(%d)\n", in_oid,  ctx->channels[OFLOPS_CONTROL].inOID_len); */
@@ -216,7 +223,6 @@ void setup_channel_snmp(oflops_context *ctx, enum oflops_channel_name ch,
     else {
         ctx->channels[ch].outOID_len = MAX_OID_LEN;
         my_read_objid(out_oid, ctx->channels[ch].outOID, &ctx->channels[ch].outOID_len);
-
         //comment this one because the snmp implementation was giving segaults
         /* if(read_objid(out_oid, ctx->channels[ch].outOID, &ctx->channels[ch].outOID_len) == 0) */
         /*   perror_and_exit("read_objid failed", 1);     */

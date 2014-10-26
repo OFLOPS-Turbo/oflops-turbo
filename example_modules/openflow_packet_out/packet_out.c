@@ -148,19 +148,13 @@ int start(oflops_context * ctx) {
   free(data);
 
   //get port and cpu status from switch
-  gettimeofday(&now, NULL);
-  add_time(&now, 1, 0);
-  oflops_schedule_timer_event(ctx,&now, SNMPGET);
+  oflops_schedule_timer_event(ctx, 1, 0, SNMPGET);
 
   //Schedule end
-  gettimeofday(&now, NULL);
-  add_time(&now, 1, 0);
-  oflops_schedule_timer_event(ctx,&now, SND_PKT);
+  oflops_schedule_timer_event(ctx, 1, 0, SND_PKT);
 
   //Schedule end
-  gettimeofday(&now, NULL);
-  add_time(&now, 20, 0);
-  oflops_schedule_timer_event(ctx,&now, BYESTR);
+  oflops_schedule_timer_event(ctx, 20, 0, BYESTR);
 
   return 0;
 }
@@ -187,9 +181,7 @@ int handle_timer_event(oflops_context * ctx, struct timer_event *te)
       oflops_snmp_get(ctx, ctx->channels[i].inOID, ctx->channels[i].inOID_len);
       oflops_snmp_get(ctx, ctx->channels[i].outOID, ctx->channels[i].outOID_len);
     }
-    gettimeofday(&now, NULL);
-    add_time(&now, 10, 0);
-    oflops_schedule_timer_event(ctx,&now, SNMPGET);
+    oflops_schedule_timer_event(ctx, 10, 0, SNMPGET);
   } else if(!strcmp(str,BYESTR)) {
     oflops_end_test(ctx,1);
   } else if(!strcmp(str,SND_PKT)) {
@@ -214,9 +206,8 @@ int handle_timer_event(oflops_context * ctx, struct timer_event *te)
         snd += write(ctx->control_fd, b + snd, b_len - snd);
       }
     }
-    gettimeofday(&now, NULL);
-    add_time(&now, probe_snd_interval/sec_to_usec, probe_snd_interval%sec_to_usec);
-    oflops_schedule_timer_event(ctx,&now, SND_PKT);
+    oflops_schedule_timer_event(ctx, probe_snd_interval/sec_to_usec, 
+			probe_snd_interval%sec_to_usec, SND_PKT);
   } else
     fprintf(stderr, "Unknown timer event: %s", str);
   return 0;

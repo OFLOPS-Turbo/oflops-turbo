@@ -443,19 +443,13 @@ int start(oflops_context * ctx)
     }
 
     //Schedule end
-    gettimeofday(&now, NULL);
-    add_time(&now, TEST_DURATION, 0);
-    oflops_schedule_timer_event(ctx,&now, BYESTR);
+    oflops_schedule_timer_event(ctx, TEST_DURATION, 0, BYESTR);
 
     //the event to request the flow statistics.
-    gettimeofday(&now, NULL);
-    add_time(&now, 1, 0);
-    oflops_schedule_timer_event(ctx,&now, GETSTAT);
+    oflops_schedule_timer_event(ctx, 1, 0, GETSTAT);
 
     //get port and cpu status from switch
-    gettimeofday(&now, NULL);
-    add_time(&now, 1, 0);
-    oflops_schedule_timer_event(ctx,&now, SNMPGET);
+    oflops_schedule_timer_event(ctx, 1, 0, SNMPGET);
 
     flows_exponent = (int)floor(log2(flows));
     query_exponent = (int)log2(query);
@@ -513,9 +507,8 @@ int handle_timer_event(oflops_context * ctx, struct timer_event *te)
         free(b);
 
         //schedule next query
-        gettimeofday(&now, NULL);
-        add_time(&now, query_delay/SEC_TO_USEC, query_delay%SEC_TO_USEC);
-        oflops_schedule_timer_event(ctx, &now, GETSTAT);
+        oflops_schedule_timer_event(ctx, query_delay/SEC_TO_USEC, 
+				query_delay%SEC_TO_USEC, GETSTAT);
         //terminate programm execution
     } else if (strcmp(str, BYESTR) == 0) {
         printf("terminating test....\n");
@@ -528,9 +521,7 @@ int handle_timer_event(oflops_context * ctx, struct timer_event *te)
             oflops_snmp_get(ctx, ctx->channels[i].inOID, ctx->channels[i].inOID_len);
             oflops_snmp_get(ctx, ctx->channels[i].outOID, ctx->channels[i].outOID_len);
         }
-        gettimeofday(&now, NULL);
-        add_time(&now, 10, 0);
-        oflops_schedule_timer_event(ctx,&now, SNMPGET);
+        oflops_schedule_timer_event(ctx, 10, 0, SNMPGET);
     }
     return 0;
 }

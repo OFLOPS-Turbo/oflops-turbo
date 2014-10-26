@@ -165,8 +165,8 @@ send_pkt(oflops_context *ctx, int ix) {
 
   gettimeofday(&now, NULL);
   state->pktgen->seq_num = htonl(state->seq_num++);
-  state->pktgen->time.tv_sec = htonl(now.tv_sec);
-  state->pktgen->time.tv_sec = htonl(now.tv_usec);
+  state->pktgen->tv_sec = htonl(now.tv_sec);
+  state->pktgen->tv_usec = htonl(now.tv_usec);
     oflops_send_raw_mesg(ctx, state->traffic_gen, state->data, state->data_len);
     //printf("%d: %ld.%06ld\n", state->traffic_gen, now.tv_sec, now.tv_usec);
   add_time(&state->timestamp, 0, ctx->channels[state->traffic_gen].det->delay);
@@ -294,7 +294,7 @@ start_nf_traffic_generator(oflops_context *ctx) {
     struct pkt_details pkt_state;
     struct pcap_pkthdr h;
     int pkt_count;
-    uint32_t max_packets = 100000000;
+    uint32_t max_packets = 0xFFFFFFFF;
     uint32_t iteration[] = {0,0,0,0};
     int data_to_send = 0; // in case we only want to capture data, we enable the capturing module,
     // but never load any data.
