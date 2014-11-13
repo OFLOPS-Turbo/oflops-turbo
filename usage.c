@@ -155,7 +155,7 @@ static char * make_short_from_long(struct option long_options[])
  * void usage(char * s1, char *s2);
  * 	print usage information and exit
  **/
-void usage(char * s1, char *s2)
+void usage(const char * s1, const char *s2)
 {
   struct option * o;
   int i = 0;

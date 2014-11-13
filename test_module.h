@@ -51,7 +51,8 @@ typedef struct test_module
      * @param buflen   The max length of the filter string
      * @return The length of the filter string: zero implies "do not listen on this channel"
      */
-    int (*get_pcap_filter)(oflops_context *ctx, enum oflops_channel_name ofc, char * filter, int buflen);
+    int (*get_pcap_filter)(oflops_context *ctx, enum oflops_channel_name ofc, 
+			cap_filter **filter);
 
     /** \brief Tell the module it's time to start its test
      * 	pass raw sockets for send and recv channels

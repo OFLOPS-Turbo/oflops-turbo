@@ -136,6 +136,7 @@ AC_CONFIG_FILES([Makefile \
                  example_modules/openflow_reactive/Makefile \
                  example_modules/openflow_timer/Makefile \
                  example_modules/snmp_queue_delay/Makefile \
+                 example_modules/openflow_table_delay/Makefile \
                  example_modules/openflow_echo_delay/Makefile \
                  example_modules/openflow_interaction_test/Makefile \
                  ])

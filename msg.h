@@ -68,6 +68,8 @@ int make_ofp_feat_req(void **b);
 int make_ofp_flow_stat(void **b);
 int make_ofp_flow_add(void **buferp,  struct flow *fl, uint32_t out_port, 
 		      uint32_t buffer_id, uint16_t idle_timeout);
+int make_ofp_flow_add_actions(void **, struct flow *, uint8_t *, uint8_t,
+		  uint32_t, uint16_t); 
 
 int make_ofp_flow_modify(void **buferp, struct flow *fl, 
 			 char *actions,  uint16_t action_len, uint32_t buffer_id, 

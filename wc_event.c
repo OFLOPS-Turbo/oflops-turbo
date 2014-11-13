@@ -41,6 +41,7 @@ static void event_callback(EV_P_ ev_timer *w, int revents) {
 
 static  void event_idle_callback(EV_P_ ev_timer *w, int revents)
 {
+	printf("null event\n");
     return;
 }
 
@@ -49,20 +50,21 @@ static  void event_idle_callback(EV_P_ ev_timer *w, int revents)
 *  The main event loop of the event subsystem.
 */
 void *event_loop(oflops_context *ctx) {
-struct ev_timer *tm;
+	struct ev_timer *tm;
 
-tm = (struct ev_timer *)malloc(sizeof(struct ev_timer));
-bzero(tm, sizeof(struct ev_timer));
-ev_timer_init(tm, event_idle_callback, 1.0, 1.0);
-tm->data = ctx;
-ev_timer_start(ctx->timer_loop, tm);
+	tm = (struct ev_timer *)malloc(sizeof(struct ev_timer));
+	bzero(tm, sizeof(struct ev_timer));
+	ev_timer_init(tm, event_idle_callback, 1.0, 1.0);
+	tm->data = ctx;
+	ev_timer_start(ctx->timer_loop, tm);
 
-ev_run(ctx->timer_loop, 0);
+	ev_run(ctx->timer_loop, 0);
 
-return NULL;
+	return NULL;
 }
 
-int wc_event_ev_add(oflops_context *ctx, void (*fun)(void *), void *arg, struct timeval key){
+int wc_event_ev_add(oflops_context *ctx, void (*fun)(void *), void *arg, struct timeval key, 
+		uint32_t sec, uint32_t usec){
     wc_event * data;
     struct ev_timer *tm;
     struct timeval now;
@@ -75,10 +77,12 @@ int wc_event_ev_add(oflops_context *ctx, void (*fun)(void *), void *arg, struct 
     data->arg=arg;
     data->id = WC_EVENT_ID++;
     data->ctx = ctx;
-    oflops_gettimeofday(ctx, &now);
-    delay = time_diff_d(&now, &key);
+//    oflops_gettimeofday(ctx, &now);
+//    delay = time_diff_d(&now, &key);
     tm = (struct ev_timer *)malloc(sizeof(struct ev_timer));
     bzero(tm, sizeof(struct ev_timer));
+
+	delay = (double)sec + ((double)usec)/1e6;
     ev_timer_init(tm, event_callback, delay, 0.0);
     tm->data = data;
     ev_timer_start(ctx->timer_loop, tm);

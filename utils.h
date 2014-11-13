@@ -47,4 +47,8 @@ uint64_t ntohll(uint64_t val);
 uint16_t ip_sum_calc(uint16_t len_ip_header, uint16_t buff[]);
 int get_mac_address(char *intf_name, char mac_addr[]);
 inline void hexdump(const uint8_t *, uint32_t);
+
+char ***run_tokenizer(char *, char, char);
+void destroy_tokenizer(char ***);
+
 #endif

@@ -48,9 +48,8 @@ static void process_pcap_event(struct ev_loop *loop, struct ev_io *w, int revent
     enum oflops_channel_name ch = cap->ch;
     test_module * mod = ctx->curr_test;
     struct pcap_event_wrapper wrap;
-    int count;
-    const uint8_t *data;
-    static pcap_event *pe = NULL;
+    int count, i;
+    static pcap_event pe;
 
     // read the next packet from the appropriate pcap socket
     if(revents | EV_READ) {
@@ -77,24 +76,13 @@ static void process_pcap_event(struct ev_loop *loop, struct ev_io *w, int revent
             // clean up our mess
             pcap_event_free(wrap.pe);
         } else  if(ctx->channels[ch].cap_type == NF2) {
-            if(pe == NULL) {
-                pe = malloc_and_check(sizeof(pcap_event));
-                //This is a hack
-                pe->data = malloc_and_check(2000);
-            }
 
-            data = nf_cap_next(ctx->channels[ch].nf_cap, &pe->pcaphdr);
-
-            if(data != NULL) {
-                memcpy(pe->data, data, pe->pcaphdr.caplen);
-                mod->handle_pcap_event(ctx, pe, ch);
-            } else {
-                fprintf(stderr, "errorous packet received\n");
-                return;
-            }
-
-            //free(pe->data);
-            //free(pe);
+			for (i=0; i < 1000;i++) { 
+				pe.data = (unsigned char *)nf_cap_next(ctx->channels[ch].nf_cap, &pe.pcaphdr);
+				if(pe.data != NULL) {
+					mod->handle_pcap_event(ctx, &pe, ch);
+				}
+			}
         }
     }
 
@@ -135,7 +123,8 @@ int main(int argc, char * argv[])
     int i, j;
     struct pcap_stat ps;
     pthread_t thread, event_thread, traffic_gen, traffic_cap;
-    struct run_module_param *param =  malloc_and_check(sizeof(struct run_module_param));
+    struct run_module_param *param =  
+		(struct run_module_param *)malloc_and_check(sizeof(struct run_module_param));
     char msg[1024];
     struct timeval now;
     struct nf_cap_stats stat;
@@ -170,8 +159,8 @@ int main(int argc, char * argv[])
         pthread_create(&traffic_cap, NULL, start_capture_thread, (void *)param);
         // the timer thread.
         pthread_create(&event_thread, NULL, run_event_loop, (void *)param);
-        pthread_join(thread, NULL);
         pthread_join(event_thread, NULL);
+        pthread_join(thread, NULL);
 
         // for the case of pktgen traffic generation the thread remain unresponsive to other
         // termination method, and for that reason we use explicit signal termination.

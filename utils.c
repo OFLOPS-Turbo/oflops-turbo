@@ -75,13 +75,13 @@ void add_time(struct timeval *now, time_t secs,  suseconds_t usecs)
 
 inline uint32_t time_diff(struct timeval *now, struct timeval *then)
 {
-    return (then->tv_sec - now->tv_sec) * 1000000 + (then->tv_usec - now->tv_usec);
+    return (then->tv_sec - now->tv_sec) * 1000000000 + (then->tv_usec - now->tv_usec);
 }
 
 inline double time_diff_d(struct timeval *now, struct timeval *then)
 {
     return (double)(then->tv_sec - now->tv_sec) +
-           ((double)(then->tv_usec - now->tv_usec)) / 1000000.0;
+           ((double)(then->tv_usec - now->tv_usec)) / 1000000000.0;
 }
 
 
@@ -223,7 +223,7 @@ void free_module_args(char ***args)
 
 inline void hexdump(const uint8_t *data, uint32_t len)
 {
-    int ix;
+    uint32_t ix;
 
     for(ix = 0; ix < len; ix++) {
         if(ix > 0 && (ix % 16 == 0)) printf("\n");
@@ -233,4 +233,60 @@ inline void hexdump(const uint8_t *data, uint32_t len)
     }
 
     return;
+}
+
+
+char ***
+run_tokenizer(char *tkn, char param_sep, char value_sep) {
+	char ***ret = NULL, *word = tkn, *equal = NULL, *tmp, token_sep[2];
+	uint32_t count = 0, tmp_len;
+
+	token_sep[0] = param_sep;
+	token_sep[1] = '\0';
+
+	//lets init our ret value in order to avoid problems when the string in zero len
+	ret = (char ***)malloc(sizeof(char **));
+	ret[0] = NULL;
+
+	for (word = strtok(word, token_sep); word && (strlen(word) > 0); word = strtok(NULL, token_sep) ) {
+		count++;
+		ret = realloc(ret, (count+1)*sizeof(char **));
+		ret[count] = NULL;
+		if ((*word == ' ') ||  ((equal = strchr(word, value_sep)) == NULL) || 
+				(*(equal + 1) == '\0') || (*(equal + 1) == param_sep)) {
+			printf("[tokenizer] ignoring invalid parameter entry \'%s\'...\n", word);
+			continue;
+		}
+
+		ret[count - 1] = malloc(2*sizeof(char *));
+		// copy the content of the param name (easy)
+		*equal = '\0'; 
+		equal++;
+		ret[count - 1][0] = malloc(strlen(word) + 1);
+		strcpy(ret[count - 1][0], word);
+
+		// copy the content of the param value (hard)
+		tmp=equal; 
+		tmp_len=0;
+		while( (*tmp != '\0') && (*tmp != param_sep)) { 
+			tmp++;
+			tmp_len++;
+		}
+		ret[count - 1][1] = (char *)malloc(tmp_len + 1);
+		strncpy(ret[count - 1][1], equal, tmp_len);
+		ret[count - 1][1][tmp_len] = '\0';
+	}
+	return ret;
+}
+
+void 
+destroy_tokenizer(char ***params) {
+	int ix = 0, i;
+	while(params[ix] != NULL) {
+		for (i=0;i<2;i++)
+			if (params[ix][i])
+				free(params[ix][i]);
+		free(params[ix++]);
+	}
+	free(params);
 }

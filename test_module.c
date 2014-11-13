@@ -70,7 +70,7 @@ typedef struct test_module
      * @param buflen   The max length of the filter string
      * @return The length of the filter string: zero implies "do not listen on this channel"
      */
-    int (*get_pcap_filter)(oflops_context *ctx, enum oflops_channel_name ofc, char * filter, int buflen);
+    int (*get_pcap_filter)(oflops_context *ctx, enum oflops_channel_name ofc, cap_filter ** filter);
 
     /** \brief Tell the module it's time to start its test
      * 	pass raw sockets for send and recv channels
@@ -206,7 +206,6 @@ int oflops_schedule_timer_event(oflops_context *ctx, uint32_t sec, uint32_t usec
  * @param len	length of the data
  * @param hdr	pointer to a pcap header; this will be filled in if the data is matched
  * @return 	zero if not found (*hdr unchanged); >zero implies *hdr is valid and actual
- * number indicates how far oflops had to search
  */
 int oflops_get_timestamp(oflops_context * ctx, void * data, int len, struct pcap_pkthdr * hdr,
         enum oflops_channel_name ofc);
@@ -241,6 +240,8 @@ int oflops_send_of_mesg(oflops_context *ctx, struct ofp_header * ofph)
 {
     int len = ntohs(ofph->length);
     msgbuf_push(ctx->control_outgoing, (void *) ofph, len);
+	if (ctx->async_ch)
+		ev_async_send(ctx->io_loop, ctx->async_ch);
     return len;
 }
 
@@ -253,7 +254,9 @@ int oflops_send_of_mesg(oflops_context *ctx, struct ofp_header * ofph)
  **/
 size_t oflops_send_of_mesgs(oflops_context *ctx, char * buf, size_t buflen)
 {
-       msgbuf_push(ctx->control_outgoing, buf, buflen);
+	msgbuf_push(ctx->control_outgoing, buf, buflen);
+	if (ctx->async_ch)
+		ev_async_send(ctx->io_loop, ctx->async_ch);
     return buflen;
 }
 
@@ -265,9 +268,10 @@ int oflops_end_test(oflops_context *ctx,int should_continue)
 {
     ctx->should_end = 1;
     // ctx->should_continue = should_continue;
-    ev_break(ctx->io_loop, EVBREAK_ALL);
+	ev_async_send(ctx->io_loop, ctx->io_break_async);
     ev_break(ctx->timer_loop, EVBREAK_ALL);
-    ev_break(ctx->data_loop, EVBREAK_ALL);
+	ev_break(ctx->data_loop, EVBREAK_ALL);
+	close(ctx->control_fd);
     return 0;
 }
 
@@ -337,7 +341,7 @@ int oflops_schedule_timer_event(oflops_context *ctx, uint32_t sec, uint32_t usec
 	gettimeofday(&tv, NULL);
 	tv.tv_sec += sec;
 	tv.tv_usec += usec;
-	return wc_event_ev_add(ctx, NULL, arg, tv);
+	return wc_event_ev_add(ctx, NULL, arg, tv, sec, usec);
 }
 
 /********************************************************************************

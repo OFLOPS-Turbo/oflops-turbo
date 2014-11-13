@@ -16,7 +16,7 @@ int default_module_destroy(oflops_context *ctx)
     return 0;
 }
 
-int default_module_get_pcap_filter(oflops_context *ctx, enum oflops_channel_name ofc, char * filter, int buflen)
+int default_module_get_pcap_filter(oflops_context *ctx, enum oflops_channel_name ofc, cap_filter **filter)
 {
     if(ofc == OFLOPS_CONTROL)       // only pcap dump the control channel
 
@@ -26,10 +26,12 @@ int default_module_get_pcap_filter(oflops_context *ctx, enum oflops_channel_name
          *      80, i.e. print only packets that contain data,
          *      not,  for  example,  SYN  and  FIN packets and ACK-only packets.
          **/
-        return snprintf(filter,buflen,"tcp port %d"  		// port openflow
-                " and (((ip[2:2] - ((ip[0]&0xf)<<2)) - "// ip.tot_len - ip header len *4
-                " ((tcp[12]&0xf0)>>2)) != 0)", 		// - tcp header len *4
-                ctx->listen_port);
+//		bzero(filter, sizeof(cap_filter));
+		return 0;
+//        return snprintf(filter,buflen,"tcp port %d"  		// port openflow
+//                " and (((ip[2:2] - ((ip[0]&0xf)<<2)) - "// ip.tot_len - ip header len *4
+//                " ((tcp[12]&0xf0)>>2)) != 0)", 		// - tcp header len *4
+//                ctx->listen_port);
     else
         return 0;
 }

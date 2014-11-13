@@ -2,10 +2,19 @@
 #define OFLOPS_PCAP_H
 
 #include <pcap.h>
+#include <stdint.h>
 
 struct pcap_event;
 
-#include "test_module.h"
+// #include "test_module.h"
+
+typedef struct cap_filter {
+	uint8_t proto, proto_mask;
+	uint16_t port, port_mask;
+	uint32_t src, src_mask, dst, dst_mask;
+
+} cap_filter;
+
 
 typedef struct pcap_event {
   struct pcap_pkthdr pcaphdr;

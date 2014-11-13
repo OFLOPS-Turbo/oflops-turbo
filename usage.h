@@ -8,6 +8,6 @@
 #define SNMP_DELIMITER ":"
 
 int parse_args(oflops_context * ctx, int argc, char * argv[]);
-void usage(char * s1, char *s2);
+void usage(const char * s1, const char *s2);
 
 #endif

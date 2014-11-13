@@ -35,7 +35,7 @@ int default_module_destroy(oflops_context *ctx);
  * \param buflien maximum sze of the string buffer.
  */
 int default_module_get_pcap_filter(oflops_context *ctx, enum oflops_channel_name ofc,
-    char * filter, int buflen);
+    cap_filter **filter);
 
 /**
 * A method exectued when a module start running (pre-test flow step, etc.).

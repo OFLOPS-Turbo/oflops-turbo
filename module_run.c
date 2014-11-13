@@ -25,7 +25,8 @@
 
 static void test_module_loop(oflops_context *ctx, test_module *mod);
 static void process_pcap_event(struct ev_loop *loop, struct ev_io *w, int revents);
-static void process_control_event(struct ev_loop *loop, struct ev_io *w, int revents);
+static void process_control_event_read(struct ev_loop *loop, struct ev_io *w, int revents);
+static void process_control_event_write(struct ev_loop *loop, struct ev_io *w, int revents);
 
 
 /******************************************************
@@ -38,6 +39,11 @@ int setup_test_module(oflops_context *ctx, int ix_mod)
   int i;
   //Setup
   setup_snmp_channel(ctx);
+
+  //clean up the rules in the capture subsystem
+  nf_cap_clear_rules();
+
+  //configure the system
   for(i=0;i<ctx->n_channels;i++)
     setup_channel( ctx, mod, i);
 
@@ -92,6 +98,23 @@ struct cap_event_data {
     enum oflops_channel_name ch;
 };
 
+static void
+async_ctrl_read (EV_P_ ev_async *w, int revents)
+{
+	oflops_context *ctx = (oflops_context *) w->data;
+	// just used for the side effects
+	printf("got a control read permit\n");
+	ev_io_start(ctx->io_loop, ctx->io_write_ch);
+}
+
+static void
+end_io_loop (EV_P_ ev_async *w, int revents) {
+	oflops_context *ctx = (oflops_context *) w->data;
+	printf("XXXXXXXX ending io loop\n");
+	ev_break(ctx->io_loop, EVBREAK_ALL);
+}
+
+
 /********************************************************
  * main loop()
  * 	1) setup poll
@@ -100,9 +123,6 @@ struct cap_event_data {
  */
 static void test_module_loop(oflops_context *ctx, test_module *mod)
 {
-    int ch;
-    ev_io *io_ch;
-    struct cap_event_data *cap;
 //    for(ch=0; ch< ctx->n_channels; ch++) {
 //        if(( ctx->channels[ch].pcap_handle) || (ctx->channels[ch].nf_cap))  {
 //            io_ch = (ev_io*)xmalloc(sizeof(ev_io));
@@ -115,21 +135,35 @@ static void test_module_loop(oflops_context *ctx, test_module *mod)
 //        }
 //    }
 
-    io_ch = (ev_io*)xmalloc(sizeof(ev_io));
-    ev_io_init(io_ch, process_control_event, ctx->control_fd, EV_READ | EV_WRITE);
-    ev_set_priority(io_ch, 1);
-    ev_io_start(ctx->io_loop, io_ch);
-    io_ch->data = (void*)ctx;
+    ctx->io_read_ch = (ev_io*)xmalloc(sizeof(ev_io));
+    ev_io_init(ctx->io_read_ch, process_control_event_read, ctx->control_fd, EV_READ);
+//    ev_set_priority(ctx->io_read_ch, 1);
+    ev_io_start(ctx->io_loop, ctx->io_read_ch);
+    ctx->io_read_ch->data = (void*)ctx;
+
+    ctx->io_write_ch = (ev_io*)xmalloc(sizeof(ev_io));
+    ev_io_init(ctx->io_write_ch, process_control_event_write, ctx->control_fd, EV_WRITE);
+ //   ev_set_priority(ctx->io_write_ch, 1);
+    ev_io_start(ctx->io_loop, ctx->io_write_ch);
+    ctx->io_write_ch->data = (void*)ctx;
+
+    ctx->async_ch = (ev_async*)xmalloc(sizeof(ev_async));
+    ev_async_init(ctx->async_ch, async_ctrl_read);
+    ev_async_start(ctx->io_loop, ctx->async_ch);
+    ctx->async_ch->data = (void*)ctx;
+
+    ctx->io_break_async = (ev_async*)xmalloc(sizeof(ev_async));
+    ev_async_init(ctx->io_break_async,  end_io_loop);
+    ev_async_start(ctx->io_loop, ctx->io_break_async);
+    ctx->io_break_async->data = (void*)ctx;
 
     ev_run(ctx->io_loop, 0);
+	printf("XXXXX termination io loop\n");
 }
 
-/***********************************************************************************************
- * static void process_control_event(oflops_context *ctx, test_module * mod, struct pollfd *fd);
- * 	if POLLIN is set, read an openflow message from the control channel
- * 	FIXME: handle a control channel reset here
- */
-static void process_control_event(struct ev_loop *loop, struct ev_io *w, int revents)
+
+
+static void process_control_event_write(struct ev_loop *loop, struct ev_io *w, int revents)
 {
     oflops_context *ctx = (oflops_context *)w->data;
     test_module * mod = ctx->curr_test;
@@ -164,7 +198,39 @@ static void process_control_event(struct ev_loop *loop, struct ev_io *w, int rev
             oflops_gettimeofday(ctx, &now);
             sprintf(msg, "SND_DATA:%d", len);
             oflops_log(now, GENERIC_MSG, msg);
-        }
+        } else 
+			ev_io_stop(ctx->io_loop, ctx->io_write_ch);
+    }
+}
+
+/***********************************************************************************************
+ * static void process_control_event(oflops_context *ctx, test_module * mod, struct pollfd *fd);
+ * 	if POLLIN is set, read an openflow message from the control channel
+ * 	FIXME: handle a control channel reset here
+ */
+static void process_control_event_read(struct ev_loop *loop, struct ev_io *w, int revents)
+{
+    oflops_context *ctx = (oflops_context *)w->data;
+    test_module * mod = ctx->curr_test;
+    char * neobuf;
+    static char * buf;
+    static int buflen   = -1;
+    static int bufstart =  0;       // begin of unprocessed data
+    static int bufend   =  0;       // end of unprocessed data
+    unsigned int msglen;
+    struct ofp_header * ofph;
+    int count, len;
+    struct timeval now;
+
+    if ( buflen == - 1 )
+    {
+        buflen = BUFLEN;
+        buf = malloc_and_check(BUFLEN);
+    }
+    if(bufend >= buflen )   // if we've filled up our buffer, resize it
+    {
+        buflen *=2 ;
+        buf = realloc_and_check(buf, buflen);
     }
 
     if(revents | EV_READ) {
@@ -181,50 +247,51 @@ static void process_control_event(struct ev_loop *loop, struct ev_io *w, int rev
         }
         bufend += count;            // extend buf by amount read
         count = bufend - bufstart;  // re-purpose count
-    }
+    
 
-    while(count > 0 )
-    {
-        if(count <  sizeof(ofph))   // if we didn't get full openflow header
-            return;                 // come back later
+		while(count > 0 )
+		{
+			if(count <  sizeof(ofph))   // if we didn't get full openflow header
+				return;                 // come back later
 
-        ofph = (struct ofp_header * ) &buf[bufstart];
-        msglen = ntohs(ofph->length);
-        if( ( msglen > count) ||    // if we don't yet have the whole msg
-                (buflen < (msglen + bufstart)))  // or our buffer is full
-            return;     // get the rest on the next pass
+			ofph = (struct ofp_header * ) &buf[bufstart];
+			msglen = ntohs(ofph->length);
+			if( ( msglen > count) ||    // if we don't yet have the whole msg
+					(buflen < (msglen + bufstart)))  // or our buffer is full
+				return;     // get the rest on the next pass
 
-        neobuf = malloc_and_check(msglen);
-        memcpy(neobuf, ofph, msglen);
+			neobuf = malloc_and_check(msglen);
+			memcpy(neobuf, ofph, msglen);
 
-        switch(ofph->type)
-        {
-            case OFPT_PACKET_IN:
-                mod->of_event_packet_in(ctx, (struct ofp_packet_in *)neobuf);
-                break;
-            case OFPT_FLOW_EXPIRED:
-                mod->of_event_flow_removed(ctx, (struct ofp_flow_removed *)neobuf);
-                break;
-            case OFPT_PORT_STATUS:
-                mod->of_event_port_status(ctx, (struct ofp_port_status *)neobuf);
-                break;
-            case OFPT_ECHO_REQUEST:
-                mod->of_event_echo_request(ctx, (struct ofp_header *)neobuf);
-                break;
-            default:
-                if(ofph->type > OFPT_BARRIER_REPLY)   // FIXME: update for new openflow versions
-                {
-                    fprintf(stderr, "%s:%d :: Data buffer probably trashed : unknown openflow type %d\n",
-                            __FILE__, __LINE__, ofph->type);
-                    abort();
-                }
-                mod->of_event_other(ctx, (struct ofp_header * ) neobuf);
-                break;
-        };
-        free(neobuf);
-        bufstart += msglen;
-        count = bufend - bufstart;  // repurpose count
-    }       // end while()
+			switch(ofph->type)
+			{
+				case OFPT_PACKET_IN:
+					mod->of_event_packet_in(ctx, (struct ofp_packet_in *)neobuf);
+					break;
+				case OFPT_FLOW_EXPIRED:
+					mod->of_event_flow_removed(ctx, (struct ofp_flow_removed *)neobuf);
+					break;
+				case OFPT_PORT_STATUS:
+					mod->of_event_port_status(ctx, (struct ofp_port_status *)neobuf);
+					break;
+				case OFPT_ECHO_REQUEST:
+					mod->of_event_echo_request(ctx, (struct ofp_header *)neobuf);
+					break;
+				default:
+					if(ofph->type > OFPT_BARRIER_REPLY)   // FIXME: update for new openflow versions
+					{
+						fprintf(stderr, "%s:%d :: Data buffer probably trashed : unknown openflow type %d\n",
+								__FILE__, __LINE__, ofph->type);
+						abort();
+					}
+					mod->of_event_other(ctx, (struct ofp_header * ) neobuf);
+					break;
+			};
+			free(neobuf);
+			bufstart += msglen;
+			count = bufend - bufstart;  // repurpose count
+		}
+	}       // end while()
 
     if ( bufstart >= bufend)        // if no outstanding bytes
         bufstart = bufend = 0;      // reset our buffer
@@ -246,9 +313,9 @@ static void process_pcap_event(struct ev_loop *loop, struct ev_io *w, int revent
     struct pcap_event_wrapper wrap;
     int count;
     const uint8_t *data;
-    static pcap_event *pe = NULL;
+    static pcap_event pe;
+//	static struct pcap_pkthdr h;
 
-    printf("reading data from cap\n");
     // read the next packet from the appropriate pcap socket
     if(revents | EV_READ) {
         if (ctx->channels[ch].cap_type == PCAP) {
@@ -273,22 +340,9 @@ static void process_pcap_event(struct ev_loop *loop, struct ev_io *w, int revent
             // clean up our mess
             pcap_event_free(wrap.pe);
         } else  if(ctx->channels[ch].cap_type == NF2) {
-            if(pe == NULL) {
-                pe = malloc_and_check(sizeof(pcap_event));
-                //This is a hack
-                pe->data = malloc_and_check(2000);
-            }
-            data = nf_cap_next(ctx->channels[ch].nf_cap, &pe->pcaphdr);
-
-            if(data != NULL) {
-                memcpy(pe->data, data, pe->pcaphdr.caplen);
-                mod->handle_pcap_event(ctx,pe, ch);
-            } else {
-                fprintf(stderr, "errorous packet received\n");
-                return;
-            }
-            //free(pe->data);
-            //free(pe);
+            pe.data = (unsigned char *)nf_cap_next(ctx->channels[ch].nf_cap, &pe.pcaphdr);
+            if(data != NULL) 
+                mod->handle_pcap_event(ctx, &pe, ch);
         }
     }
     return;

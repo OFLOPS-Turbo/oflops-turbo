@@ -67,13 +67,14 @@ make_flow_mod(void *ofp, uint16_t command, uint32_t len,
   return 0;
 }
 
-
-/*
- * This function can be used to create a flow modification message that creates
- * a match regarding the source and destination i pgiven as parameters. The packet 
- * matched is forwarded to the out_port.
- * @param buferp a pointer to the location of the memory on which the new packet can be found.
- * @param dst_ip a string of the destination ip to which the rule will reference. 
+/**
+ * This function can be used to create a flow modification maching @fl flow
+ * match and forwarding  the packet to the @out_port.  
+ * @param buferp a pointer to the location of the memory on which the new packet can be found.  
+ * @param fl the flow definition parameter
+ * @param out_port the output port of the action.
+ * @param buffer_id a buffer id for the OpenFlow header.
+ * @param idle_timeout a value to timeout the respecitve flow in the flow table. 
  */
 int
 make_ofp_flow_add(void **buferp, struct flow *fl, uint32_t out_port,
@@ -95,6 +96,33 @@ make_ofp_flow_add(void **buferp, struct flow *fl, uint32_t out_port,
   p->len = htons(8);
   p->port = htons(out_port);
   p->max_len = htons(2000);
+  return len;
+}
+
+/*
+ * This function can be used to create a flow modification maching @fl flow
+ * match and forwarding  the packet to the @out_port.  
+ * @param buferp a pointer to the location of the memory on which the new packet can be found.  
+ * @param fl the flow definition parameter
+ * @param out_port the output port of the action.
+ * @param buffer_id a buffer id for the OpenFlow header.
+ * @param idle_timeout a value to timeout the respecitve flow in the flow table. 
+ */
+int
+make_ofp_flow_add_actions(void **buferp, struct flow *fl, uint8_t *actions, uint8_t action_len,
+		  uint32_t buffer_id, uint16_t idle_timeout) {
+  //size of the packet we are sending .
+  size_t len = sizeof(struct ofp_flow_mod) + action_len;
+  *buferp = xmalloc(len);
+  if(make_flow_mod(*buferp, OFPFC_ADD, len, fl) < 0 ) 
+    fail("Error: falied to create flow modification packet.");
+  struct ofp_flow_mod *ofm = *buferp;
+  ofm->idle_timeout = htons(idle_timeout);
+  ofm->hard_timeout = htons(OFP_FLOW_PERMANENT);
+  ofm->buffer_id = htonl(buffer_id);
+  ofm->command = htons(OFPFC_ADD);
+  ofm->flags = htons(OFPFF_SEND_FLOW_REM);
+  memcpy(ofm->actions, actions, action_len);
   return len;
 }
 

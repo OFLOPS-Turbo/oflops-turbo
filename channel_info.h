@@ -28,7 +28,6 @@ typedef struct channel_info {
     size_t outOID_len;              /**< length of the output OID structure */
     int cap_type;
     struct nf_cap_t *nf_cap;
-
 } channel_info;
 
 /**

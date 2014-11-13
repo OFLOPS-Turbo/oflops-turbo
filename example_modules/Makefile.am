@@ -6,6 +6,7 @@ SUBDIRS =  oflops_debug openflow_echo_delay \
            openflow_packet_in openflow_packet_out \
            openflow_action_delay\
            snmp_queue_delay openflow_reactive \
+		   openflow_delay_table \
            openflow_timer openflow_interaction_test 
 
 # openflow_action_delay nclude/nf_pktgen.h nf_pktgen_test openflow_port_status 

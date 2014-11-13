@@ -9,8 +9,8 @@
 #include "wc_event.h"
 
 enum oflops_channel_name {
-    OFLOPS_CONTROL = 0,		// openflow control channel, e.g., eth0
-    OFLOPS_DATA1,		// sending channel, e.g., eth1
+    OFLOPS_CONTROL = 0,		// openflow control channel, e.g., eth0/a  OFLOPS_DATA1,		// sending channel, e.g., eth1
+    OFLOPS_DATA1, 		// recving channel, e.g., eth2
     OFLOPS_DATA2, 		// recving channel, e.g., eth2
     OFLOPS_DATA3, 		// recving channel, e.g., eth2
     OFLOPS_DATA4, 		// recving channel, e.g., eth2
@@ -52,6 +52,9 @@ typedef struct {
   int snaplen;                            /**< maximum capture size of packet */
 
   int control_fd;                         /**<  */
+  ev_io *io_read_ch, *io_write_ch;							  /**< libev io event for the control_fd */
+  ev_async *async_ch;					  /**< libev async event to enable read on control_fd */
+  ev_async *io_break_async;					  /**< libev async event to enable read on control_fd */
   struct msgbuf * control_outgoing;       /**< (Deprecated) a linked list to store temporarily injected packets */
   int n_channels;                         /**< the number of channel currently used in the current context */
   int max_channels;                       /**< maximum number of channel supported by the channel array */
@@ -100,6 +103,6 @@ void setup_snmp_channel(oflops_context* ctx);
 void teardown_snmp_channel(oflops_context* ctx);
 
 void *event_loop(oflops_context *ctx);
-int wc_event_ev_add(oflops_context *ctx, void (*fun)(void *), void *arg, struct timeval key);
+int wc_event_ev_add(oflops_context *, void (*)(void *), void *, struct timeval, uint32_t, uint32_t);
 
 #endif

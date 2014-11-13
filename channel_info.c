@@ -17,6 +17,8 @@
 
 #include "channel_info.h"
 #include "utils.h"
+#include "msgbuf.h"
+#include "oflops_pcap.h"
 
 int channel_info_init(struct channel_info * channel, const char * dev)
 {
@@ -57,20 +59,48 @@ int channel_info_init(struct channel_info * channel, const char * dev)
     return 0;
 }
 
+char *
+ip2str(char *ret, uint32_t ip) {
+	sprintf(ret, "%d.%d.%d.%d", 
+			(ip & 0xFF000000) > 24, (ip & 0xFF0000) > 16,
+			(ip & 0xFF00) > 8, (ip & 0xFF));
+	return ret;
+}
+
+void 
+cap_filter_to_pcap(cap_filter f, char *buf, int len) {
+	int c = 0;
+	char ret[20];
+	if(f.proto) 
+		c += snprintf(buf + c, len, "proto %d ", f.proto);
+	if (f.src) 
+		c += snprintf(buf + c, len, "src host %s ", ip2str(ret, f.src));
+	if (f.src_mask) 
+		c += snprintf(buf + c, len, "src net %s ", ip2str(ret, f.src_mask));	
+	if (f.dst) 
+		c += snprintf(buf + c, len, "dst host %s ", ip2str(ret, f.dst));
+	if (f.dst_mask) 
+		c += snprintf(buf + c, len, "dst net %s ", ip2str(ret, f.dst_mask));
+	if(f.port) 
+		c += snprintf(buf + c, len, "port %d ", f.port);
+}
+
 /****************************************************
  * query module if they want pcap and set it up for them if yes
  * also create a raw_socket bound to each device if we have the
  * device set
  */
-
-
-void setup_channel(oflops_context *ctx, test_module *mod, enum oflops_channel_name ch)
+void 
+setup_channel(oflops_context *ctx, test_module *mod, enum oflops_channel_name ch)
 {
     char buf[BUFLEN];
     char errbuf[PCAP_ERRBUF_SIZE];
     struct bpf_program filter;
+	cap_filter *f;
+	int count = 0, ix;
     bpf_u_int32 mask = 0, net = 0;
     channel_info *ch_info = &ctx->channels[ch];
+	static int filter_count = 0;
 
     if(ch_info->dev == NULL) { // no device specified
         ch_info->dev = pcap_lookupdev(errbuf);
@@ -86,7 +116,7 @@ void setup_channel(oflops_context *ctx, test_module *mod, enum oflops_channel_na
     }
 
     // setup pcap filter, if wanted
-    if(mod->get_pcap_filter(ctx, ch, buf, BUFLEN) <= 0) {
+    if( (count = mod->get_pcap_filter(ctx, ch, &f)) <= 0) {
         fprintf(stderr, "Test %s:  No pcap filter for channel %d on %s\n",
                 mod->name(), ch, ch_info->dev);
         ch_info->pcap_handle = NULL;
@@ -94,6 +124,8 @@ void setup_channel(oflops_context *ctx, test_module *mod, enum oflops_channel_na
     }
 
     assert(ch_info->dev);       // need to have someting here
+
+	cap_filter_to_pcap(f[0], buf, BUFLEN);
     fprintf(stderr, "Test %s:  Starting pcap filter \"%s\" on dev %s for channel %d\n",
             mod->name(), buf, ch_info->dev, ch);
     errbuf[0] = 0;
@@ -158,6 +190,15 @@ void setup_channel(oflops_context *ctx, test_module *mod, enum oflops_channel_na
     } else  if(ch_info->cap_type == NF2) {
         ch_info->nf_cap = nf_cap_enable(ch_info->dev, ctx->snaplen);
         ch_info->pcap_fd = nf_cap_fileno(ch_info->nf_cap);
+
+		for (ix = 0; ix < count; ix++) {
+			cap_filter_to_pcap(f[ix], buf, BUFLEN);
+			printf("Enabling rule %s\n", buf);
+			nf_cap_add_rule(filter_count++, f[ix].proto, f[ix].src, f[ix].dst, 
+					f[ix].port, f[ix].proto_mask, f[ix].src_mask, f[ix].dst_mask, 
+					f[ix].port_mask);
+		}
+
         printf("nf2 capture on %s (sock:%d)\n", ch_info->dev , ch_info->pcap_fd);
     } else {
         perror_and_exit("Invalid capture type", 1);
