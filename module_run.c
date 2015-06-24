@@ -103,14 +103,12 @@ async_ctrl_read (EV_P_ ev_async *w, int revents)
 {
 	oflops_context *ctx = (oflops_context *) w->data;
 	// just used for the side effects
-	printf("got a control read permit\n");
 	ev_io_start(ctx->io_loop, ctx->io_write_ch);
 }
 
 static void
 end_io_loop (EV_P_ ev_async *w, int revents) {
 	oflops_context *ctx = (oflops_context *) w->data;
-	printf("XXXXXXXX ending io loop\n");
 	ev_break(ctx->io_loop, EVBREAK_ALL);
 }
 
@@ -158,7 +156,6 @@ static void test_module_loop(oflops_context *ctx, test_module *mod)
     ctx->io_break_async->data = (void*)ctx;
 
     ev_run(ctx->io_loop, 0);
-	printf("XXXXX termination io loop\n");
 }
 
 

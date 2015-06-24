@@ -41,7 +41,6 @@ static void event_callback(EV_P_ ev_timer *w, int revents) {
 
 static  void event_idle_callback(EV_P_ ev_timer *w, int revents)
 {
-	printf("null event\n");
     return;
 }
 

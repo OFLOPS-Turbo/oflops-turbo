@@ -350,7 +350,8 @@ handle_traffic_generation (oflops_context *ctx) {
   str_ip = inet_ntoa(ip);
   strcpy(det.dst_ip_max, str_ip);
   strcpy(det.mac_src,"00:1e:68:9a:c5:75");
-  strcpy(det.mac_dst,"00:15:17:7b:92:0a");
+  strcpy(det.mac_dst_base,"00:15:17:7b:92:0a");
+  det.mac_dst_count = 1;
   det.vlan = 0xffff;
   det.vlan_p = 0;
   det.vlan_cfi = 0;

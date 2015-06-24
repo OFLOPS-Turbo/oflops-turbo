@@ -105,9 +105,9 @@ void *start_capture_thread(void *param)
             cap->ctx = tmp->ctx;
             cap->ch = ch;
             io_ch->data = (void *)cap;
-            ev_run(tmp->ctx->data_loop, 0);
         }
     }
+	ev_run(tmp->ctx->data_loop, 0);
     return NULL;
 }
 
@@ -192,11 +192,12 @@ int main(int argc, char * argv[])
                 snprintf(msg, 1024, "%s:rcv:%u:%u", ctx->channels[j].dev,  stat.pkt_cnt,
                          (stat.pkt_cnt - stat.capture_packet_cnt));
                 oflops_log(now, PCAP_MSG, msg);
-                printf("%s\n", msg);
+                printf("device %s: %d packets transmitted, %u packets captured, %u packets dropped\n", 
+                         ctx->channels[j].dev,  gen_stat.pkt_snd_cnt, stat.pkt_cnt, (stat.pkt_cnt - stat.capture_packet_cnt));
                 // display_xmit_metrics(j-1, &gen_stat);
                 snprintf(msg, 1024, "%s:snd:%u", ctx->channels[j].dev, gen_stat.pkt_snd_cnt);
                 oflops_log(now, PCAP_MSG, msg);
-                printf("%s\n", msg);
+//                printf("%s\n", msg);
             }
         }
     }

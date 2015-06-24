@@ -201,7 +201,6 @@ int destroy(oflops_context *ctx) {
 int handle_timer_event(oflops_context * ctx, struct timer_event *te) {
 	char *str = te->arg;
 	int i;
-	struct timeval now;
 
 	//terminate process
 	if (strcmp(str, BYESTR) == 0) {
@@ -249,7 +248,6 @@ handle_pcap_event(oflops_context *ctx, struct pcap_event * pe, enum oflops_chann
 	struct pktgen_hdr *pktgen;
 	char msg[1024];
 	struct flow fl;
-	struct timeval now;
 	int id;
 
 	if (ch == OFLOPS_DATA1) {
@@ -426,7 +424,8 @@ handle_traffic_generation (oflops_context *ctx) {
 				(unsigned char)local_mac[2], (unsigned char)local_mac[3],
 				(unsigned char)local_mac[4], (unsigned char)local_mac[5]);
 
-	strcpy(det.mac_dst,"00:15:17:7b:92:0a");
+	strcpy(det.mac_dst_base, "00:15:17:7b:92:0a");
+	det.mac_dst_count = 1;
 	det.vlan = 0xffff;
 	det.vlan_p = 0;
 	det.vlan_cfi = 0;

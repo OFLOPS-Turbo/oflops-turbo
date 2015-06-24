@@ -25,7 +25,7 @@ struct pkt_details {
 	struct udphdr *udp;
 	struct tcphdr *tcp;
 	void *data;
-	int data_len;
+	uint32_t data_len;
 	struct pktgen_hdr *pktgen;
 };
 
@@ -42,7 +42,10 @@ int start_nf_traffic_generator(oflops_context *ctx);
 
 int init_traf_gen(oflops_context *ctx) {
 	if(ctx->trafficGen == PKTGEN) {
-		setuid(0);
+		if (setuid(0) < 0) {
+			perror("setuid failed");
+			exit(1);
+		}
 		if(system("/sbin/modprobe pktgen") != 0)
 			perror_and_exit("/sbin/modprobe pktgen failed", 1);
 	}
@@ -205,7 +208,7 @@ innitialize_generator_packet(struct pkt_details *state, struct traf_gen_det *det
 	//ethernet header with default values
 	state->eth_vlan = (struct ether_vlan_header *) state->data;
 	state->eth = (struct ether_header *) state->data;
-	read_mac_addr(state->eth->ether_dhost, det->mac_dst);
+	read_mac_addr(state->eth->ether_dhost, det->mac_dst_base);
 	read_mac_addr(state->eth->ether_shost, det->mac_src);
 	if(det->vlan != 0 && det->vlan != 0xffff) {
 		state->eth_vlan->tpid = htons(0x8100);
@@ -290,10 +293,12 @@ start_user_traffic_generator(oflops_context *ctx) {
 int
 start_nf_traffic_generator(oflops_context *ctx) {
 	int flow_num, ix, i;
+	uint32_t j;
 	struct traf_gen_det *det;
 	struct pkt_details pkt_state;
 	struct pcap_pkthdr h;
 	int pkt_count;
+	uint32_t seed;
 	uint32_t max_packets = 0xFFFFFFFF;
 	uint32_t iteration[] = {0,0,0,0};
 	int data_to_send = 0; // in case we only want to capture data, we enable the capturing module,
@@ -323,12 +328,11 @@ start_nf_traffic_generator(oflops_context *ctx) {
 				pkt_count = 1.2*flow_num;
 			if(pkt_count) iteration[ix-1] = max_packets/pkt_count;
 			else iteration[ix-1] = max_packets;
-			printf("queue %d: flow_mum %d iterations %u (%s - %s)\n",
-					ix-1, pkt_count, iteration[ix-1], det->dst_ip_max, det->dst_ip_min);
+//			printf("queue %d: flow_mum %d iterations %u (%s - %s)\n",
+//					ix-1, pkt_count, iteration[ix-1], det->dst_ip_max, det->dst_ip_min);
 		}
 	}
 
-	printf("Running nf packet gen\n");
 	for(ix = 0; ix < ctx->n_channels; ix++) {
 		if(ctx->channels[ix].det != NULL) {
 			det = ctx->channels[ix].det;
@@ -337,8 +341,8 @@ start_nf_traffic_generator(oflops_context *ctx) {
 			h.ts.tv_sec = 0;
 			h.ts.tv_usec = 0;
 			flow_num = ntohl(inet_addr(det->dst_ip_max)) - ntohl(inet_addr(det->dst_ip_min)) + 1;
-			printf("Found %d flows %d pkt size iteration %d\n", flow_num, h.caplen,
-					iteration[ix - 1] );
+//			printf("Found %d flows %d pkt size iteration %d\n", flow_num, h.caplen,
+//					iteration[ix - 1] );
 
 			innitialize_generator_packet(&pkt_state, ctx->channels[ix].det);
 			nf_gen_set_number_iterations (iteration[ix - 1], 1, ix-1);
@@ -347,14 +351,18 @@ start_nf_traffic_generator(oflops_context *ctx) {
 			if(strstr(det->flags, "IPDST_RND") != NULL)
 				pkt_count += 0.2*flow_num;
 
-			for(i = 0; i < pkt_count; i++) {
-				if(strstr(det->flags, "IPDST_RND") != NULL)
-					pkt_state.ip->daddr = htonl(ntohl(inet_addr(det->dst_ip_min)) + rand()%(flow_num));
-				else
-					pkt_state.ip->daddr = htonl(ntohl(inet_addr(det->dst_ip_min)) + i);
-				pkt_state.ip->check=0x0;
-				pkt_state.ip->check=htons(ip_sum_calc(20, (uint16_t *)pkt_state.ip));
-				nf_gen_load_packet(&h, pkt_state.data, ix - 1, det->delay);
+			memcpy(&seed, (pkt_state.eth->ether_dhost + 2), sizeof(uint32_t));
+			for (j = seed; j < seed + det->mac_dst_count; j++) {
+				memcpy(pkt_state.eth->ether_dhost + 2, &j, sizeof(uint32_t));
+				for(i = 0; i < pkt_count; i++) {
+					if(strstr(det->flags, "IPDST_RND") != NULL)
+						pkt_state.ip->daddr = htonl(ntohl(inet_addr(det->dst_ip_min)) + rand()%(flow_num));
+					else
+						pkt_state.ip->daddr = htonl(ntohl(inet_addr(det->dst_ip_min)) + i);
+					pkt_state.ip->check=0x0;
+					pkt_state.ip->check=htons(ip_sum_calc(20, (uint16_t *)pkt_state.ip));
+					nf_gen_load_packet(&h, pkt_state.data, ix - 1, det->delay);
+				}
 			}
 		}
 	}
@@ -432,7 +440,7 @@ start_pktgen_traffic_generator(oflops_context *ctx) {
 			snprintf(buf, 5000, "vlan_cfi %d", ctx->channels[ix].det->vlan_cfi);
 			printf_and_check(intf_file, buf);
 
-			snprintf(buf, 5000, "dst_mac %s", ctx->channels[ix].det->mac_dst);
+			snprintf(buf, 5000, "dst_mac %s", ctx->channels[ix].det->mac_dst_base);
 			printf_and_check(intf_file, buf);
 			snprintf(buf, 5000, "src_mac %s", ctx->channels[ix].det->mac_src);
 			printf_and_check(intf_file, buf);

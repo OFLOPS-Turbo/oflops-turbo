@@ -55,7 +55,6 @@ oflops_context * oflops_default_context(void) {
   ctx->data_loop = ev_loop_new(EVFLAG_AUTO);
   ctx->cpuOID_len = NULL;
   ctx->cpuOID = NULL;
-  printf("io_loop=%p, timer_loop=%p\n", ctx->io_loop, ctx->timer_loop);
 
   return ctx;
 }

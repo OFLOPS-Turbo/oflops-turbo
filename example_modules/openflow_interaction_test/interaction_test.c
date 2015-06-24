@@ -433,7 +433,6 @@ int handle_timer_event(oflops_context * ctx, struct timer_event *te)
   int len, i, ret;
   void *b = NULL;
   char *str = te->arg;
-  struct timeval now;
   char msg[100];
   struct flow fl;
   struct pollfd * poll_set = malloc(sizeof(struct pollfd));
@@ -598,7 +597,6 @@ int handle_pcap_event(oflops_context *ctx, struct pcap_event *pe,
   struct flow fl;
   struct in_addr addr;
   char msg[1024];
-  struct timeval now;
 
   pktgen = extract_pktgen_pkt(ctx, ch, (unsigned char *)pe->data, pe->pcaphdr.caplen, &fl);
   if ((pktgen != NULL) && (ch == OFLOPS_DATA2) ) {
@@ -652,7 +650,8 @@ handle_traffic_generation (oflops_context *ctx) {
    	     (unsigned char)data_mac[0], (unsigned char)data_mac[1],
    	     (unsigned char)data_mac[2], (unsigned char)data_mac[3],
    	     (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
-  strcpy(det.mac_dst,"00:15:17:7b:92:0a");
+  strcpy(det.mac_dst_base, "00:15:17:7b:92:0a");
+  det.mac_dst_count = 1;
   det.vlan = 0xffff;
   det.delay = probe_snd_interval*1000;
   strcpy(det.flags, "IPDST_RND");
@@ -673,7 +672,8 @@ handle_traffic_generation (oflops_context *ctx) {
 	     (unsigned char)data_mac[2], (unsigned char)data_mac[3],
 	     (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
 
-  strcpy(det.mac_dst,"00:15:17:7b:92:0a");
+  strcpy(det.mac_dst_base, "00:15:17:7b:92:0a");
+  det.mac_dst_count = 1;
   det.vlan = 0xffff;
   det.vlan_p = 1;
   det.vlan_cfi = 0;

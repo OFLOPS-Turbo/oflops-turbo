@@ -430,7 +430,8 @@ handle_traffic_generation (oflops_context *ctx) {
         (unsigned char)data_mac[2], (unsigned char)data_mac[3],
         (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
   printf("src mac %s\n", det.mac_src );
-  strcpy(det.mac_dst,"00:15:17:7b:92:0a");
+  strcpy(det.mac_dst_base,"00:15:17:7b:92:0a");
+  det.mac_dst_count = 1;
   det.vlan = 0;
   det.vlan_p = 0;
   det.vlan_cfi = 0;

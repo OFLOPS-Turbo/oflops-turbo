@@ -140,7 +140,7 @@ make_ofp_flow_modify_output_port(void **buferp, struct flow *fl, uint32_t out_po
   ofm->idle_timeout = htons(idle_timeout);
   ofm->hard_timeout = htons(OFP_FLOW_PERMANENT);
   ofm->buffer_id = htonl(-1); //buffer_id);
-  ofm->command = htons(OFPFC_ADD);
+  ofm->command = htons(OFPFC_MODIFY);
   ofm->flags = htons(OFPFF_SEND_FLOW_REM);
   p->type = htons(OFPAT_OUTPUT);
   p->len = htons(8);
@@ -194,7 +194,7 @@ make_ofp_flow_del(void **buferp) {
   ofm->idle_timeout = 0;
   ofm->hard_timeout = htons(OFP_FLOW_PERMANENT);
   ofm->buffer_id = htonl(-1);
-  ofm->priority = htons(32768);
+  ofm->priority = htonl(-1); // htons(32768);
   ofm->command = htons(OFPFC_DELETE);
   ofm->out_port = htons(OFPP_NONE); //htons(OFPP_NONE); //
 

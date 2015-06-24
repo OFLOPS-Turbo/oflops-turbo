@@ -554,7 +554,7 @@ handle_snmp_event(oflops_context * ctx, struct snmp_event * se) {
         for (i = 0; i < ctx->cpuOID_count; i++) {
             if((vars->name_length == ctx->cpuOID_len[i]) &&
                     (memcmp(vars->name, ctx->cpuOID[i],  ctx->cpuOID_len[i] * sizeof(oid)) == 0) ) {
-                snprintf(msg, len, "cpu : %s %%", count);
+                snprintf(msg, len, "cpu : %d %%", count[0]);
                 oflops_log(now, SNMP_MSG, msg);
             }
         }
@@ -563,9 +563,9 @@ handle_snmp_event(oflops_context * ctx, struct snmp_event * se) {
             if((vars->name_length == ctx->channels[i].inOID_len) &&
                     (memcmp(vars->name, ctx->channels[i].inOID,
                             ctx->channels[i].inOID_len * sizeof(oid)) == 0) ) {
-                snprintf(msg, len, "port %d : rx %s pkts",
+                snprintf(msg, len, "port %d : rx %d pkts",
                         (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1],
-                        count);
+                        count[0]);
                 oflops_log(now, SNMP_MSG, msg);
                 break;
             }
@@ -573,8 +573,8 @@ handle_snmp_event(oflops_context * ctx, struct snmp_event * se) {
             if((vars->name_length == ctx->channels[i].outOID_len) &&
                     (memcmp(vars->name, ctx->channels[i].outOID,
                             ctx->channels[i].outOID_len * sizeof(oid))==0) ) {
-                snprintf(msg, len, "port %d : tx %s pkts",
-                        (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], count);
+                snprintf(msg, len, "port %d : tx %d pkts",
+                        (int)ctx->channels[i].outOID[ctx->channels[i].outOID_len-1], count[0]);
                 oflops_log(now, SNMP_MSG, msg);
                 break;
             }
@@ -664,7 +664,8 @@ handle_traffic_generation (oflops_context *ctx) {
                 (unsigned char)data_mac[2], (unsigned char)data_mac[3],
                 (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
 
-    strcpy(det.mac_dst,"00:1e:68:9a:c5:75");
+    strcpy(det.mac_dst_base, "00:1e:68:9a:c5:75");
+	det.mac_dst_count = 1;
     det.vlan = 0xffff;
     det.vlan_p = 1;
     det.vlan_cfi = 0;
@@ -684,7 +685,8 @@ handle_traffic_generation (oflops_context *ctx) {
                 (unsigned char)probe_mac[0], (unsigned char)probe_mac[1],
                 (unsigned char)probe_mac[2], (unsigned char)probe_mac[3],
                 (unsigned char)probe_mac[4], (unsigned char)probe_mac[5]);
-    strcpy(det.mac_dst,"00:15:17:7b:92:0a");
+    strcpy(det.mac_dst_base,"00:15:17:7b:92:0a");
+	det.mac_dst_count = 1;
     det.vlan = 0xffff;
     det.delay = probe_snd_interval*1000;
     strcpy(det.flags, "");

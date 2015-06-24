@@ -472,7 +472,6 @@ int handle_timer_event(oflops_context * ctx, struct timer_event *te)
     int i;
     void *b = NULL;
     char *str = te->arg;
-    struct timeval now;
     uint32_t flow_netmask;
     //send flow statistics request.
     if(strcmp(str, GETSTAT) == 0) {
@@ -653,7 +652,8 @@ handle_traffic_generation (oflops_context *ctx) {
                 (unsigned char)data_mac[0], (unsigned char)data_mac[1],
                 (unsigned char)data_mac[2], (unsigned char)data_mac[3],
                 (unsigned char)data_mac[4], (unsigned char)data_mac[5]);
-    strcpy(det.mac_dst,"00:1e:68:9a:c5:75");
+    strcpy(det.mac_dst_base, "00:1e:68:9a:c5:75");
+	det.mac_dst_count = 1;
     det.vlan = 0xffff;
     det.vlan_p = 1;
     det.vlan_cfi = 0;
@@ -674,7 +674,8 @@ handle_traffic_generation (oflops_context *ctx) {
                 (unsigned char)probe_mac[0], (unsigned char)probe_mac[1],
                 (unsigned char)probe_mac[2], (unsigned char)probe_mac[3],
                 (unsigned char)probe_mac[4], (unsigned char)probe_mac[5]);
-    strcpy(det.mac_dst,"00:15:17:7b:92:0a");
+    strcpy(det.mac_dst_base, "00:15:17:7b:92:0a");
+	det.mac_dst_count = 1;
     det.vlan = 0xffff;
     det.delay = probe_snd_interval*1000;
     strcpy(det.flags, "");

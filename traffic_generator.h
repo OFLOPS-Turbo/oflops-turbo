@@ -17,7 +17,8 @@
 struct traf_gen_det {
   char intf_name[20];
   char src_ip[20], dst_ip_max[20], dst_ip_min[20];
-  char mac_dst[20], mac_src[20];
+  char mac_dst_base[20], mac_src[20];
+  uint32_t mac_dst_count;
   uint16_t udp_src_port, udp_dst_port;
   uint32_t pkt_size;
   uint16_t vlan;

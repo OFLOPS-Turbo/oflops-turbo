@@ -128,6 +128,7 @@ AC_CONFIG_FILES([Makefile \
                  example_modules/oflops_debug/Makefile \
                  example_modules/openflow_action_delay/Makefile \
                  example_modules/openflow_add_flow/Makefile \
+                 example_modules/openflow_add_flow_blueswitch/Makefile \
                  example_modules/openflow_mod_flow/Makefile \
                  example_modules/openflow_flow_stats/Makefile \
                  example_modules/openflow_aggr_flow_stats/Makefile \

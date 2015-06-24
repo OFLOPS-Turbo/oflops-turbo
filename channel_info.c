@@ -193,13 +193,13 @@ setup_channel(oflops_context *ctx, test_module *mod, enum oflops_channel_name ch
 
 		for (ix = 0; ix < count; ix++) {
 			cap_filter_to_pcap(f[ix], buf, BUFLEN);
-			printf("Enabling rule %s\n", buf);
+			printf("Enabling rule \"%s\"\n", buf);
 			nf_cap_add_rule(filter_count++, f[ix].proto, f[ix].src, f[ix].dst, 
 					f[ix].port, f[ix].proto_mask, f[ix].src_mask, f[ix].dst_mask, 
 					f[ix].port_mask);
 		}
 
-        printf("nf2 capture on %s (sock:%d)\n", ch_info->dev , ch_info->pcap_fd);
+//        printf("nf2 capture on %s (sock:%d)\n", ch_info->dev , ch_info->pcap_fd);
     } else {
         perror_and_exit("Invalid capture type", 1);
     }
